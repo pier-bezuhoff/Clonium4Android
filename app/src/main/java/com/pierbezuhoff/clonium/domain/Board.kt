@@ -2,17 +2,24 @@ package com.pierbezuhoff.clonium.domain
 
 import androidx.annotation.IntRange
 
+/** [Pos]ition on [Board]:
+ * [x] = `0..(board.width - 1)` -- column
+ * [y] = `0..(board.height - 1)` -- row */
 data class Pos(val x: Int, val y: Int)
 object Cell
 
 interface EmptyBoard {
     val width: Int
     val height: Int
-    fun cellAt(pos: Pos): Cell?
+    fun hasCell(pos: Pos): Boolean
+    fun cellAt(pos: Pos): Cell? =
+        if (hasCell(pos)) Cell else null
+    /** [Set] of [Pos]s with [Cell] */
     fun asPosSet(): Set<Pos>
 }
 
-data class Player(val id: Int)
+/** Owner of [Chip], [id] MUST be unique and non-negative */
+data class Player(/** Unique, non-negative */ val id: Int)
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Any()
     , Comparable<Level>
 {
@@ -32,13 +39,21 @@ data class Chip(val player: Player, val level: Level)
 
 interface Board {
     fun chipAt(pos: Pos): Chip?
-    fun playerAt(pos: Pos): Player? = chipAt(pos)?.player
-    fun levelAt(pos: Pos): Level? = chipAt(pos)?.level
+    fun hasChip(pos: Pos): Boolean =
+        chipAt(pos) != null
+    fun playerAt(pos: Pos): Player? =
+        chipAt(pos)?.player
+    fun levelAt(pos: Pos): Level? =
+        chipAt(pos)?.level
+    /** For [Pos] with [Cell]: [Map.Entry<Pos, Chip?>] */
     fun asPosMap(): Map<Pos, Chip?>
 }
 
 enum class ExplosionEndState {
-    LAND, FALLOUT
+    /** After [Explosion] [Chip] lands on [Cell] */
+    LAND,
+    /** After [Explosion] [Chip] falls from the [Board] */
+    FALLOUT
 }
 data class Explosion(
     val player: Player,
@@ -48,6 +63,7 @@ data class Explosion(
     val down: ExplosionEndState,
     val left: ExplosionEndState
 )
+/** Series of simultaneous [Explosion]s */
 data class Transition(
     val interimState: Board,
     val endState: Board,

@@ -21,8 +21,11 @@ class PrimitiveBoard(
     private inline fun ix2pos(ix: Int): Pos =
         Pos(ix % width, ix / width)
 
-    override fun cellAt(pos: Pos): Cell? =
-        if (chips[pos2ix(pos)] == NO_CELL) null else Cell
+    private fun hasCell(ix: Int): Boolean =
+        ix in chips.indices && chips[ix] != NO_CELL
+
+    override fun hasCell(pos: Pos): Boolean =
+        hasCell(pos2ix(pos))
 
     override fun asPosSet(): Set<Pos> {
         val poss = mutableSetOf<Pos>()
@@ -77,24 +80,12 @@ class PrimitiveBoard(
     private fun ix4(ix: Int): Set<Int> =
         setOf(ix - width, ix - 1, ix + 1, ix + width)
 
-    private fun hasCell(ix: Int): Boolean =
-        ix in chips.indices && chips[ix] != NO_CELL
-
     private fun hasChip(ix: Int): Boolean =
         hasCell(ix) && chips[ix] != NO_CHIP
 
     /** Neighbor indices of [ix] with [Cell] */
     private fun neighbors(ix: Int): Set<Int> =
         ix4(ix).filter(this::hasCell).toSet()
-
-    private fun dec(ix: Int) {
-        require(hasChip(ix))
-        val level = levelAt(ix)!!
-        if (level > Level(1))
-            chips[ix] -= 1
-        else
-            chips[ix] = NO_CHIP
-    }
 
     private fun hasUnstableLevel(ix: Int): Boolean =
         levelAt(ix)?.let { it >= Level.MIN_UNSTABLE_LEVEL } == true
