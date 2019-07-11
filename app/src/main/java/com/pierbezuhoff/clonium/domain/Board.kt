@@ -11,7 +11,8 @@ object Cell
 interface EmptyBoard {
     val width: Int
     val height: Int
-    fun hasCell(pos: Pos): Boolean
+    fun hasCell(pos: Pos): Boolean =
+        pos in asPosSet()
     fun cellAt(pos: Pos): Cell? =
         if (hasCell(pos)) Cell else null
     /** [Set] of [Pos]s with [Cell] */
@@ -20,9 +21,7 @@ interface EmptyBoard {
 
 /** Owner of [Chip], [id] MUST be unique and non-negative */
 data class Player(/** Unique, non-negative */ val id: Int)
-data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Any()
-    , Comparable<Level>
-{
+data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
     override fun compareTo(other: Level): Int =
         ordinal.compareTo(other.ordinal)
     operator fun plus(delta: Int): Level =
@@ -37,8 +36,9 @@ data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Any()
 }
 data class Chip(val player: Player, val level: Level)
 
-interface Board {
-    fun chipAt(pos: Pos): Chip?
+interface Board : EmptyBoard {
+    fun chipAt(pos: Pos): Chip? =
+        if (!hasCell(pos)) null else asPosMap()[pos]
     fun hasChip(pos: Pos): Boolean =
         chipAt(pos) != null
     fun playerAt(pos: Pos): Player? =
@@ -47,6 +47,15 @@ interface Board {
         chipAt(pos)?.level
     /** For [Pos] with [Cell]: [Map.Entry<Pos, Chip?>] */
     fun asPosMap(): Map<Pos, Chip?>
+}
+
+class SimpleBoard(
+    override val width: Int,
+    override val height: Int,
+    private val posMap: Map<Pos, Chip?>
+) : Board {
+    override fun asPosSet(): Set<Pos> = posMap.keys
+    override fun asPosMap(): Map<Pos, Chip?> = posMap
 }
 
 enum class ExplosionEndState {

@@ -7,11 +7,18 @@ class PrimitiveBoard(
     override val width: Int,
     override val height: Int,
     private val chips: IntArray
-) : Any()
-    , EmptyBoard
-    , Board
-    , EvolvingBoard
-{
+) : EvolvingBoard {
+    constructor(board: Board) : this(
+        board.width, board.height,
+        IntArray(board.width * board.height).apply {
+            val proto = PrimitiveBoard(board.width, board.height, intArrayOf())
+            for (ix in indices)
+                this[ix] = NO_CELL
+            for ((pos, maybeChip) in board.asPosMap())
+                this[proto.pos2ix(pos)] = proto.chip2int(maybeChip)
+        }
+    )
+
     fun copy(): PrimitiveBoard =
         PrimitiveBoard(width, height, chips.clone())
 
@@ -187,6 +194,37 @@ class PrimitiveBoard(
             emptySequence()
         else
             evolveTransitions(setOf(ix))
+    }
+
+    private fun ix2str(ix: Int): String =
+        when {
+            !hasCell(ix) -> "  "
+            !hasChip(ix) -> "□ "
+            else -> {
+                val (player, level) = chipAt(ix)!!
+                val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
+                val playerChar =
+                    if (player.id <= 9)
+                        playerChars[player.id]
+                    else
+                        playerChars.last()
+                "${level.ordinal}$playerChar"
+            }
+        }
+
+    override fun toString(): String {
+        return buildString {
+            append("x>")
+            append((0 until width).joinToString { x -> "$x " })
+            for (y in 0 until height) {
+                appendln()
+                append("$y|")
+                append((0 until width).joinToString { x -> ix2str(pos2ix(Pos(x, y))) })
+            }
+            appendln()
+            append("x>")
+            append((0 until width).joinToString { x -> "$x " })
+        }
     }
 
     companion object {
