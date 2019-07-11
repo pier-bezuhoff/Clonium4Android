@@ -54,8 +54,9 @@ interface Board : EmptyBoard {
             .distinct()
             .toSet()
     fun possOf(playerId: PlayerId): Set<Pos> =
-        asPosMap().filterValues { chip -> chip?.playerId == playerId }
-            .keys.toSet()
+        asPosMap()
+            .filterValues { chip -> chip?.playerId == playerId }
+            .keys
 }
 
 class SimpleBoard(
