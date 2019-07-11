@@ -51,12 +51,13 @@ data class Explosion(
 data class Transition(
     val interimState: Board,
     val endState: Board,
-    val explosions: List<Explosion>
+    val explosions: Set<Explosion>
 )
 
 interface EvolvingBoard : Board {
     class InvalidTurn(reason: String) : Exception(reason)
 
     @Throws(InvalidTurn::class)
+    /** Increase [Level] at [pos] by 1, then explode all unstable chips while recording [Transition]s */
     fun inc(pos: Pos): Sequence<Transition>
 }
