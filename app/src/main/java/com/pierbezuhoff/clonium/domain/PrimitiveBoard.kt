@@ -3,7 +3,7 @@ package com.pierbezuhoff.clonium.domain
 import java.lang.Exception
 
 @Suppress("NOTHING_TO_INLINE")
-class PrimitiveBoard(
+class PrimitiveBoard private constructor(
     override val width: Int,
     override val height: Int,
     private val chips: IntArray
@@ -56,7 +56,7 @@ class PrimitiveBoard(
                 throw Exception("Impossible to decode $value with level = 0 to Chip?")
             else ->
                 Chip(
-                    Player(value / Level.MAX_LEVEL.ordinal),
+                    PlayerId(value / Level.MAX_LEVEL.ordinal),
                     Level(value % Level.MAX_LEVEL.ordinal)
                 )
         }
@@ -64,8 +64,8 @@ class PrimitiveBoard(
     private fun chipAt(ix: Int): Chip? =
         int2chip(chips[ix])
 
-    private fun playerAt(ix: Int): Player? =
-        int2chip(chips[ix])?.player
+    private fun playerAt(ix: Int): PlayerId? =
+        int2chip(chips[ix])?.playerId
 
     private fun levelAt(ix: Int): Level? =
         int2chip(chips[ix])?.level
@@ -107,12 +107,12 @@ class PrimitiveBoard(
     }
 
     /** Increase neighbors' levels by 1 */
-    private fun explodeToNeighbors(ix: Int, player: Player) {
+    private fun explodeToNeighbors(ix: Int, playerId: PlayerId) {
         for (i in neighbors(ix))
             if (chips[i] == NO_CHIP)
-                chips[i] = chip2int(Chip(player, Level(1)))
+                chips[i] = chip2int(Chip(playerId, Level(1)))
             else
-                chips[i] = chip2int(Chip(player, chipAt(i)!!.level + 1))
+                chips[i] = chip2int(Chip(playerId, chipAt(i)!!.level + 1))
     }
 
     /** For indices in [ixs]: [dec4] it and [explodeToNeighbors].
@@ -137,8 +137,8 @@ class PrimitiveBoard(
         val downIx = ix + width
         val leftIx = ix - 1
         val rightIx = ix + 1
-        fun endState(ix: Int): ExplosionEndState =
-            if (hasCell(ix)) ExplosionEndState.LAND else ExplosionEndState.FALLOUT
+        fun endState(ix: Int): Explosion.EndState =
+            if (hasCell(ix)) Explosion.EndState.LAND else Explosion.EndState.FALLOUT
         return Explosion(
             player, center = ix2pos(ix),
             up = endState(upIx), down = endState(downIx),

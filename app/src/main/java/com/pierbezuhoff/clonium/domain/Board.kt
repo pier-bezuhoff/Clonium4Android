@@ -20,7 +20,7 @@ interface EmptyBoard {
 }
 
 /** Owner of [Chip], [id] MUST be unique and non-negative */
-data class Player(/** Unique, non-negative */ val id: Int)
+data class PlayerId(/** Unique, non-negative */ val id: Int)
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
     override fun compareTo(other: Level): Int =
         ordinal.compareTo(other.ordinal)
@@ -34,19 +34,28 @@ data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Leve
         val MAX_LEVEL = Level(7)
     }
 }
-data class Chip(val player: Player, val level: Level)
+data class Chip(val playerId: PlayerId, val level: Level)
 
 interface Board : EmptyBoard {
     fun chipAt(pos: Pos): Chip? =
         if (!hasCell(pos)) null else asPosMap()[pos]
     fun hasChip(pos: Pos): Boolean =
         chipAt(pos) != null
-    fun playerAt(pos: Pos): Player? =
-        chipAt(pos)?.player
+    fun playerAt(pos: Pos): PlayerId? =
+        chipAt(pos)?.playerId
     fun levelAt(pos: Pos): Level? =
         chipAt(pos)?.level
-    /** For [Pos] with [Cell]: [Map.Entry<Pos, Chip?>] */
+    /** For [Pos] with [Cell]: `Map.Entry<Pos, Chip?>` */
     fun asPosMap(): Map<Pos, Chip?>
+    fun players(): Set<PlayerId> =
+        asPosMap().values
+            .filterNotNull()
+            .map { it.playerId }
+            .distinct()
+            .toSet()
+    fun possOf(playerId: PlayerId): Set<Pos> =
+        asPosMap().filterValues { chip -> chip?.playerId == playerId }
+            .keys.toSet()
 }
 
 class SimpleBoard(
@@ -58,20 +67,21 @@ class SimpleBoard(
     override fun asPosMap(): Map<Pos, Chip?> = posMap
 }
 
-enum class ExplosionEndState {
-    /** After [Explosion] [Chip] lands on [Cell] */
-    LAND,
-    /** After [Explosion] [Chip] falls from the [Board] */
-    FALLOUT
-}
 data class Explosion(
-    val player: Player,
+    val playerId: PlayerId,
     val center: Pos,
-    val up: ExplosionEndState,
-    val right: ExplosionEndState,
-    val down: ExplosionEndState,
-    val left: ExplosionEndState
-)
+    val up: EndState,
+    val right: EndState,
+    val down: EndState,
+    val left: EndState
+) {
+    enum class EndState {
+        /** After [Explosion] [Chip] lands on [Cell] */
+        LAND,
+        /** After [Explosion] [Chip] falls from the [Board] */
+        FALLOUT
+    }
+}
 /** Series of simultaneous [Explosion]s */
 data class Transition(
     val interimState: Board,
@@ -86,3 +96,4 @@ interface EvolvingBoard : Board {
     /** Increase [Level] at [pos] by 1, then explode all unstable chips while recording [Transition]s */
     fun inc(pos: Pos): Sequence<Transition>
 }
+
