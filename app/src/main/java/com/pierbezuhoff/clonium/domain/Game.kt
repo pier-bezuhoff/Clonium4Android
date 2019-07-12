@@ -17,12 +17,12 @@ class Game(
     init {
         val playerIds = initialOrder ?: board.players().shuffled().toList()
         val botIds = bots.map { it.playerId }
-        val botMap = bots.map { it.playerId to it }.toMap()
-        val humanMap = (playerIds - botIds).map { it to HumanPlayer(it) }.toMap()
+        val botMap = bots.associateBy { it.playerId }
+        val humanMap = (playerIds - botIds).associateWith { HumanPlayer(it) }
         players = botMap + humanMap
         order = playerIds.map { players.getValue(it) }
         require(order.isNotEmpty()) { "Game should have players" }
-        lives = order.map { it to board.possOf(it.playerId).isNotEmpty() }.toMap()
+        lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
     }
@@ -52,9 +52,7 @@ class Game(
 
     /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
     fun stat(): Map<Player, Pair<Int, Int>?> =
-        order.map { player ->
-            player to statOf(player)
-        }.toMap()
+        order.associateWith { statOf(it) }
 
     fun isEnd(): Boolean =
         lives.values.filter { it }.size > 1

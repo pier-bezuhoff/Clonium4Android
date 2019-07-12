@@ -19,6 +19,15 @@ interface EmptyBoard {
     fun asPosSet(): Set<Pos>
 }
 
+class SimpleEmptyBoard(
+    override val width: Int,
+    override val height: Int,
+    val posSet: MutableSet<Pos>
+) : EmptyBoard {
+    override fun asPosSet(): Set<Pos> =
+        posSet
+}
+
 /** Owner of [Chip], [id] MUST be unique and non-negative */
 data class PlayerId(/** Unique, non-negative */ val id: Int)
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
@@ -62,8 +71,14 @@ interface Board : EmptyBoard {
 class SimpleBoard(
     override val width: Int,
     override val height: Int,
-    private val posMap: Map<Pos, Chip?>
+    val posMap: MutableMap<Pos, Chip?>
 ) : Board {
+    constructor(emptyBoard: EmptyBoard) : this(
+        emptyBoard.width, emptyBoard.height,
+        mutableMapOf<Pos, Chip?>().apply {
+            emptyBoard.asPosSet().associateWithTo(this) { null }
+        }
+    )
     override fun asPosSet(): Set<Pos> = posMap.keys
     override fun asPosMap(): Map<Pos, Chip?> = posMap
 }
@@ -98,3 +113,75 @@ interface EvolvingBoard : Board {
     fun inc(pos: Pos): Sequence<Transition>
 }
 
+object EmptyBoardFactory {
+    private fun SimpleEmptyBoard.symmetricRemove(x: Int, y: Int) {
+        require(hasCell(Pos(x, y)))
+        posSet.removeAll(setOf(
+            Pos(x, y), Pos(x, height - 1 - y),
+            Pos(width - 1 - x, y), Pos(width - 1 - x, y)
+        ))
+    }
+
+    fun rectangular(width: Int, height: Int): SimpleEmptyBoard =
+        SimpleEmptyBoard(
+            width, height,
+            (0 until height).flatMap { y ->
+                (0 until width).map { x ->
+                    Pos(x, y)
+                }
+            }.toMutableSet()
+        )
+
+    fun roundedRectangular(width: Int, height: Int): SimpleEmptyBoard {
+        require(width >= 2 && height >= 2)
+        val emptyBoard = rectangular(width, height)
+        emptyBoard.symmetricRemove(0, 0)
+        return emptyBoard
+    }
+
+    // Default maps from BGC Clonium
+    val DEFAULT_1 = rectangular(8, 8)
+    val DEFAULT_2 = rectangular(6, 6)
+    val DEFAULT_3 = roundedRectangular(8, 8).apply {
+        symmetricRemove(3, 3)
+    }
+    val DEFAULT_4 = roundedRectangular(8, 8)
+    val DEFAULT_5 = rectangular(8, 8).apply {
+        symmetricRemove(0, 3)
+        symmetricRemove(3, 0)
+    }
+}
+
+object BoardFactory {
+    private fun SimpleBoard.spawn4symmetricPlayers(x: Int, y: Int) {
+        require(hasCell(Pos(x, y)))
+        val poss = setOf(
+            Pos(x, y), Pos(x, height - 1 - y),
+            Pos(width - 1 - x, y), Pos(width - 1 - x, height - 1 - y)
+        )
+        for ((i, pos) in poss.withIndex())
+            posMap[pos] = Chip(PlayerId(i), Level.MAX_STABLE_LEVEL)
+    }
+
+    private fun SimpleBoard.spawn4players(margin: Int = 1) {
+        require(2 * margin <= width && 2 * margin <= height)
+        spawn4symmetricPlayers(margin, margin)
+    }
+
+    fun rectangular(width: Int, height: Int, playerMargin: Int = 1): SimpleBoard =
+        SimpleBoard(EmptyBoardFactory.rectangular(width, height)).apply {
+            spawn4players(playerMargin)
+        }
+
+    fun roundedRectangular(width: Int, height: Int, playerMargin: Int = 1): SimpleBoard =
+        SimpleBoard(EmptyBoardFactory.roundedRectangular(width, height)).apply {
+            spawn4players(playerMargin)
+        }
+
+    // Default maps from BGC Clonium
+    val DEFAULT_1 = SimpleBoard(EmptyBoardFactory.DEFAULT_1).apply { spawn4players() }
+    val DEFAULT_2 = SimpleBoard(EmptyBoardFactory.DEFAULT_2).apply { spawn4players() }
+    val DEFAULT_3 = SimpleBoard(EmptyBoardFactory.DEFAULT_3).apply { spawn4players() }
+    val DEFAULT_4 = SimpleBoard(EmptyBoardFactory.DEFAULT_4).apply { spawn4players() }
+    val DEFAULT_5 = SimpleBoard(EmptyBoardFactory.DEFAULT_5).apply { spawn4players() }
+}
