@@ -139,7 +139,7 @@ object EmptyBoardFactory {
         return emptyBoard
     }
 
-    // Default maps from BGC Clonium
+    // Default empty boards from BGC Clonium
     val DEFAULT_1 = rectangular(8, 8)
     val DEFAULT_2 = rectangular(6, 6)
     val DEFAULT_3 = roundedRectangular(8, 8).apply {
@@ -178,7 +178,7 @@ object BoardFactory {
             spawn4players(playerMargin)
         }
 
-    // Default maps from BGC Clonium
+    // Default boards from BGC Clonium
     val DEFAULT_1 = SimpleBoard(EmptyBoardFactory.DEFAULT_1).apply { spawn4players() }
     val DEFAULT_2 = SimpleBoard(EmptyBoardFactory.DEFAULT_2).apply { spawn4players() }
     val DEFAULT_3 = SimpleBoard(EmptyBoardFactory.DEFAULT_3).apply { spawn4players() }

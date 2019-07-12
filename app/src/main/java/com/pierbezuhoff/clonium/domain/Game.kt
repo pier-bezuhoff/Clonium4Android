@@ -57,9 +57,10 @@ class Game(
     fun isEnd(): Boolean =
         lives.values.filter { it }.size > 1
 
-    private fun makeTurn(pos: Pos): Sequence<Transition> {
-        require(pos in possibleTurns())
-        val transitions = board.inc(pos)
+    private fun makeTurn(turn: Pos): Sequence<Transition> {
+        if (turn !in possibleTurns())
+            throw EvolvingBoard.InvalidTurn("Turn $turn is impossible for player $currentPlayer")
+        val transitions = board.inc(turn)
         currentPlayer = nextPlayer()
         return transitions
     }
