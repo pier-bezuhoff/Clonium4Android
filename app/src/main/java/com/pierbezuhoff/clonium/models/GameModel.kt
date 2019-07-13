@@ -44,6 +44,7 @@ class GameModel(
                 delay(1_000) // TMP
                 val transitions = with(game) { botTurnAsync() }.await()
                 continueGame()
+                Unit
             }
         } else {
             // highlight possible turns, etc.
