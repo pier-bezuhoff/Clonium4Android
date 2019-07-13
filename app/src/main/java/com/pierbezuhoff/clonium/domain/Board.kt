@@ -112,6 +112,8 @@ interface EvolvingBoard : Board {
     /** Increase [Level] at [pos] by 1, then explode all unstable chips while recording [Transition]s */
     fun inc(pos: Pos): Sequence<Transition>
 }
+fun EvolvingBoard(board: Board): EvolvingBoard =
+    PrimitiveBoard(board)
 
 object EmptyBoardFactory {
     private fun SimpleEmptyBoard.symmetricRemove(x: Int, y: Int) {
