@@ -1,7 +1,7 @@
 package com.pierbezuhoff.clonium
 
 import android.app.Application
-import com.pierbezuhoff.clonium.di.appModule
+import com.pierbezuhoff.clonium.di.gameModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -12,7 +12,7 @@ class CloniumApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@CloniumApplication)
-            modules(appModule)
+            modules(gameModule)
         }
     }
 }

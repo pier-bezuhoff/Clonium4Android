@@ -2,6 +2,7 @@ package com.pierbezuhoff.clonium.domain
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
 interface Game {
@@ -11,14 +12,15 @@ interface Game {
     val lives: Map<Player, Boolean>
     val currentPlayer: Player
 
+    /** <= 1 alive player */
     fun isEnd(): Boolean
 
+    /** Possible turns ([Pos]s) of [currentPlayer] */
     fun possibleTurns(): Set<Pos>
 
     /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
     fun stat(): Map<Player, Pair<Int, Int>?>
 
-    @Throws(EvolvingBoard.InvalidTurn::class)
     fun humanTurn(pos: Pos): Sequence<Transition>
 
     fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>>
@@ -57,7 +59,7 @@ class SimpleGame(
 
     private fun nextPlayer(): Player {
         val ix = order.indexOf(currentPlayer)
-        return (order.drop(ix) + order).first { isAlive(it) }
+        return (order.drop(ix + 1) + order).first { isAlive(it) }
     }
 
     override fun possibleTurns(): Set<Pos> =
@@ -83,14 +85,12 @@ class SimpleGame(
         lives.values.filter { it }.size > 1
 
     private fun makeTurn(turn: Pos): Sequence<Transition> {
-        if (turn !in possibleTurns())
-            throw EvolvingBoard.InvalidTurn("Turn $turn is impossible for player $currentPlayer")
+        require(turn in possibleTurns())
         val transitions = board.inc(turn)
         currentPlayer = nextPlayer()
         return transitions
     }
 
-    @Throws(EvolvingBoard.InvalidTurn::class)
     override fun humanTurn(pos: Pos): Sequence<Transition> {
         require(currentPlayer is HumanPlayer)
         return makeTurn(pos)
@@ -98,7 +98,7 @@ class SimpleGame(
 
     override fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>> {
         require(currentPlayer is Bot)
-        return async {
+        return async(Dispatchers.Default) {
             val turn =
                 with(currentPlayer as Bot) { makeTurnAsync(board) }.await()
             return@async makeTurn(turn)

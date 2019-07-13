@@ -11,12 +11,36 @@ object Cell
 interface EmptyBoard {
     val width: Int
     val height: Int
-    fun hasCell(pos: Pos): Boolean =
-        pos in asPosSet()
-    fun cellAt(pos: Pos): Cell? =
-        if (hasCell(pos)) Cell else null
+
     /** [Set] of [Pos]s with [Cell] */
     fun asPosSet(): Set<Pos>
+
+    fun hasCell(pos: Pos): Boolean =
+        pos in asPosSet()
+
+    fun cellAt(pos: Pos): Cell? =
+        if (hasCell(pos)) Cell else null
+
+    fun pos2str(pos: Pos): String =
+        when {
+            !hasCell(pos) -> "  "
+            else -> "□ "
+        }
+
+    fun asString(): String {
+        return buildString {
+            append((0 until width)
+                .joinToString(prefix = "x>", separator = "", postfix = "<x") { x -> "$x " })
+            for (y in 0 until height) {
+                appendln()
+                append((0 until width)
+                    .joinToString(prefix = "$y|", separator = "", postfix = "|$y") { x -> pos2str(Pos(x, y)) })
+            }
+            appendln()
+            append((0 until width).joinToString(prefix = "x>", separator = "", postfix = "<x") { x -> "$x " })
+            appendln()
+        }
+    }
 }
 
 class SimpleEmptyBoard(
@@ -26,6 +50,9 @@ class SimpleEmptyBoard(
 ) : EmptyBoard {
     override fun asPosSet(): Set<Pos> =
         posSet
+
+    override fun toString(): String =
+        asString()
 }
 
 /** Owner of [Chip], [id] MUST be unique and non-negative */
@@ -46,26 +73,48 @@ data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Leve
 data class Chip(val playerId: PlayerId, val level: Level)
 
 interface Board : EmptyBoard {
-    fun chipAt(pos: Pos): Chip? =
-        if (!hasCell(pos)) null else asPosMap()[pos]
-    fun hasChip(pos: Pos): Boolean =
-        chipAt(pos) != null
-    fun playerAt(pos: Pos): PlayerId? =
-        chipAt(pos)?.playerId
-    fun levelAt(pos: Pos): Level? =
-        chipAt(pos)?.level
     /** For [Pos] with [Cell]: `Map.Entry<Pos, Chip?>` */
     fun asPosMap(): Map<Pos, Chip?>
+
+    fun chipAt(pos: Pos): Chip? =
+        if (!hasCell(pos)) null else asPosMap()[pos]
+
+    fun hasChip(pos: Pos): Boolean =
+        chipAt(pos) != null
+
+    fun playerAt(pos: Pos): PlayerId? =
+        chipAt(pos)?.playerId
+
+    fun levelAt(pos: Pos): Level? =
+        chipAt(pos)?.level
+
     fun players(): Set<PlayerId> =
         asPosMap().values
             .filterNotNull()
             .map { it.playerId }
             .distinct()
             .toSet()
+
     fun possOf(playerId: PlayerId): Set<Pos> =
         asPosMap()
             .filterValues { chip -> chip?.playerId == playerId }
             .keys
+
+    override fun pos2str(pos: Pos): String =
+        when {
+            !hasCell(pos) -> "  "
+            !hasChip(pos) -> "□ "
+            else -> {
+                val (player, level) = chipAt(pos)!!
+                val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
+                val playerChar =
+                    if (player.id <= 9)
+                        playerChars[player.id]
+                    else
+                        playerChars.last()
+                "${level.ordinal}$playerChar"
+            }
+        }
 }
 
 class SimpleBoard(
@@ -81,6 +130,8 @@ class SimpleBoard(
     )
     override fun asPosSet(): Set<Pos> = posMap.keys
     override fun asPosMap(): Map<Pos, Chip?> = posMap
+    override fun toString(): String =
+        asString()
 }
 
 data class Explosion(
@@ -120,7 +171,7 @@ object EmptyBoardFactory {
         require(hasCell(Pos(x, y)))
         posSet.removeAll(setOf(
             Pos(x, y), Pos(x, height - 1 - y),
-            Pos(width - 1 - x, y), Pos(width - 1 - x, y)
+            Pos(width - 1 - x, y), Pos(width - 1 - x, height - 1 - y)
         ))
     }
 

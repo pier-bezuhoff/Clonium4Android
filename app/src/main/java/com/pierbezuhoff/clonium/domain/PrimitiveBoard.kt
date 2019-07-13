@@ -196,36 +196,8 @@ class PrimitiveBoard private constructor(
             evolveTransitions(setOf(ix))
     }
 
-    private fun ix2str(ix: Int): String =
-        when {
-            !hasCell(ix) -> "  "
-            !hasChip(ix) -> "□ "
-            else -> {
-                val (player, level) = chipAt(ix)!!
-                val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
-                val playerChar =
-                    if (player.id <= 9)
-                        playerChars[player.id]
-                    else
-                        playerChars.last()
-                "${level.ordinal}$playerChar"
-            }
-        }
-
-    override fun toString(): String {
-        return buildString {
-            append("x>")
-            append((0 until width).joinToString { x -> "$x " })
-            for (y in 0 until height) {
-                appendln()
-                append("$y|")
-                append((0 until width).joinToString { x -> ix2str(pos2ix(Pos(x, y))) })
-            }
-            appendln()
-            append("x>")
-            append((0 until width).joinToString { x -> "$x " })
-        }
-    }
+    override fun toString(): String =
+        asString()
 
     companion object {
         private const val NO_CELL = -2

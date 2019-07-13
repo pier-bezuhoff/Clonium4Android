@@ -13,14 +13,18 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.utils.Once
+import org.koin.core.KoinComponent
+import org.koin.core.get
+import java.lang.IllegalArgumentException
 
 class GameView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : SurfaceView(context, attrs, defStyleAttr) {
+) : SurfaceView(context, attrs, defStyleAttr), KoinComponent {
     lateinit var viewModel: GameViewModel // inject via data binding
 
     init {
         holder.addCallback(SurfaceManager { viewModel.gameModel } )
+        get<GameGestures>().registerAsOnTouchListenerFor(this)
     }
 }
 
@@ -64,33 +68,43 @@ class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>) : Any(
 }
 
 // MAYBE: it can be cancellable coroutine
-// MAYBE: cr. interface Callback { fun advance(timeDelta: Long); draw(canvas: Canvas) }
+// MAYBE: rewrap LiveData into Connection
 class DrawThread(
-    private val gameModel: LiveData<GameModel>,
+    private val liveCallback: LiveData<out Callback>,
     private val surfaceHolder: SurfaceHolder
 ) : Thread() {
+    interface Callback {
+        fun advance(timeDelta: Long)
+        fun draw(canvas: Canvas)
+    }
     var ended = false
     private var lastUpdateTime: Long = 0L
 
     override fun run() {
+        var maybeCanvas: Canvas? = null
         while (!ended) {
             val currentTime = System.currentTimeMillis()
             val timeDelta = currentTime - lastUpdateTime
             if (timeDelta >= UPDATE_TIME_DELTA) {
                 if (lastUpdateTime != 0L)
-                    gameModel.value?.advance(timeDelta)
+                    liveCallback.value?.advance(timeDelta)
                 lastUpdateTime = currentTime
             }
             try {
-                surfaceHolder.lockCanvas()?.let { canvas: Canvas ->
+                surfaceHolder.lockCanvas()?.also { canvas: Canvas ->
+                    maybeCanvas = canvas
                     synchronized(surfaceHolder) {
-                        gameModel.value?.drawCurrentBoard(canvas)
+                        liveCallback.value?.draw(canvas)
                     }
-                    surfaceHolder.unlockCanvasAndPost(canvas)
                 }
+            } catch (e: IllegalArgumentException) { // surface already locked
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.w("DrawThread", "include exception $e into silent catch")
+            } finally {
+                maybeCanvas?.let {
+                    surfaceHolder.unlockCanvasAndPost(it)
+                }
             }
         }
     }

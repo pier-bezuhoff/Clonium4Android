@@ -24,8 +24,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".ui.game.GameActivity">
-        </activity>
+        <activity android:name=".ui.game.GameActivity" android:theme="@style/AppTheme.NoActionBar"/>
     </application>
 
 </manifest>
