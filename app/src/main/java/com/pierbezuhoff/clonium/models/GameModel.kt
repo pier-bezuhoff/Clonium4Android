@@ -1,6 +1,5 @@
 package com.pierbezuhoff.clonium.models
 
-import android.graphics.Canvas
 import android.graphics.PointF
 import android.util.Log
 import com.pierbezuhoff.clonium.domain.Bot
@@ -26,9 +25,10 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        if (state is GamePresenter.State.Normal && game.currentPlayer is HumanPlayer) {
+        if ((true || state is GamePresenter.State.Normal && game.isEnd()) && game.currentPlayer is HumanPlayer) {
             val pos = pointf2pos(point)
             if (pos in game.possibleTurns()) {
+                highlight(emptySet())
                 val transitions = game.humanTurn(pos)
                 state = GamePresenter.State.Transient(transitions)
                 // wait until GamePresenter.State.Normal
@@ -46,13 +46,16 @@ class GameModel(
                 // stat, back
             }
             game.currentPlayer is Bot -> coroutineScope.launch {
+                highlight(game.possibleTurns(), weak = true)
                 delay(1_000) // TMP
+                highlight(emptySet())
                 val transitions = with(game) { botTurnAsync() }.await()
                 state = GamePresenter.State.Transient(transitions)
                 // wait until GamePresenter.State.Normal
                 continueGame()
             }
             else -> {
+                highlight(game.possibleTurns())
                 // highlight possible turns, etc.
             }
         }
@@ -61,10 +64,6 @@ class GameModel(
     override fun advance(timeDelta: Long) {
         // advance transitions animation
     }
-
-//    override fun draw(canvas: Canvas) {
-//        (this as GamePresenter).draw(canvas)
-//    }
 
     companion object {
         private const val TAG = "GameModel"

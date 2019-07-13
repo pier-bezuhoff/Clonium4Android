@@ -19,6 +19,7 @@ interface GamePresenter {
 
     fun setSize(width: Int, height: Int)
     fun draw(canvas: Canvas)
+    fun highlight(poss: Set<Pos>, weak: Boolean = false)
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
 }
@@ -38,6 +39,8 @@ class SimpleGamePresenter(
         Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
     )
 
+    private var weakHighlight: Boolean = false
+    private var highlighted: Set<Pos> = emptySet()
     override var state: GamePresenter.State = GamePresenter.State.Normal
 
     override fun setSize(width: Int, height: Int) {
@@ -62,6 +65,8 @@ class SimpleGamePresenter(
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
             drawCell(pos)
+        for (pos in highlighted)
+            drawHighlight(pos)
         for ((pos, maybeChip) in board.asPosMap())
             maybeChip?.let {
                 drawChip(pos, it)
@@ -70,6 +75,17 @@ class SimpleGamePresenter(
 
     private fun Canvas.drawCell(pos: Pos) {
         val bitmap = bitmapLoader.loadCell()
+        val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
+        val translateMatrix = pos2matrix(pos)
+        drawBitmap(
+            bitmap,
+            translateMatrix * rescaleMatrix,
+            paint
+        )
+    }
+
+    private fun Canvas.drawHighlight(pos: Pos) {
+        val bitmap = bitmapLoader.loadHighlight(weak = weakHighlight)
         val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
         val translateMatrix = pos2matrix(pos)
         drawBitmap(
@@ -109,6 +125,11 @@ class SimpleGamePresenter(
 
     private fun pos2matrix(pos: Pos): Matrix =
         pos2point(pos).let { translationMatrix(it.x.toFloat(), it.y.toFloat()) }
+
+    override fun highlight(poss: Set<Pos>, weak: Boolean) {
+        highlighted = poss
+        weakHighlight = weak
+    }
 
     override fun pos2point(pos: Pos): Point =
         Point(pos.x * cellSize, pos.y * cellSize)

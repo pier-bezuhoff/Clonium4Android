@@ -20,6 +20,11 @@ class BitmapLoader(private val assetManager: AssetManager) {
     fun loadCell(): Bitmap =
         loadAssetBitmap("cell.png")
 
+    fun loadHighlight(weak: Boolean = false): Bitmap {
+        val opacity = if (weak) 15 else 25
+        return loadAssetBitmap("highlight-$opacity.png")
+    }
+
     fun loadChip(chip: Chip): Bitmap {
         require(chip.level.ordinal in 1..5) { "Temporary limitation, will be extended to 1..7" }
         require(chip.playerId.id in 0..7) { "Temporary limitation" }
