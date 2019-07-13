@@ -83,6 +83,7 @@ class PrimitiveBoard private constructor(
         return map
     }
 
+    // BUG: -1, +1 -- wrong topology
     /** 4 neighbor indices of [ix] */
     private fun ix4(ix: Int): Set<Int> =
         setOf(ix - width, ix - 1, ix + 1, ix + width)
@@ -91,8 +92,17 @@ class PrimitiveBoard private constructor(
         hasCell(ix) && chips[ix] != NO_CHIP
 
     /** Neighbor indices of [ix] with [Cell] */
-    private fun neighbors(ix: Int): Set<Int> =
-        ix4(ix).filter(this::hasCell).toSet()
+    private fun neighbors(ix: Int): Set<Int> {
+//        return ix4(ix).filter(this::hasCell).toSet()
+        val neighbors = mutableSetOf<Int>()
+        if (hasCell(ix - width))
+            neighbors.add(ix - width)
+        if (hasCell(ix + width))
+            neighbors.add(ix + width)
+        if (ix % width > 0 && hasCell(ix - 1))
+            neighbors.add(ix - 1)
+        return neighbors
+    }
 
     private fun hasUnstableLevel(ix: Int): Boolean =
         levelAt(ix)?.let { it >= Level.MIN_UNSTABLE_LEVEL } == true
@@ -133,7 +143,7 @@ class PrimitiveBoard private constructor(
     private fun explosionAt(ix: Int): Explosion {
         require(hasChip(ix))
         val player = playerAt(ix)!!
-        val upIx = ix - width
+        val upIx = ix - width // NOTE: inlined ix4
         val downIx = ix + width
         val leftIx = ix - 1
         val rightIx = ix + 1
