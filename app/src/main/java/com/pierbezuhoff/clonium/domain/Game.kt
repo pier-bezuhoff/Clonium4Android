@@ -33,7 +33,7 @@ class SimpleGame(
 ) : Game {
     override val players: Map<PlayerId, Player>
     override val order: List<Player>
-    override val lives: Map<Player, Boolean>
+    override val lives: MutableMap<Player, Boolean>
     @Suppress("RedundantModalityModifier") // or else "error: property must be initialized or be abstract"
     final override var currentPlayer: Player
 
@@ -49,7 +49,7 @@ class SimpleGame(
         players = botMap + humanMap
         order = playerIds.map { players.getValue(it) }
         require(order.isNotEmpty()) { "SimpleGame should have players" }
-        lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }
+        lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }.toMutableMap()
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
     }
@@ -82,11 +82,13 @@ class SimpleGame(
         order.associateWith { statOf(it) }
 
     override fun isEnd(): Boolean =
-        lives.values.filter { it }.size > 1
+        lives.values.filter { it }.size <= 1
 
     private fun makeTurn(turn: Pos): Sequence<Transition> {
         require(turn in possibleTurns())
         val transitions = board.inc(turn)
+        lives.clear()
+        order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
         return transitions
     }

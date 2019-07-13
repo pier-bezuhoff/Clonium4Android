@@ -22,17 +22,23 @@ class PrimitiveBoard private constructor(
     fun copy(): PrimitiveBoard =
         PrimitiveBoard(width, height, chips.clone())
 
-    private inline fun pos2ix(pos: Pos): Int =
-        pos.x + pos.y * width
+    private inline fun validPos(pos: Pos): Boolean =
+        (pos.x in 0 until width) && (pos.y in 0 until height)
+
+    private inline fun pos2ix(pos: Pos): Int {
+        require(validPos(pos))
+        return pos.x + pos.y * width
+    }
 
     private inline fun ix2pos(ix: Int): Pos =
         Pos(ix % width, ix / width)
 
-    private fun hasCell(ix: Int): Boolean =
+    private inline fun hasCell(ix: Int): Boolean =
         ix in chips.indices && chips[ix] != NO_CELL
 
-    override fun hasCell(pos: Pos): Boolean =
-        hasCell(pos2ix(pos))
+    override fun hasCell(pos: Pos): Boolean {
+        return validPos(pos) && hasCell(pos2ix(pos))
+    }
 
     override fun asPosSet(): Set<Pos> {
         val poss = mutableSetOf<Pos>()
@@ -83,17 +89,11 @@ class PrimitiveBoard private constructor(
         return map
     }
 
-    // BUG: -1, +1 -- wrong topology
-    /** 4 neighbor indices of [ix] */
-    private fun ix4(ix: Int): Set<Int> =
-        setOf(ix - width, ix - 1, ix + 1, ix + width)
-
     private fun hasChip(ix: Int): Boolean =
         hasCell(ix) && chips[ix] != NO_CHIP
 
     /** Neighbor indices of [ix] with [Cell] */
     private fun neighbors(ix: Int): Set<Int> {
-//        return ix4(ix).filter(this::hasCell).toSet()
         val neighbors = mutableSetOf<Int>()
         if (hasCell(ix - width))
             neighbors.add(ix - width)
@@ -101,6 +101,8 @@ class PrimitiveBoard private constructor(
             neighbors.add(ix + width)
         if (ix % width > 0 && hasCell(ix - 1))
             neighbors.add(ix - 1)
+        if (ix % width < width - 1 && hasCell(ix + 1))
+            neighbors.add(ix + 1)
         return neighbors
     }
 
@@ -143,16 +145,16 @@ class PrimitiveBoard private constructor(
     private fun explosionAt(ix: Int): Explosion {
         require(hasChip(ix))
         val player = playerAt(ix)!!
-        val upIx = ix - width // NOTE: inlined ix4
-        val downIx = ix + width
-        val leftIx = ix - 1
-        val rightIx = ix + 1
-        fun endState(ix: Int): Explosion.EndState =
-            if (hasCell(ix)) Explosion.EndState.LAND else Explosion.EndState.FALLOUT
+        val up = ix2pos(ix - width)
+        val down = ix2pos(ix + width)
+        val left = if (ix % width > 0) ix2pos(ix - 1) else Pos(-1, ix2pos(ix).y)
+        val right = if (ix % width < width - 1) ix2pos(ix + 1) else Pos(width, ix2pos(ix).y)
+        fun endState(pos: Pos): Explosion.EndState =
+            if (hasCell(pos)) Explosion.EndState.LAND else Explosion.EndState.FALLOUT
         return Explosion(
             player, center = ix2pos(ix),
-            up = endState(upIx), down = endState(downIx),
-            left = endState(leftIx), right = endState(rightIx)
+            up = endState(up), down = endState(down),
+            left = endState(left), right = endState(right)
         )
     }
 

@@ -26,11 +26,12 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        if (game.currentPlayer is HumanPlayer) {
+        if (state is GamePresenter.State.Normal && game.currentPlayer is HumanPlayer) {
             val pos = pointf2pos(point)
             if (pos in game.possibleTurns()) {
                 val transitions = game.humanTurn(pos)
-                // animate transitions
+                state = GamePresenter.State.Transient(transitions)
+                // wait until GamePresenter.State.Normal
                 continueGame()
             }
         }
@@ -39,15 +40,21 @@ class GameModel(
     private fun continueGame() {
         Log.i(TAG, "${game.currentPlayer} (${game.currentPlayer.playerId})")
         Log.i(TAG, game.board.asString())
-        if (game.currentPlayer is Bot) {
-            coroutineScope.launch {
+        when {
+            game.isEnd() -> {
+                Log.i(TAG, "game ended")
+                // stat, back
+            }
+            game.currentPlayer is Bot -> coroutineScope.launch {
                 delay(1_000) // TMP
                 val transitions = with(game) { botTurnAsync() }.await()
+                state = GamePresenter.State.Transient(transitions)
+                // wait until GamePresenter.State.Normal
                 continueGame()
-                Unit
             }
-        } else {
-            // highlight possible turns, etc.
+            else -> {
+                // highlight possible turns, etc.
+            }
         }
     }
 
@@ -55,9 +62,9 @@ class GameModel(
         // advance transitions animation
     }
 
-    override fun draw(canvas: Canvas) {
-        drawCurrentBoard(canvas)
-    }
+//    override fun draw(canvas: Canvas) {
+//        (this as GamePresenter).draw(canvas)
+//    }
 
     companion object {
         private const val TAG = "GameModel"

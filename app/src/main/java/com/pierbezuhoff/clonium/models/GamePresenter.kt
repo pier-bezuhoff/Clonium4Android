@@ -5,16 +5,20 @@ import android.util.Log
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
-import com.pierbezuhoff.clonium.domain.Board
-import com.pierbezuhoff.clonium.domain.Chip
-import com.pierbezuhoff.clonium.domain.Game
-import com.pierbezuhoff.clonium.domain.Pos
+import com.pierbezuhoff.clonium.domain.*
 import kotlin.math.min
 
 /** Draw [Game] state and animation on [Canvas] */
 interface GamePresenter {
+    sealed class State {
+        object Normal : State()
+        // TODO: add progress
+        class Transient(val transitions: Sequence<Transition>) : State()
+    }
+    var state: State
+
     fun setSize(width: Int, height: Int)
-    fun drawCurrentBoard(canvas: Canvas)
+    fun draw(canvas: Canvas)
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
 }
@@ -34,17 +38,26 @@ class SimpleGamePresenter(
         Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
     )
 
+    override var state: GamePresenter.State = GamePresenter.State.Normal
+
     override fun setSize(width: Int, height: Int) {
         Log.i(TAG, "width = $width, height = $height")
         viewWidth = width
         viewHeight = height
     }
 
-    override fun drawCurrentBoard(canvas: Canvas) {
-        canvas.drawBoard(board)
+    override fun draw(canvas: Canvas) {
+        when (state) {
+            is GamePresenter.State.Normal ->
+                canvas.drawBoard()
+            is GamePresenter.State.Transient -> {
+                canvas.drawBoard()
+                // TODO: transient
+            }
+        }
     }
 
-    private fun Canvas.drawBoard(board: Board) {
+    private fun Canvas.drawBoard(board: Board = this@SimpleGamePresenter.board) {
         require(viewWidth > 0 && viewHeight > 0)
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
