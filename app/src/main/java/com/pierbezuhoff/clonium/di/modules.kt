@@ -7,6 +7,7 @@ import com.pierbezuhoff.clonium.ui.game.GameViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.viewmodel.dsl.viewModel
 import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val appModule = module {
@@ -16,7 +17,7 @@ val appModule = module {
     single { BitmapLoader(androidContext().assets) }
     factory { (board: Board, bots: Set<Bot>) ->
         GameModel(SimpleGame(get { parametersOf(board) }, bots), get()) }
-    factory { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
+    factory(named("withOrder")) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
         GameModel(SimpleGame(get { parametersOf(board) }, bots, initialOrder), get())
     }
 }

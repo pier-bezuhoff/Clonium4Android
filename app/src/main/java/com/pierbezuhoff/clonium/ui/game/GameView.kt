@@ -2,6 +2,7 @@ package com.pierbezuhoff.clonium.ui.game
 
 import android.content.Context
 import android.graphics.Canvas
+import android.util.AttributeSet
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -13,7 +14,9 @@ import androidx.lifecycle.Observer
 import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.utils.Once
 
-class GameView(context: Context) : SurfaceView(context) {
+class GameView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+) : SurfaceView(context, attrs, defStyleAttr) {
     lateinit var viewModel: GameViewModel // inject via data binding
 
     init {

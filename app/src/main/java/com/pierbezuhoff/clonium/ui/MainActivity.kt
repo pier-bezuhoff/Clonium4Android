@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.ui
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -7,22 +8,24 @@ import android.view.View
 import androidx.databinding.DataBindingUtil
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityMainBinding
+import com.pierbezuhoff.clonium.ui.game.GameActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
     interface Callbacks {
-        fun onTutorial()
-        fun onNewGame()
-        fun onBoardEditor()
+        fun onTutorial(view: View)
+        fun onNewGame(view: View)
+        fun onBoardEditor(view: View)
     }
     private val callbacks = object : Callbacks {
-        override fun onTutorial() {
+        override fun onTutorial(view: View) {
             Log.i(TAG, "onTutorial")
         }
-        override fun onNewGame() {
+        override fun onNewGame(view: View) {
             Log.i(TAG, "onNewGame")
+            navigateToGameActivity()
         }
-        override fun onBoardEditor() {
+        override fun onBoardEditor(view: View) {
             Log.i(TAG, "onBoardEditor")
         }
     }
@@ -33,6 +36,18 @@ class MainActivity : AppCompatActivity() {
             DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
         binding.callbacks = callbacks
+    }
+
+    private fun navigateToGameActivity() {
+        val intent = Intent(this@MainActivity, GameActivity::class.java)
+        startActivityForResult(intent, NEW_GAME_REQUEST_CODE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        when (resultCode) {
+            NEW_GAME_REQUEST_CODE -> Log.i(TAG, "from GameActivity")
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     companion object {
