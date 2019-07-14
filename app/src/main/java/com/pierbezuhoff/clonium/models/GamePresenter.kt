@@ -9,7 +9,7 @@ import com.pierbezuhoff.clonium.domain.*
 import kotlin.math.min
 
 /** Draw [Game] state and animation on [Canvas] */
-interface GamePresenter : AnimationStateHolder {
+interface GamePresenter : AnimationAdvancer {
     fun setSize(width: Int, height: Int)
     fun draw(canvas: Canvas)
     fun highlight(poss: Set<Pos>, weak: Boolean = false)
@@ -21,10 +21,10 @@ interface GamePresenter : AnimationStateHolder {
 
 // MAYBE: rotate rectangular board along with view
 class SimpleGamePresenter(
-    private val board: Board,
+    private var board: Board,
     private val bitmapLoader: BitmapLoader
 ) : Any()
-    , AnimationStateHolder by SimpleAnimationStateHolder()
+    , AnimationAdvancer by PoolingAnimationAdvancer()
     , GamePresenter
 {
     private var viewWidth: Int = 0
@@ -47,17 +47,8 @@ class SimpleGamePresenter(
     }
 
     override fun draw(canvas: Canvas) {
-        normalizeState()
-        when (val currentState = state) {
-            is AnimationState.Normal ->
-                canvas.drawBoard()
-            is AnimationState.Transient -> {
-                when (val phase = transientPhase()) {
-                    is TransientPhase.Transition -> canvas.drawTransientBoard(phase, currentState.progress)
-                    is TransientPhase.Ending -> canvas.drawBoard(phase.endBoard)
-                }
-            }
-        }
+        canvas.drawBoard()
+        canvas.drawAnimations()
     }
 
     private fun Canvas.drawBoard(board: Board = this@SimpleGamePresenter.board) {
@@ -71,17 +62,6 @@ class SimpleGamePresenter(
             maybeChip?.let {
                 drawChip(pos, it)
             }
-    }
-
-    private fun Canvas.drawTransientBoard(phase: TransientPhase.Transition, progess: Double) {
-        val (interimBoard, explosions) = phase
-        drawBoard(interimBoard)
-        drawExplosions(explosions, progess)
-
-    }
-
-    private fun Canvas.drawExplosions(explosions: Set<Explosion>, progess: Double) {
-        //
     }
 
     private fun Canvas.drawCell(pos: Pos) {
