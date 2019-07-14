@@ -9,17 +9,12 @@ import com.pierbezuhoff.clonium.domain.*
 import kotlin.math.min
 
 /** Draw [Game] state and animation on [Canvas] */
-interface GamePresenter {
-    sealed class State {
-        object Normal : State()
-        // TODO: add progress
-        class Transient(val transitions: Sequence<Transition>) : State()
-    }
-    var state: State
-
+interface GamePresenter : AnimationStateHolder {
     fun setSize(width: Int, height: Int)
     fun draw(canvas: Canvas)
     fun highlight(poss: Set<Pos>, weak: Boolean = false)
+    fun unhighlight() =
+        highlight(emptySet())
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
 }
@@ -28,7 +23,10 @@ interface GamePresenter {
 class SimpleGamePresenter(
     private val board: Board,
     private val bitmapLoader: BitmapLoader
-) : GamePresenter {
+) : Any()
+    , AnimationStateHolder by SimpleAnimationStateHolder()
+    , GamePresenter
+{
     private var viewWidth: Int = 0
     private var viewHeight: Int = 0
 
@@ -41,7 +39,6 @@ class SimpleGamePresenter(
 
     private var weakHighlight: Boolean = false
     private var highlighted: Set<Pos> = emptySet()
-    override var state: GamePresenter.State = GamePresenter.State.Normal
 
     override fun setSize(width: Int, height: Int) {
         Log.i(TAG, "width = $width, height = $height")
@@ -50,12 +47,15 @@ class SimpleGamePresenter(
     }
 
     override fun draw(canvas: Canvas) {
-        when (state) {
-            is GamePresenter.State.Normal ->
+        normalizeState()
+        when (val currentState = state) {
+            is AnimationState.Normal ->
                 canvas.drawBoard()
-            is GamePresenter.State.Transient -> {
-                canvas.drawBoard()
-                // TODO: transient
+            is AnimationState.Transient -> {
+                when (val phase = transientPhase()) {
+                    is TransientPhase.Transition -> canvas.drawTransientBoard(phase, currentState.progress)
+                    is TransientPhase.Ending -> canvas.drawBoard(phase.endBoard)
+                }
             }
         }
     }
@@ -71,6 +71,17 @@ class SimpleGamePresenter(
             maybeChip?.let {
                 drawChip(pos, it)
             }
+    }
+
+    private fun Canvas.drawTransientBoard(phase: TransientPhase.Transition, progess: Double) {
+        val (interimBoard, explosions) = phase
+        drawBoard(interimBoard)
+        drawExplosions(explosions, progess)
+
+    }
+
+    private fun Canvas.drawExplosions(explosions: Set<Explosion>, progess: Double) {
+        //
     }
 
     private fun Canvas.drawCell(pos: Pos) {

@@ -25,13 +25,14 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        if ((true || state is GamePresenter.State.Normal && game.isEnd()) && game.currentPlayer is HumanPlayer) {
+        state is GamePresenter.State.Normal && game.isEnd()
+        if (game.currentPlayer is HumanPlayer) {
             val pos = pointf2pos(point)
             if (pos in game.possibleTurns()) {
-                highlight(emptySet())
+                unhighlight()
                 val transitions = game.humanTurn(pos)
-                state = GamePresenter.State.Transient(transitions)
-                // wait until GamePresenter.State.Normal
+                state = GamePresenter.State.Transient(transitions.iterator())
+                // wait until GamePresenter.AnimationState.Normal
                 continueGame()
             }
         }
@@ -48,10 +49,10 @@ class GameModel(
             game.currentPlayer is Bot -> coroutineScope.launch {
                 highlight(game.possibleTurns(), weak = true)
                 delay(1_000) // TMP
-                highlight(emptySet())
+                unhighlight()
                 val transitions = with(game) { botTurnAsync() }.await()
-                state = GamePresenter.State.Transient(transitions)
-                // wait until GamePresenter.State.Normal
+                state = GamePresenter.State.Transient(transitions.iterator())
+                // wait until GamePresenter.AnimationState.Normal
                 continueGame()
             }
             else -> {

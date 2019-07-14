@@ -16,6 +16,7 @@ import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.KoinComponent
 import org.koin.core.get
 import java.lang.IllegalArgumentException
+import java.lang.IllegalStateException
 
 class GameView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -103,7 +104,12 @@ class DrawThread(
                 Log.w("DrawThread", "include exception $e into silent catch")
             } finally {
                 maybeCanvas?.let {
-                    surfaceHolder.unlockCanvasAndPost(it)
+                    try {
+                        surfaceHolder.unlockCanvasAndPost(it)
+                    } catch (e: IllegalStateException) { // surface was not locked
+                    } finally {
+                        maybeCanvas = null
+                    }
                 }
             }
         }
