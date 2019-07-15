@@ -198,6 +198,12 @@ object EmptyBoardFactory {
         return emptyBoard
     }
 
+    val TOWER = rectangular(6, 6).apply {
+        symmetricRemove(0, 1)
+        symmetricRemove(1, 0)
+        symmetricRemove(0, 2)
+        symmetricRemove(2, 0)
+    }
     // Default empty boards from BGC Clonium
     val DEFAULT_1 = rectangular(8, 8)
     val DEFAULT_2 = rectangular(6, 6)
@@ -222,7 +228,7 @@ object BoardFactory {
             posMap[pos] = Chip(PlayerId(i), Level.MAX_STABLE_LEVEL)
     }
 
-    private fun SimpleBoard.spawn4players(margin: Int = 1) {
+    fun SimpleBoard.spawn4players(margin: Int = 1) {
         require(2 * margin <= width && 2 * margin <= height)
         spawn4symmetricPlayers(margin, margin)
     }

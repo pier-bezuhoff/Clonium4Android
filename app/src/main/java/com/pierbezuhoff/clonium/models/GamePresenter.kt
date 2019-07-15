@@ -201,7 +201,7 @@ class SimpleGamePresenter(
         val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
         val startPoint = pos2point(pos)
         val sides = with(explosion) {
-            listOf(0f to right, 90f to down, 180f to left, 270f to left)
+            listOf(0f to right, 90f to down, 180f to left, 270f to up)
         }
         val noFallouts = sides.all { (_, endState) ->
             endState != Explosion.EndState.FALLOUT
@@ -283,7 +283,7 @@ class SimpleGamePresenter(
         private const val EXPLOSION_ANIMATION_DURATION = 1_000L
         private const val EXPLOSION_PAUSE_DURATION = 500L
         private const val FALLOUT_ANIMATION_DURATION = 4_000L
-        private const val FALLOUT_N_CYCLES = 3
-        private const val FALLOUT_FALLING_VELOCITY = 1f
+        private const val FALLOUT_N_CYCLES = 2
+        private const val FALLOUT_FALLING_VELOCITY = 2f
     }
 }
