@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
+import android.util.Log
 import com.pierbezuhoff.clonium.domain.Board
 import com.pierbezuhoff.clonium.domain.Explosion
 import com.pierbezuhoff.clonium.domain.Transition
@@ -16,7 +17,7 @@ class PoolingAnimationAdvancer : AnimationAdvancer {
     private var pool: List<Animation> = emptyList()
 
     override fun advance(timeDelta: Long) {
-        pool = pool.filterNot { it.advance(timeDelta) } // remove finished animations
+        pool = pool.filter { it.advance(timeDelta) } // remove finished animations
     }
 
     override fun hasBlockingAnimations(): Boolean =
@@ -32,6 +33,7 @@ class PoolingAnimationAdvancer : AnimationAdvancer {
     }
 }
 
+// MAYBE: add z-ordering
 class Animation(
     private val duration: Long,
     val blocking: Boolean = true,
@@ -42,6 +44,7 @@ class Animation(
 
     /** Return false if animation has finished */
     fun advance(deltaTime: Long): Boolean {
+        Log.i("Animation", "progress = $progress + ${deltaTime / duration}")
         progress += deltaTime.toDouble() / duration
         return progress < 1.0
     }

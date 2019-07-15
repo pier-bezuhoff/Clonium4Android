@@ -28,10 +28,11 @@ class GameModel(
         game.isEnd()
         if (!hasBlockingAnimations() && game.currentPlayer is HumanPlayer) {
             val pos = pointf2pos(point)
-            if (pos in game.possibleTurns()) {
+            _exampleExplosion(pos)
+            if (false && pos in game.possibleTurns()) {
                 unhighlight()
                 val transitions = game.humanTurn(pos)
-                startTransitions(transitions.iterator())
+//                startTransitions(transitions.iterator())
                 // wait until GamePresenter.AnimationState.Normal
                 continueGame()
             }
@@ -49,8 +50,9 @@ class GameModel(
             game.currentPlayer is Bot -> coroutineScope.launch {
                 highlight(game.possibleTurns(), weak = true)
                 unhighlight()
+                delay(1_000L)
                 val transitions = with(game) { botTurnAsync() }.await()
-                startTransitions(transitions.iterator())
+//                startTransitions(transitions.iterator())
                 // wait until GamePresenter.AnimationState.Normal
                 continueGame()
             }
@@ -59,10 +61,6 @@ class GameModel(
                 // highlight possible turns, etc.
             }
         }
-    }
-
-    override fun advance(timeDelta: Long) {
-        // advance transitions animation
     }
 
     companion object {

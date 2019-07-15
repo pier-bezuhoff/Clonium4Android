@@ -1,12 +1,14 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.*
+import android.transition.SidePropagation
 import android.util.Log
+import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
-import kotlin.math.min
+import kotlin.math.*
 
 /** Draw [Game] state and animation on [Canvas] */
 interface GamePresenter : AnimationAdvancer {
@@ -17,6 +19,7 @@ interface GamePresenter : AnimationAdvancer {
         highlight(emptySet())
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
+    fun _exampleExplosion(pos: Pos)
 }
 
 // MAYBE: rotate rectangular board along with view
@@ -98,6 +101,98 @@ class SimpleGamePresenter(
         )
     }
 
+    override fun _exampleExplosion(pos: Pos) {
+        val explosion = Explosion(
+            PlayerId(0), pos,
+            Explosion.EndState.LAND, Explosion.EndState.LAND, Explosion.EndState.LAND, Explosion.EndState.LAND
+        )
+        startAnimation(explosionAnimation(explosion))
+    }
+
+    private fun explosionAnimation(explosion: Explosion): Animation {
+        val (playerId, pos) = explosion
+        val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
+        val startPoint = pos2point(pos)
+        val duration = 1_000L // ms
+        val jumpLength = cellSize.toDouble()
+        val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
+        val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
+            val alpha = PI * progress
+            // coordinates of chip center
+            val r = jumpLength * (1 - cos(alpha)) / 2.0
+            // val z = jumpHeight * sin(alpha)
+            val zScale = 1 + sin(alpha) * Z_ZOOM
+            val phi = 2 * PI * progress
+            val horizontalSqueeze = cos(phi) // negative means upside-down
+            for (theta in listOf(0f, 90f, 180f, 270f)) {
+                // we construct right explosion, then rotate it by theta
+                val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
+                val rotateMatrix =
+                    rotationMatrix(theta, startPoint.x + cellSize/2f, startPoint.y + cellSize/2f)
+                val centeredScaleMatrix = centeredScaleMatrix(
+                    bitmap.width, bitmap.height,
+                    (horizontalSqueeze * CHIP_CELL_RATIO * zScale).toFloat(),
+                    (CHIP_CELL_RATIO * zScale).toFloat()
+                )
+                val translateMatrix = translationMatrix(point.x, point.y)
+                drawBitmap(
+                    bitmap,
+                    rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
+                    paint
+                )
+            }
+
+        }
+        return Animation(
+            duration = duration,
+            blocking = true,
+            progressingDraw = progressingDraw
+        )
+    }
+
+    private fun falloutAnimation(explosion: Explosion): Animation {
+        val (playerId, pos) = explosion
+        val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
+        val startPoint = pos2point(pos)
+        val sides = with(explosion) {
+            listOf(0f to right, 90f to up, 180f to left, 270f to down)
+        }
+        val noFallouts = sides.all { (_, endState) ->
+            endState != Explosion.EndState.FALLOUT
+        }
+        val duration = 1_000L // in ms
+        val nCycles = 5
+        val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
+        val translateMatrix = translationMatrix((startPoint.x + cellSize).toFloat(), startPoint.y.toFloat())
+        val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
+            for ((theta, endState) in sides)
+                if (endState == Explosion.EndState.FALLOUT) {
+                    val point = PointF((startPoint.x + cellSize).toFloat(), startPoint.y.toFloat())
+                    val rotateMatrix =
+                        rotationMatrix(theta, startPoint.x + cellSize/2f, startPoint.y + cellSize/2f)
+                    val phi = nCycles * 2 * PI * progress
+                    val centeredRotateMatrix = centeredRotateMatrix(
+                        bitmap.width, bitmap.height, phi.toFloat()
+                    )
+                    val zScale = 1 - progress * Z_ZOOM
+                    val centeredScaleMatrix = centeredScaleMatrix(
+                        bitmap.width, bitmap.height,
+                        (CHIP_CELL_RATIO * zScale).toFloat()
+                    )
+                    drawBitmap(
+                        bitmap,
+                        rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix * centeredRotateMatrix,
+                        paint
+                    )
+                }
+        }
+        return Animation(
+            duration = if (noFallouts) 0L else duration,
+            blocking = false,
+            progressingDraw = if (noFallouts) ({}) else progressingDraw
+        )
+    }
+
     private fun rescaleMatrix(
         width: Int, height: Int,
         targetWidth: Int = cellSize, targetHeight: Int = cellSize
@@ -106,12 +201,21 @@ class SimpleGamePresenter(
 
     private fun centeredScaleMatrix(
         width: Int, height: Int,
-        scaleX: Float, scaleY: Float = scaleX): Matrix =
+        scaleX: Float, scaleY: Float = scaleX
+    ): Matrix =
         Matrix().apply {
             postScale(
                 scaleX, scaleY,
                 width / 2f, height / 2f
             )
+        }
+
+    private fun centeredRotateMatrix(
+        width: Int, height: Int,
+        degrees: Float
+    ): Matrix =
+        Matrix().apply {
+            postRotate(degrees, width/2f, height/2f)
         }
 
     private fun pos2matrix(pos: Pos): Matrix =
@@ -132,5 +236,6 @@ class SimpleGamePresenter(
         private const val TAG = "GamePresenter"
         private const val BACKGROUND_COLOR: Int = Color.BLACK
         private const val CHIP_CELL_RATIO: Float = 0.9f
+        private const val Z_ZOOM: Double = 2e-1
     }
 }
