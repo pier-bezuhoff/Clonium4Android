@@ -124,8 +124,12 @@ class SimpleGamePresenter(
                     else
                         endTransitions()
                 }
-                if (transitionTime >= EXPLOSION_ANIMATION_DURATION && startFalloutsOnce)
-                    return startFallouts()
+                if (transitionTime >= EXPLOSION_ANIMATION_DURATION) {
+                    if (startFalloutsOnce)
+                        return startFallouts()
+                    else if (!transitions.hasNext())
+                        return endTransitions()
+                }
                 return AnimationEmitter.Output.Continue
             }
 

@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
+import android.util.Log
 
 interface Advanceable<T> {
     fun advance(timeDelta: Long): T

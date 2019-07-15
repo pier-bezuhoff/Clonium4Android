@@ -173,7 +173,7 @@ fun EvolvingBoard(board: Board): EvolvingBoard =
     PrimitiveBoard(board)
 
 object EmptyBoardFactory {
-    private fun SimpleEmptyBoard.symmetricRemove(x: Int, y: Int) {
+    fun SimpleEmptyBoard.symmetricRemove(x: Int, y: Int) {
         require(hasCell(Pos(x, y)))
         posSet.removeAll(setOf(
             Pos(x, y), Pos(x, height - 1 - y),
@@ -198,11 +198,17 @@ object EmptyBoardFactory {
         return emptyBoard
     }
 
-    val TOWER = rectangular(6, 6).apply {
+    val SMALL_TOWER = rectangular(6, 6).apply {
         symmetricRemove(0, 1)
         symmetricRemove(1, 0)
         symmetricRemove(0, 2)
         symmetricRemove(2, 0)
+    }
+    val TOWER = rectangular(8, 8).apply {
+        for (i in 1..3) {
+            symmetricRemove(0, i)
+            symmetricRemove(i, 0)
+        }
     }
     // Default empty boards from BGC Clonium
     val DEFAULT_1 = rectangular(8, 8)
@@ -232,6 +238,9 @@ object BoardFactory {
         require(2 * margin <= width && 2 * margin <= height)
         spawn4symmetricPlayers(margin, margin)
     }
+
+    fun spawn4players(emptyBoard: EmptyBoard, margin: Int = 1): SimpleBoard =
+        SimpleBoard(emptyBoard).apply { spawn4players(margin) }
 
     fun rectangular(width: Int, height: Int, playerMargin: Int = 1): SimpleBoard =
         SimpleBoard(EmptyBoardFactory.rectangular(width, height)).apply {

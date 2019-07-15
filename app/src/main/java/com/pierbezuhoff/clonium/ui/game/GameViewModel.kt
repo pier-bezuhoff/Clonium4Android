@@ -13,7 +13,6 @@ import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.get
 import org.koin.core.inject
 import org.koin.core.parameter.parametersOf
-import org.koin.core.qualifier.named
 
 class GameViewModel(application: Application) : CloniumAndroidViewModel(application)
     , TapListener
@@ -35,10 +34,8 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     }
 
     private fun exampleGame() {
-        val board = BoardFactory.run {
-            SimpleBoard(EmptyBoardFactory.TOWER).apply { spawn4players() }
-        } // BoardFactory.DEFAULT_2
-        val bots3: Set<Bot> = setOf(0, 1, 2, 3).map { RandomPickerBot(PlayerId(it)) }.toSet()
+        val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER) // BoardFactory.DEFAULT_2
+        val bots3: Set<Bot> = setOf(0, 2, 3).map { RandomPickerBot(PlayerId(it)) }.toSet()
         val newGameModel = get<GameModel> { parametersOf(board, bots3, viewModelScope) }
         _gameModel.value = newGameModel
     }
