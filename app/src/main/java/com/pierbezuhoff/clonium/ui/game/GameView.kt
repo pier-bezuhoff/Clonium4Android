@@ -75,6 +75,7 @@ class DrawThread(
     private val surfaceHolder: SurfaceHolder
 ) : Thread() {
     interface Callback {
+        // NOTE: virtual time => we can pause, accelerate and decelerate game easily
         fun advance(timeDelta: Long)
         fun draw(canvas: Canvas)
     }

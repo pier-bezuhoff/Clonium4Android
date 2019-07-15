@@ -27,6 +27,9 @@ interface EmptyBoard {
             else -> "□ "
         }
 
+    fun copy(): EmptyBoard =
+        SimpleEmptyBoard(width, height, asPosSet().toMutableSet())
+
     fun asString(): String {
         return buildString {
             append((0 until width)
@@ -115,6 +118,9 @@ interface Board : EmptyBoard {
                 "${level.ordinal}$playerChar"
             }
         }
+
+    override fun copy(): Board =
+        SimpleBoard(width, height, asPosMap().toMutableMap())
 }
 
 class SimpleBoard(
@@ -151,8 +157,8 @@ data class Explosion(
 }
 /** Series of simultaneous [Explosion]s */
 data class Transition(
-    val interimState: Board,
-    val endState: Board,
+    val interimBoard: Board,
+    val endBoard: Board,
     val explosions: Set<Explosion>
 )
 

@@ -1,42 +1,56 @@
 package com.pierbezuhoff.clonium.models
 
+import android.graphics.Canvas
 import android.graphics.PointF
 import android.util.Log
 import com.pierbezuhoff.clonium.domain.Bot
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.HumanPlayer
 import com.pierbezuhoff.clonium.ui.game.DrawThread
+import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class GameModel(
     val game: Game,
-    private val bitmapLoader: BitmapLoader,
+    bitmapLoader: BitmapLoader,
     private val coroutineScope: CoroutineScope
 ) : Any()
-    , GamePresenter by SimpleGamePresenter(game.board, bitmapLoader)
     , DrawThread.Callback
 {
+    private val gamePresenter: GamePresenter = SimpleGamePresenter(game, bitmapLoader)
+    private var continueGameOnce by Once(true)
+
     init {
         Log.i(TAG, "order = ${game.order.map { it.playerId }.joinToString()}")
         Log.i(TAG, game.board.asString())
-        continueGame()
     }
 
     fun userTap(point: PointF) {
         game.isEnd()
-        if (!hasBlockingAnimations() && game.currentPlayer is HumanPlayer) {
-            val pos = pointf2pos(point)
-            _exampleExplosion(pos)
-            if (false && pos in game.possibleTurns()) {
-                unhighlight()
+        if (!gamePresenter.hasBlockingAnimations() && game.currentPlayer is HumanPlayer) {
+            val pos = gamePresenter.pointf2pos(point)
+            if (pos in game.possibleTurns()) {
+                gamePresenter.unhighlight()
+                gamePresenter.board = game.board.copy() // freeze board before changes
                 val transitions = game.humanTurn(pos)
-//                startTransitions(transitions.iterator())
-                // wait until GamePresenter.AnimationState.Normal
-                continueGame()
+                gamePresenter.startTransitions(transitions) // unfreeze board eventually
+                continueGameOnce = true
             }
         }
+    }
+
+    fun setSize(width: Int, height: Int) =
+        gamePresenter.setSize(width, height)
+
+    override fun draw(canvas: Canvas) =
+        gamePresenter.draw(canvas)
+
+    override fun advance(timeDelta: Long) {
+        gamePresenter.advance(timeDelta)
+        if (!gamePresenter.hasBlockingAnimations() && continueGameOnce)
+            continueGame()
     }
 
     private fun continueGame() {
@@ -48,16 +62,16 @@ class GameModel(
                 // stat, back
             }
             game.currentPlayer is Bot -> coroutineScope.launch {
-                highlight(game.possibleTurns(), weak = true)
-                unhighlight()
-                delay(1_000L)
+                gamePresenter.highlight(game.possibleTurns(), weak = true)
+                delay(300L)
+                gamePresenter.unhighlight()
+                gamePresenter.board = game.board.copy() // freeze board before changes
                 val transitions = with(game) { botTurnAsync() }.await()
-//                startTransitions(transitions.iterator())
-                // wait until GamePresenter.AnimationState.Normal
-                continueGame()
+                gamePresenter.startTransitions(transitions) // unfreeze board eventually
+                continueGameOnce = true
             }
             else -> {
-                highlight(game.possibleTurns())
+                gamePresenter.highlight(game.possibleTurns())
                 // highlight possible turns, etc.
             }
         }

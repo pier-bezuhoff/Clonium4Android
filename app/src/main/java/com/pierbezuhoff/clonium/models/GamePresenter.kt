@@ -1,30 +1,31 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.*
-import android.transition.SidePropagation
 import android.util.Log
 import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.utils.Once
 import kotlin.math.*
 
 /** Draw [Game] state and animation on [Canvas] */
 interface GamePresenter : AnimationAdvancer {
+    var board: Board
     fun setSize(width: Int, height: Int)
+    fun startTransitions(transitions: Iterator<Transition>)
     fun draw(canvas: Canvas)
     fun highlight(poss: Set<Pos>, weak: Boolean = false)
     fun unhighlight() =
         highlight(emptySet())
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
-    fun _exampleExplosion(pos: Pos)
 }
 
 // MAYBE: rotate rectangular board along with view
 class SimpleGamePresenter(
-    private var board: Board,
+    private val game: Game,
     private val bitmapLoader: BitmapLoader
 ) : Any()
     , AnimationAdvancer by PoolingAnimationAdvancer()
@@ -33,6 +34,7 @@ class SimpleGamePresenter(
     private var viewWidth: Int = 0
     private var viewHeight: Int = 0
 
+    override var board: Board = game.board
     private val cellSize: Int
         get() = min(viewWidth / board.width, viewHeight / board.height)
 
@@ -44,7 +46,6 @@ class SimpleGamePresenter(
     private var highlighted: Set<Pos> = emptySet()
 
     override fun setSize(width: Int, height: Int) {
-        Log.i(TAG, "width = $width, height = $height")
         viewWidth = width
         viewHeight = height
     }
@@ -54,7 +55,7 @@ class SimpleGamePresenter(
         canvas.drawAnimations()
     }
 
-    private fun Canvas.drawBoard(board: Board = this@SimpleGamePresenter.board) {
+    private fun Canvas.drawBoard() {
         require(viewWidth > 0 && viewHeight > 0)
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
@@ -101,19 +102,64 @@ class SimpleGamePresenter(
         )
     }
 
-    override fun _exampleExplosion(pos: Pos) {
-        val explosion = Explosion(
-            PlayerId(0), pos,
-            Explosion.EndState.LAND, Explosion.EndState.LAND, Explosion.EndState.LAND, Explosion.EndState.LAND
-        )
-        startAnimation(explosionAnimation(explosion))
+    override fun startTransitions(transitions: Iterator<Transition>) {
+        startAnimationEmitter(object : AnimationEmitter {
+            private val transitionDuration = EXPLOSION_ANIMATION_DURATION + EXPLOSION_PAUSE_DURATION
+            private var transitionTime: Long = 0L
+            private val firstAdvance by Once(true)
+            private var startFalloutsOnce by Once(false)
+            private lateinit var transition: Transition
+
+            override fun advance(timeDelta: Long): AnimationEmitter.Output {
+                if (firstAdvance) {
+                    return if (!transitions.hasNext())
+                        endTransitions()
+                    else
+                        startExplosions()
+                }
+                transitionTime += timeDelta
+                if (transitionTime >= transitionDuration) {
+                    return if (transitions.hasNext())
+                        startExplosions()
+                    else
+                        endTransitions()
+                }
+                if (transitionTime >= EXPLOSION_ANIMATION_DURATION && startFalloutsOnce)
+                    return startFallouts()
+                return AnimationEmitter.Output.Continue
+            }
+
+            private fun startExplosions(): AnimationEmitter.Output.Animations {
+                transitionTime = 0L
+                transition = transitions.next()
+                board = transition.interimBoard
+                startFalloutsOnce = true
+                Log.i(TAG, "start explosions, interimBoard: ${board.asString()}")
+                return AnimationEmitter.Output.Animations(
+                    transition.explosions.map { explosionAnimation(it) }
+                )
+            }
+
+            private fun startFallouts(): AnimationEmitter.Output.Animations {
+                board = transition.endBoard
+                Log.i(TAG, "start fallouts, endBoard: ${board.asString()}")
+                return AnimationEmitter.Output.Animations(
+                    transition.explosions.map { falloutAnimation(it) }
+                )
+            }
+
+            private fun endTransitions(): AnimationEmitter.Output.End {
+                board = game.board
+                Log.i(TAG, "end transitions")
+                return AnimationEmitter.Output.End
+            }
+        })
     }
 
     private fun explosionAnimation(explosion: Explosion): Animation {
         val (playerId, pos) = explosion
         val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
         val startPoint = pos2point(pos)
-        val duration = 1_000L // ms
         val jumpLength = cellSize.toDouble()
         val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
         val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
@@ -144,7 +190,7 @@ class SimpleGamePresenter(
 
         }
         return Animation(
-            duration = duration,
+            duration = EXPLOSION_ANIMATION_DURATION,
             blocking = true,
             progressingDraw = progressingDraw
         )
@@ -155,26 +201,23 @@ class SimpleGamePresenter(
         val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
         val startPoint = pos2point(pos)
         val sides = with(explosion) {
-            listOf(0f to right, 90f to up, 180f to left, 270f to down)
+            listOf(0f to right, 90f to down, 180f to left, 270f to left)
         }
         val noFallouts = sides.all { (_, endState) ->
             endState != Explosion.EndState.FALLOUT
         }
-        val duration = 1_000L // in ms
-        val nCycles = 5
         val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
         val translateMatrix = translationMatrix((startPoint.x + cellSize).toFloat(), startPoint.y.toFloat())
         val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
             for ((theta, endState) in sides)
                 if (endState == Explosion.EndState.FALLOUT) {
-                    val point = PointF((startPoint.x + cellSize).toFloat(), startPoint.y.toFloat())
                     val rotateMatrix =
                         rotationMatrix(theta, startPoint.x + cellSize/2f, startPoint.y + cellSize/2f)
-                    val phi = nCycles * 2 * PI * progress
+                    val phi = FALLOUT_N_CYCLES * 360 * progress
                     val centeredRotateMatrix = centeredRotateMatrix(
                         bitmap.width, bitmap.height, phi.toFloat()
                     )
-                    val zScale = 1 - progress * Z_ZOOM
+                    val zScale = 1 - FALLOUT_FALLING_VELOCITY * progress * Z_ZOOM
                     val centeredScaleMatrix = centeredScaleMatrix(
                         bitmap.width, bitmap.height,
                         (CHIP_CELL_RATIO * zScale).toFloat()
@@ -187,7 +230,7 @@ class SimpleGamePresenter(
                 }
         }
         return Animation(
-            duration = if (noFallouts) 0L else duration,
+            duration = if (noFallouts) 0L else FALLOUT_ANIMATION_DURATION,
             blocking = false,
             progressingDraw = if (noFallouts) ({}) else progressingDraw
         )
@@ -237,5 +280,10 @@ class SimpleGamePresenter(
         private const val BACKGROUND_COLOR: Int = Color.BLACK
         private const val CHIP_CELL_RATIO: Float = 0.9f
         private const val Z_ZOOM: Double = 2e-1
+        private const val EXPLOSION_ANIMATION_DURATION = 1_000L
+        private const val EXPLOSION_PAUSE_DURATION = 500L
+        private const val FALLOUT_ANIMATION_DURATION = 4_000L
+        private const val FALLOUT_N_CYCLES = 3
+        private const val FALLOUT_FALLING_VELOCITY = 1f
     }
 }

@@ -19,7 +19,7 @@ class PrimitiveBoard private constructor(
         }
     )
 
-    fun copy(): PrimitiveBoard =
+    override fun copy(): PrimitiveBoard =
         PrimitiveBoard(width, height, chips.clone())
 
     private inline fun validPos(pos: Pos): Boolean =
