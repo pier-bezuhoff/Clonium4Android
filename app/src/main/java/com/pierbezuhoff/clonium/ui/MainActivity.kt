@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigateToGameActivity() {
-        val intent = Intent(this@MainActivity, GameActivity::class.java)
+        val intent = Intent(this, GameActivity::class.java)
         startActivityForResult(intent, NEW_GAME_REQUEST_CODE)
     }
 

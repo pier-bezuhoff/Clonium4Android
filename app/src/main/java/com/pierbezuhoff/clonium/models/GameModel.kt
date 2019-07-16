@@ -48,36 +48,38 @@ class GameModel(
         gamePresenter.draw(canvas)
 
     override fun advance(timeDelta: Long) {
-        gamePresenter.advance(timeDelta)
+        gamePresenter.advance((GAME_SPEED * timeDelta).toLong())
         if (!gamePresenter.hasBlockingAnimations() && continueGameOnce)
             continueGame()
     }
 
     private fun continueGame() {
-        Log.i(TAG, "${game.currentPlayer} (${game.currentPlayer.playerId})")
-        Log.i(TAG, game.board.asString())
+//        Log.i(TAG, "${game.currentPlayer} (${game.currentPlayer.playerId})")
+//        Log.i(TAG, game.board.asString())
         when {
             game.isEnd() -> {
                 Log.i(TAG, "game ended")
-                // stat, back
+                // show overall stat
             }
             game.currentPlayer is Bot -> coroutineScope.launch {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
-                delay(300L)
-                gamePresenter.unhighlight()
+                delay(BOT_MIN_TIME)
                 gamePresenter.board = game.board.copy() // freeze board before changes
                 val transitions = with(game) { botTurnAsync() }.await()
+                gamePresenter.unhighlight()
                 gamePresenter.startTransitions(transitions) // unfreeze board eventually
                 continueGameOnce = true
             }
             else -> {
+                // before human's turn:
                 gamePresenter.highlight(game.possibleTurns())
-                // highlight possible turns, etc.
             }
         }
     }
 
     companion object {
         private const val TAG = "GameModel"
+        private const val BOT_MIN_TIME: Long = 300L
+        private const val GAME_SPEED: Float = 1f
     }
 }

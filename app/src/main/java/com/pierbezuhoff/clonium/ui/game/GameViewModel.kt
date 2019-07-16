@@ -35,7 +35,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
 
     private fun exampleGame() {
         val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER) // BoardFactory.DEFAULT_2
-        val bots3: Set<Bot> = setOf(0, 2, 3).map { RandomPickerBot(PlayerId(it)) }.toSet()
+        val bots3: Set<Bot> = setOf(0, 1, 2, 3).map { RandomPickerBot(PlayerId(it)) }.toSet()
         val newGameModel = get<GameModel> { parametersOf(board, bots3, viewModelScope) }
         _gameModel.value = newGameModel
     }

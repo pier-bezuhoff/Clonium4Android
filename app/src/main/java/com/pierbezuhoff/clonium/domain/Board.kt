@@ -253,9 +253,9 @@ object BoardFactory {
         }
 
     // Default boards from BGC Clonium
-    val DEFAULT_1 = SimpleBoard(EmptyBoardFactory.DEFAULT_1).apply { spawn4players() }
-    val DEFAULT_2 = SimpleBoard(EmptyBoardFactory.DEFAULT_2).apply { spawn4players() }
-    val DEFAULT_3 = SimpleBoard(EmptyBoardFactory.DEFAULT_3).apply { spawn4players() }
-    val DEFAULT_4 = SimpleBoard(EmptyBoardFactory.DEFAULT_4).apply { spawn4players() }
-    val DEFAULT_5 = SimpleBoard(EmptyBoardFactory.DEFAULT_5).apply { spawn4players() }
+    val DEFAULT_1 = spawn4players(EmptyBoardFactory.DEFAULT_1)
+    val DEFAULT_2 = spawn4players(EmptyBoardFactory.DEFAULT_2)
+    val DEFAULT_3 = spawn4players(EmptyBoardFactory.DEFAULT_3)
+    val DEFAULT_4 = spawn4players(EmptyBoardFactory.DEFAULT_4)
+    val DEFAULT_5 = spawn4players(EmptyBoardFactory.DEFAULT_5)
 }

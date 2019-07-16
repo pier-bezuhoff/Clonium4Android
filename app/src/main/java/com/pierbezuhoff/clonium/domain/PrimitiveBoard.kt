@@ -1,6 +1,6 @@
 package com.pierbezuhoff.clonium.domain
 
-import java.lang.Exception
+import kotlin.IllegalArgumentException
 
 @Suppress("NOTHING_TO_INLINE")
 class PrimitiveBoard private constructor(
@@ -57,9 +57,9 @@ class PrimitiveBoard private constructor(
             value == NO_CELL || value == NO_CHIP ->
                 null
             value < -2 ->
-                throw Exception("Impossible to decode $value < -2 to Chip?")
+                throw IllegalArgumentException("Impossible to decode $value < -2 to Chip?")
             value % Level.MAX_LEVEL.ordinal == 0 ->
-                throw Exception("Impossible to decode $value with level = 0 to Chip?")
+                throw IllegalArgumentException("Impossible to decode $value with level = 0 to Chip?")
             else ->
                 Chip(
                     PlayerId(value / Level.MAX_LEVEL.ordinal),

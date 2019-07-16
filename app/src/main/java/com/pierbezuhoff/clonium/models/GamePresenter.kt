@@ -138,7 +138,6 @@ class SimpleGamePresenter(
                 transition = transitions.next()
                 board = transition.interimBoard
                 startFalloutsOnce = true
-                Log.i(TAG, "start explosions, interimBoard: ${board.asString()}")
                 return AnimationEmitter.Output.Animations(
                     transition.explosions.map { explosionAnimation(it) }
                 )
@@ -146,7 +145,6 @@ class SimpleGamePresenter(
 
             private fun startFallouts(): AnimationEmitter.Output.Animations {
                 board = transition.endBoard
-                Log.i(TAG, "start fallouts, endBoard: ${board.asString()}")
                 return AnimationEmitter.Output.Animations(
                     transition.explosions.map { falloutAnimation(it) }
                 )
@@ -154,7 +152,6 @@ class SimpleGamePresenter(
 
             private fun endTransitions(): AnimationEmitter.Output.End {
                 board = game.board
-                Log.i(TAG, "end transitions")
                 return AnimationEmitter.Output.End
             }
         })
