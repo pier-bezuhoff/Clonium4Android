@@ -7,6 +7,7 @@ import androidx.annotation.IntRange
  * [y] = `0..(board.height - 1)` -- row */
 data class Pos(val x: Int, val y: Int)
 
+/** Empty (= without [Chip]s) board */
 interface EmptyBoard {
     val width: Int
     val height: Int
@@ -16,9 +17,6 @@ interface EmptyBoard {
 
     fun hasCell(pos: Pos): Boolean =
         pos in asPosSet()
-
-    fun hasCells(vararg poss: Pos): Boolean =
-        poss.all { hasCell(it) }
 
     fun pos2str(pos: Pos): String =
         when {
@@ -58,8 +56,10 @@ class SimpleEmptyBoard(
 }
 
 
-/** Owner of [Chip], [id] MUST be unique and non-negative */
-data class PlayerId(/** Unique, non-negative */ val id: Int)
+/** Owner of [Chip] */
+data class PlayerId(/** non-negative */ val id: Int)
+
+/** Level (# of holes) of [Chip] */
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
     override fun compareTo(other: Level): Int =
         ordinal.compareTo(other.ordinal)
@@ -73,9 +73,14 @@ data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Leve
         val MAX_LEVEL = Level(7)
     }
 }
+
+/** Element placed on cell, owned by [playerId] with [level] (= # of holes) */
 data class Chip(val playerId: PlayerId, val level: Level)
 
+/** Board with [Chip]s */
 interface Board : EmptyBoard {
+    override fun asPosSet(): Set<Pos> = asPosMap().keys
+
     /** For [Pos] with cell: `Map.Entry<Pos, Chip?>` */
     fun asPosMap(): Map<Pos, Chip?>
 
@@ -99,6 +104,7 @@ interface Board : EmptyBoard {
             .distinct()
             .toSet()
 
+    /** [Set] of all [Pos]s owned by player with [playerId] */
     fun possOf(playerId: PlayerId): Set<Pos> =
         asPosMap()
             .filterValues { chip -> chip?.playerId == playerId }
@@ -138,13 +144,14 @@ class SimpleBoard(
             emptyBoard.asPosSet().associateWithTo(this) { null }
         }
     )
-    override fun asPosSet(): Set<Pos> = posMap.keys
     override fun asPosMap(): Map<Pos, Chip?> = posMap
     override fun toString(): String =
         asString()
 }
 
 
+/** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 and
+ * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] and [left] */
 data class Explosion(
     val playerId: PlayerId,
     val center: Pos,
@@ -160,23 +167,27 @@ data class Explosion(
         FALLOUT
     }
 }
-/** Series of simultaneous [Explosion]s */
+/** Single-step effect of [EvolvingBoard.inc]: series of simultaneous [explosions] */
 data class Transition(
+    /** [Board] after decreasing exploded [Chip]s while transient ones are flying in 4 directions */
     val interimBoard: Board,
+    /** [Board] after [Transition] */
     val endBoard: Board,
     val explosions: Set<Explosion>
 )
 
+/** Board with [Chip]s on which [Player]s can make turns ([inc] and [incAnimated]) */
 interface EvolvingBoard : Board {
     class InvalidTurn(reason: String) : Exception(reason)
 
     override fun copy(): EvolvingBoard
 
     @Throws(InvalidTurn::class)
+    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s */
     fun inc(pos: Pos)
 
     @Throws(InvalidTurn::class)
-    /** Increase [Level] at [pos] by 1, then explode all unstable chips while recording [Transition]s */
+    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s while recording [Transition]s */
     fun incAnimated(pos: Pos): Sequence<Transition>
 }
 // TODO: SimpleEvolvingBoard
@@ -190,6 +201,9 @@ object EmptyBoardFactory {
             Pos(width - 1 - x, y), Pos(width - 1 - x, height - 1 - y)
         ))
     }
+
+    fun square(size: Int): SimpleEmptyBoard =
+        rectangular(size, size)
 
     fun rectangular(width: Int, height: Int): SimpleEmptyBoard =
         SimpleEmptyBoard(
