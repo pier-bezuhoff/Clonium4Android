@@ -6,20 +6,19 @@ import androidx.annotation.IntRange
  * [x] = `0..(board.width - 1)` -- column
  * [y] = `0..(board.height - 1)` -- row */
 data class Pos(val x: Int, val y: Int)
-object Cell
 
 interface EmptyBoard {
     val width: Int
     val height: Int
 
-    /** [Set] of [Pos]s with [Cell] */
+    /** [Set] of [Pos]s with cell */
     fun asPosSet(): Set<Pos>
 
     fun hasCell(pos: Pos): Boolean =
         pos in asPosSet()
 
-    fun cellAt(pos: Pos): Cell? =
-        if (hasCell(pos)) Cell else null
+    fun hasCells(vararg poss: Pos): Boolean =
+        poss.all { hasCell(it) }
 
     fun pos2str(pos: Pos): String =
         when {
@@ -58,6 +57,7 @@ class SimpleEmptyBoard(
         asString()
 }
 
+
 /** Owner of [Chip], [id] MUST be unique and non-negative */
 data class PlayerId(/** Unique, non-negative */ val id: Int)
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
@@ -76,11 +76,11 @@ data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Leve
 data class Chip(val playerId: PlayerId, val level: Level)
 
 interface Board : EmptyBoard {
-    /** For [Pos] with [Cell]: `Map.Entry<Pos, Chip?>` */
+    /** For [Pos] with cell: `Map.Entry<Pos, Chip?>` */
     fun asPosMap(): Map<Pos, Chip?>
 
     fun chipAt(pos: Pos): Chip? =
-        if (!hasCell(pos)) null else asPosMap()[pos]
+        asPosMap()[pos]
 
     fun hasChip(pos: Pos): Boolean =
         chipAt(pos) != null
@@ -91,6 +91,7 @@ interface Board : EmptyBoard {
     fun levelAt(pos: Pos): Level? =
         chipAt(pos)?.level
 
+    /** alive (with [Chip]s) players on the [Board] */
     fun players(): Set<PlayerId> =
         asPosMap().values
             .filterNotNull()
@@ -102,6 +103,9 @@ interface Board : EmptyBoard {
         asPosMap()
             .filterValues { chip -> chip?.playerId == playerId }
             .keys
+
+    fun isAlive(playerId: PlayerId): Boolean =
+        possOf(playerId).isNotEmpty()
 
     override fun pos2str(pos: Pos): String =
         when {
@@ -140,6 +144,7 @@ class SimpleBoard(
         asString()
 }
 
+
 data class Explosion(
     val playerId: PlayerId,
     val center: Pos,
@@ -149,7 +154,7 @@ data class Explosion(
     val left: EndState
 ) {
     enum class EndState {
-        /** After [Explosion] [Chip] lands on [Cell] */
+        /** After [Explosion] [Chip] lands on cell */
         LAND,
         /** After [Explosion] [Chip] falls from the [Board] */
         FALLOUT
@@ -165,12 +170,17 @@ data class Transition(
 interface EvolvingBoard : Board {
     class InvalidTurn(reason: String) : Exception(reason)
 
+    override fun copy(): EvolvingBoard
+
+    @Throws(InvalidTurn::class)
+    fun inc(pos: Pos)
+
     @Throws(InvalidTurn::class)
     /** Increase [Level] at [pos] by 1, then explode all unstable chips while recording [Transition]s */
-    fun inc(pos: Pos): Sequence<Transition>
+    fun incAnimated(pos: Pos): Sequence<Transition>
 }
-fun EvolvingBoard(board: Board): EvolvingBoard =
-    PrimitiveBoard(board)
+// TODO: SimpleEvolvingBoard
+
 
 object EmptyBoardFactory {
     fun SimpleEmptyBoard.symmetricRemove(x: Int, y: Int) {

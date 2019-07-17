@@ -86,7 +86,7 @@ class SimpleGame(
 
     private fun makeTurn(turn: Pos): Iterator<Transition> {
         require(turn in possibleTurns())
-        val transitions = board.inc(turn)
+        val transitions = board.incAnimated(turn)
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
@@ -102,7 +102,9 @@ class SimpleGame(
         require(currentPlayer is Bot)
         return async(Dispatchers.Default) {
             val turn =
-                with(currentPlayer as Bot) { makeTurnAsync(board) }.await()
+                with(currentPlayer as Bot) {
+                    makeTurnAsync(board, order.map { it.playerId })
+                }.await()
             return@async makeTurn(turn)
         }
     }

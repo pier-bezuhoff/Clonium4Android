@@ -6,21 +6,29 @@ import kotlin.IllegalArgumentException
 class PrimitiveBoard private constructor(
     override val width: Int,
     override val height: Int,
-    private val chips: IntArray
+    private val chips: IntArray,
+    private val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
+
+    @Suppress("RemoveRedundantQualifierName")
     constructor(board: Board) : this(
         board.width, board.height,
         IntArray(board.width * board.height).apply {
-            val proto = PrimitiveBoard(board.width, board.height, intArrayOf())
+            val proto = PrimitiveBoard(board.width, board.height, intArrayOf(), mutableMapOf())
             for (ix in indices)
                 this[ix] = NO_CELL
             for ((pos, maybeChip) in board.asPosMap())
                 this[proto.pos2ix(pos)] = proto.chip2int(maybeChip)
+        },
+        kotlin.run {
+            val proto = PrimitiveBoard(board.width, board.height, intArrayOf(), mutableMapOf())
+            return@run board.players().associateWith {
+                board.possOf(it).map { proto.pos2ix(it) }.toMutableSet() }
         }
     )
 
     override fun copy(): PrimitiveBoard =
-        PrimitiveBoard(width, height, chips.clone())
+        PrimitiveBoard(width, height, chips.clone(), ownedIxs)
 
     private inline fun validPos(pos: Pos): Boolean =
         (pos.x in 0 until width) && (pos.y in 0 until height)
@@ -52,6 +60,12 @@ class PrimitiveBoard private constructor(
             level.ordinal + player.id * Level.MAX_LEVEL.ordinal
         } ?: NO_CHIP
 
+    private inline fun int2playerId(value: Int): PlayerId =
+        PlayerId(value / Level.MAX_LEVEL.ordinal)
+
+    private inline fun int2level(value: Int): Level =
+        Level(value % Level.MAX_LEVEL.ordinal)
+
     private inline fun int2chip(value: Int): Chip? =
         when {
             value == NO_CELL || value == NO_CHIP ->
@@ -61,19 +75,16 @@ class PrimitiveBoard private constructor(
             value % Level.MAX_LEVEL.ordinal == 0 ->
                 throw IllegalArgumentException("Impossible to decode $value with level = 0 to Chip?")
             else ->
-                Chip(
-                    PlayerId(value / Level.MAX_LEVEL.ordinal),
-                    Level(value % Level.MAX_LEVEL.ordinal)
-                )
+                Chip(int2playerId(value), int2level(value))
         }
 
-    private fun chipAt(ix: Int): Chip? =
+    private inline fun chipAt(ix: Int): Chip? =
         int2chip(chips[ix])
 
-    private fun playerAt(ix: Int): PlayerId? =
+    private inline fun playerAt(ix: Int): PlayerId? =
         int2chip(chips[ix])?.playerId
 
-    private fun levelAt(ix: Int): Level? =
+    private inline fun levelAt(ix: Int): Level? =
         int2chip(chips[ix])?.level
 
     override fun chipAt(pos: Pos): Chip? =
@@ -89,10 +100,21 @@ class PrimitiveBoard private constructor(
         return map
     }
 
+    override fun possOf(playerId: PlayerId): Set<Pos> =
+        ownedIxs.getValue(playerId).map { ix2pos(it) }.toSet()
+
+    override fun isAlive(playerId: PlayerId): Boolean =
+        ownedIxs.getValue(playerId).isNotEmpty()
+
+    override fun players(): Set<PlayerId> =
+        ownedIxs
+            .filterValues { it.isNotEmpty() }
+            .keys
+
     private fun hasChip(ix: Int): Boolean =
         hasCell(ix) && chips[ix] != NO_CHIP
 
-    /** Neighbor indices of [ix] with [Cell] */
+    /** Neighbor indices of [ix] with cell */
     private fun neighbors(ix: Int): Set<Int> {
         val neighbors = mutableSetOf<Int>()
         if (hasCell(ix - width))
@@ -106,30 +128,40 @@ class PrimitiveBoard private constructor(
         return neighbors
     }
 
-    private fun hasUnstableLevel(ix: Int): Boolean =
-        levelAt(ix)?.let { it >= Level.MIN_UNSTABLE_LEVEL } == true
+    private inline fun hasUnstableLevel(ix: Int): Boolean =
+        int2level(chips[ix]) >= Level.MIN_UNSTABLE_LEVEL
 
-    private fun dec4(ix: Int) {
+    private inline fun dec4(ix: Int) {
         require(hasUnstableLevel(ix))
         val level = levelAt(ix)!!
-        if (level == Level.MIN_UNSTABLE_LEVEL)
+        if (level == Level.MIN_UNSTABLE_LEVEL) {
+            ownedIxs.getValue(playerAt(ix)!!).remove(ix)
             chips[ix] = NO_CHIP
-        else
+        } else {
             chips[ix] -= 4
+        }
     }
 
     /** Increase neighbors' levels by 1 */
-    private fun explodeToNeighbors(ix: Int, playerId: PlayerId) {
-        for (i in neighbors(ix))
-            if (chips[i] == NO_CHIP)
+    private inline fun explodeToNeighbors(ix: Int, playerId: PlayerId) {
+        for (i in neighbors(ix)) {
+            if (chips[i] == NO_CHIP) {
                 chips[i] = chip2int(Chip(playerId, Level(1)))
-            else
+                ownedIxs.getValue(playerId).add(i)
+            } else {
+                val previousOwner = playerAt(i)!!
+                if (previousOwner != playerId) {
+                    ownedIxs.getValue(previousOwner).remove(i)
+                    ownedIxs.getValue(playerId).add(i)
+                }
                 chips[i] = chip2int(Chip(playerId, chipAt(i)!!.level + 1))
+            }
+        }
     }
 
     /** For indices in [ixs]: [dec4] it and [explodeToNeighbors].
      * Return [Set] of changed indices */
-    private fun explode(ixs: Set<Int>): Set<Int> {
+    private inline fun explode(ixs: Set<Int>): Set<Int> {
         require(ixs.all { hasUnstableLevel(it) })
         val changed: MutableSet<Int> = mutableSetOf()
         changed.addAll(ixs)
@@ -140,6 +172,35 @@ class PrimitiveBoard private constructor(
             changed.addAll(neighbors(ix))
         }
         return changed
+    }
+
+    private inline fun unstableIxs(
+        suspiciousIxs: Set<Int> = chips.indices.toSet()
+    ): Set<Int> =
+        suspiciousIxs.filter { hasUnstableLevel(it) }.toSet()
+
+    // TODO: detect chains and explode whole chains
+    private tailrec fun evolve(unstable: Set<Int>) {
+        if (unstable.isNotEmpty()) {
+            val changed = explode(unstable)
+            evolve(unstableIxs(changed))
+        }
+    }
+
+    private inline fun inc(ix: Int) {
+        val level = levelAt(ix)!!
+        chips[ix] += 1
+        if (level >= Level.MAX_STABLE_LEVEL)
+            evolve(setOf(ix))
+    }
+
+    override fun inc(pos: Pos) {
+        val ix = pos2ix(pos)
+        if (!hasCell(ix))
+            throw EvolvingBoard.InvalidTurn("There is no cell on $pos")
+        if (!hasChip(ix))
+            throw EvolvingBoard.InvalidTurn("There is no chip on $pos")
+        inc(ix)
     }
 
     private fun explosionAt(ix: Int): Explosion {
@@ -174,9 +235,6 @@ class PrimitiveBoard private constructor(
         return Transition(interimState, endState, explosions)
     }
 
-    private fun unstableIxs(suspiciousIxs: Set<Int> = chips.indices.toSet()): Set<Int> =
-        suspiciousIxs.filter { hasUnstableLevel(it) }.toSet()
-
     private tailrec fun _evolveTransitions(
         unstable: Set<Int>,
         transitions: Sequence<Transition>
@@ -194,7 +252,7 @@ class PrimitiveBoard private constructor(
     private fun evolveTransitions(unstable: Set<Int>): Sequence<Transition> =
         _evolveTransitions(unstable, emptySequence())
 
-    override fun inc(pos: Pos): Sequence<Transition> {
+    override fun incAnimated(pos: Pos): Sequence<Transition> {
         val ix = pos2ix(pos)
         if (!hasCell(ix))
             throw EvolvingBoard.InvalidTurn("There is no cell on $pos")
