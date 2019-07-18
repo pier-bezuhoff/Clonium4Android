@@ -27,6 +27,8 @@ interface EmptyBoard {
     fun copy(): EmptyBoard =
         SimpleEmptyBoard(width, height, asPosSet().toMutableSet())
 
+    override fun equals(other: Any?): Boolean
+
     fun asString(): String {
         return buildString {
             append((0 until width)
@@ -53,6 +55,12 @@ class SimpleEmptyBoard(
 
     override fun toString(): String =
         asString()
+
+    override fun equals(other: Any?): Boolean =
+        other is EmptyBoard && other.asString() == asString()
+
+    override fun hashCode(): Int =
+        asString().hashCode()
 }
 
 
@@ -144,9 +152,35 @@ class SimpleBoard(
             emptyBoard.asPosSet().associateWithTo(this) { null }
         }
     )
-    override fun asPosMap(): Map<Pos, Chip?> = posMap
+    constructor(board: Board) : this(
+        board.width, board.height, board.asPosMap().toMutableMap()
+    )
+    override fun asPosMap(): Map<Pos, Chip?> =
+        posMap
+
     override fun toString(): String =
         asString()
+
+    override fun copy(): SimpleBoard =
+        SimpleBoard(width, height, posMap.toMutableMap())
+
+    override fun equals(other: Any?): Boolean =
+        other is Board && other.asString() == asString()
+
+    override fun hashCode(): Int =
+        asString().hashCode()
+
+    fun addChipAt(chip: Chip?, pos: Pos) {
+        posMap[pos] = chip
+    }
+
+    /** Return [copy] of this [SimpleBoard] with applied changes of [pairs] */
+    fun with(vararg pairs: Pair<Pos, Chip?>): SimpleBoard {
+        val board = copy()
+        for ((pos, maybeChip) in pairs)
+            board.posMap[pos] = maybeChip
+        return board
+    }
 }
 
 

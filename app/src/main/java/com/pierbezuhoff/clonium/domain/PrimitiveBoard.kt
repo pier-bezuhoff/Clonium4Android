@@ -269,6 +269,12 @@ class PrimitiveBoard private constructor(
     override fun toString(): String =
         asString()
 
+    override fun equals(other: Any?): Boolean =
+        other is EvolvingBoard && other.asString() == asString()
+
+    override fun hashCode(): Int =
+        asString().hashCode()
+
     companion object {
         private const val NO_CELL = -2
         private const val NO_CHIP = -1
