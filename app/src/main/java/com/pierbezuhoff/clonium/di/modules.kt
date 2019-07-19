@@ -18,23 +18,28 @@ val gameModule = module {
     factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
     factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
 
-    single<GameBitmapLoader>(named(GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader>(named(STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
 
-    factory<Game>(named(WITH_ORDER)) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
+    factory<Game>(named(NAMES.WITH_ORDER)) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
         SimpleGame(get { parametersOf(board) }, bots, initialOrder) }
     factory<Game> { (board: Board, bots: Set<Bot>) ->
-        get(named(WITH_ORDER)) { parametersOf(board, bots, null) }
+        get(named(NAMES.WITH_ORDER)) { parametersOf(board, bots, null) }
     }
+    factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory { (game: Game, coroutineScope: CoroutineScope) ->
-        GameModel(game, get(named(GREEN)), coroutineScope) }
+        GameModel(game, get(named(NAMES.GREEN)), coroutineScope) }
 
     viewModel { GameViewModel(get()) }
 
     single { GameGestures(androidContext()) }
 }
 
-const val GREEN = "green"
-const val STANDARD = "standard"
-const val WITH_ORDER = "withOrder"
+object NAMES {
+    const val GREEN = "green"
+    const val STANDARD = "standard"
+    const val WITH_ORDER = "withOrder"
+    const val EXAMPLE = "example"
+}
+

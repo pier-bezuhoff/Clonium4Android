@@ -5,7 +5,8 @@ import android.graphics.PointF
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.di.NAMES
+import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.ui.meta.TapListener
@@ -13,6 +14,7 @@ import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.get
 import org.koin.core.inject
 import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.named
 
 class GameViewModel(application: Application) : CloniumAndroidViewModel(application)
     , TapListener
@@ -34,16 +36,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     }
 
     private fun exampleGame() {
-        val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
-        val bots: Set<Bot> =
-            setOf(
-                RandomPickerBot(PlayerId(0)),
-                RandomPickerBot(PlayerId(2)),
-                RandomPickerBot(PlayerId(3))
-//                LevelMaximizerBot(PlayerId(2), depth = 1),
-//                ChipsMaximizerBot(PlayerId(3), depth = 1)
-            )
-        val game = get<Game> { parametersOf(board, bots) }
+        val game = get<Game>(named(NAMES.EXAMPLE))
         val newGameModel = get<GameModel> { parametersOf(game, viewModelScope) }
         _gameModel.value = newGameModel
     }

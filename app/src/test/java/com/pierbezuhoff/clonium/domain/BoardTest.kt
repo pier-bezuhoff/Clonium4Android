@@ -1,7 +1,9 @@
 package com.pierbezuhoff.clonium.domain
 
 import com.pierbezuhoff.clonium.domain.Explosion.EndState.*
+import io.kotlintest.data.forall
 import io.kotlintest.inspectors.forAll
+import io.kotlintest.matchers.collections.shouldBeEmpty
 import io.kotlintest.matchers.collections.shouldContainExactly
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
@@ -12,6 +14,7 @@ import io.kotlintest.matchers.sequences.shouldHaveSize
 import io.kotlintest.matchers.withClue
 import io.kotlintest.properties.Gen
 import io.kotlintest.properties.assertAll
+import io.kotlintest.should
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldNotBe
 import io.kotlintest.shouldThrow
@@ -22,7 +25,7 @@ import kotlin.math.exp
 class BoardTest : FreeSpec() {
     init {
         "interface EmptyBoard" - {
-            "copy" - {
+            "copy: changing original does not affect its copy" - {
                 "EmptyBoard" {
                     SimpleEmptyBoardGenerator().assertAll(iterations = 1_000) { board: SimpleEmptyBoard ->
                         val initialPoss = board.posSet.toSet()
@@ -57,7 +60,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
             }
-            "asPosSet & hasCell" - {
+            "asPosSet is consistent with hasCell" - {
                 "PrimitiveBoard" {
                     PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
                         PosGenerator(board).assertAll(iterations = 10) { pos: Pos ->
@@ -93,12 +96,12 @@ class BoardTest : FreeSpec() {
                                 board.asPosMap()
                                     .values.mapNotNull { it?.playerId }
                                     .toSet()
-                        board.players().forAll { board.isAlive(it) shouldBe true }
+                        board.players().forEach { board.isAlive(it) shouldBe true }
                     }
                 }
                 "asPosMap & possOf & players & isAlive" {
                     PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
-                        board.players().forAll { playerId ->
+                        board.players().forEach { playerId ->
                             board.possOf(playerId) shouldContainExactlyInAnyOrder
                                     board.asPosMap()
                                         .filterValues { it?.playerId == playerId }
@@ -114,45 +117,45 @@ class BoardTest : FreeSpec() {
 
         "interface EvolvingBoard" - {
             "PrimitiveBoard" - {
-                "inc & incAnimated" {
+                "inc and incAnimated yield the same changes, and throws when pos has no chip" {
                     PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         board.asPosMap()
                             .filterValues { it != null }
                             .keys
-                            .forAll {
+                            .forEach {
                                 val board1 = board.copy().apply { inc(it) }
                                 val board2 = board.copy().apply { incAnimated(it) }
-                                board1.asPosMap() shouldContainExactly board2.asPosMap()
+                                board1 shouldMatchBoard board2
                             }
                         val initialBoard = board.copy()
                         board.asPosMap()
                             .filterValues { it == null }
                             .keys
-                            .forAll {
+                            .forEach {
                                 shouldThrow<EvolvingBoard.InvalidTurn> { board.inc(it) }
-                                board.asPosMap() shouldContainExactly initialBoard.asPosMap()
+                                board shouldMatchBoard initialBoard
                                 shouldThrow<EvolvingBoard.InvalidTurn> { board.incAnimated(it) }
-                                board.asPosMap() shouldContainExactly initialBoard.asPosMap()
+                                board shouldMatchBoard initialBoard
                             }
                     }
                 }
                 "incAnimated" - {
-                    "single chip 3 level" {
+                    "board with single chip 3 level: full check on transitions and changes" {
                         SimpleEmptyBoardGenerator().assertAll(iterations = 10_000) { emptyBoard: EmptyBoard ->
                             // PrimitiveBoard with single chip 3 level
-                            emptyBoard.asPosSet().forAll { pos: Pos ->
+                            emptyBoard.asPosSet().forEach { pos: Pos ->
                                 val playerId = PlayerId(1)
-                                val _single3: Board = SimpleBoard(emptyBoard).apply {
-                                    addChipAt(Chip(playerId, Level(3)), pos)
-                                }
+                                val _single3: Board = SimpleBoard(emptyBoard).with(
+                                    pos to Chip(playerId, Level(3))
+                                )
                                 val single3 = PrimitiveBoard(_single3)
                                 val transitions = single3.incAnimated(pos)
                                 single3.chipAt(pos) shouldBe null
                                 transitions shouldHaveSize 1
                                 val transition = transitions.first()
                                 transition.explosions shouldHaveSize 1
-                                transition.interimBoard.asPosMap() shouldContainExactly SimpleBoard(emptyBoard).asPosMap()
-                                transition.endBoard.asPosMap() shouldContainExactly single3.asPosMap()
+                                transition.interimBoard shouldMatchBoard SimpleBoard(emptyBoard)
+                                transition.endBoard shouldMatchBoard single3
                                 val explosion = transition.explosions.first()
                                 explosion.center shouldBe pos
                                 explosion.playerId shouldBe playerId
@@ -175,39 +178,35 @@ class BoardTest : FreeSpec() {
                             }
                         }
                     }
-                    "transition.interimBoard, transition.endBoard" {
+                    "transition.interimBoard and transition.endBoard cannot explode further and match initial (without unstable chip) and end states of board when incAnimated" {
                         PrimitiveBoardGenerator().assertAll(iterations = 10_000) { initialBoard: PrimitiveBoard ->
                             initialBoard.asPosMap()
                                 .filterValues { it?.level == Level(3) }
                                 .keys
-                                .forAll { startPos: Pos ->
+                                .forEach { startPos: Pos ->
                                     val board = initialBoard.copy()
                                     val transitions = board.incAnimated(startPos)
                                     transitions shouldHaveAtLeastSize 1
-                                    transitions.toList().forAll {
+                                    transitions.toList().forEach {
                                         it.interimBoard.asPosMap()
                                             .values
                                             .filterNotNull()
                                             .filter { it.level >= Level(4) }
-                                            .shouldContainExactly(emptyList())
+                                            .shouldBeEmpty()
                                     }
-                                    transitions.first().interimBoard.asString()
-                                        .shouldBe(
-                                            SimpleBoard(initialBoard).apply {
-                                                posMap[startPos] = null
-                                            }.asString()
-                                        )
-                                    transitions.last().endBoard.asString() shouldBe board.asString()
+                                    transitions.first().interimBoard shouldMatchBoard
+                                            SimpleBoard(initialBoard).with(startPos to null)
+                                    transitions.last().endBoard shouldMatchBoard board
                                     board.asPosMap().values
                                         .filterNotNull()
                                         .filter { it.level >= Level(4) }
-                                        .shouldContainExactly(emptyList())
+                                        .shouldBeEmpty()
                                 }
                         }
                     }
                     "ultimate example" {
-                        val emptyBoard: EmptyBoard = EmptyBoardFactory.square(4).apply {
-                            with(EmptyBoardFactory) { symmetricRemove(1, 0) }
+                        val emptyBoard: EmptyBoard = with(EmptyBoardFactory) {
+                            square(4).apply { symmetricRemove(1, 0) }
                         }
                         fun chip(id: Int, ordinal: Int): Chip =
                             Chip(PlayerId(id), Level(ordinal))
@@ -377,12 +376,12 @@ class BoardTest : FreeSpec() {
                         )
                         transitions shouldHaveSize 8
                         transitions.zip(expectedTransitions).toList()
-                            .forAll { (actualTransition, expectedTransition) ->
-                                actualTransition.interimBoard.asString() shouldBe expectedTransition.interimBoard.asString()
-                                actualTransition.endBoard.asString() shouldBe expectedTransition.endBoard.asString()
+                            .forEach { (actualTransition, expectedTransition) ->
+                                actualTransition.interimBoard shouldMatchBoard expectedTransition.interimBoard
+                                actualTransition.endBoard shouldMatchBoard expectedTransition.endBoard
                                 actualTransition.explosions shouldContainExactly expectedTransition.explosions
                             }
-                        primitiveBoard.asString() shouldBe endBoard8.asString()
+                        primitiveBoard shouldMatchBoard endBoard8
                     }
                 }
             }

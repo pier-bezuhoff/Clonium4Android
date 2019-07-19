@@ -108,4 +108,19 @@ class SimpleGame(
             return@async makeTurn(turn)
         }
     }
+
+    companion object {
+        fun example(): SimpleGame {
+            val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
+            val bots: Set<Bot> =
+                setOf(
+                    RandomPickerBot(PlayerId(0)),
+                    RandomPickerBot(PlayerId(2)),
+                    RandomPickerBot(PlayerId(3))
+//                LevelMaximizerBot(PlayerId(2), depth = 1),
+//                ChipsMaximizerBot(PlayerId(3), depth = 1)
+                )
+            return SimpleGame(PrimitiveBoard(board), bots)
+        }
+    }
 }
