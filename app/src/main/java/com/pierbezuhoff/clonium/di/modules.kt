@@ -28,7 +28,7 @@ val gameModule = module {
     }
 
     factory { (game: Game, coroutineScope: CoroutineScope) ->
-        GameModel(game, get(named(STANDARD)), coroutineScope) }
+        GameModel(game, get(named(GREEN)), coroutineScope) }
 
     viewModel { GameViewModel(get()) }
 

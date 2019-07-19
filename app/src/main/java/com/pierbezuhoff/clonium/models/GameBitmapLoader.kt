@@ -18,7 +18,7 @@ interface GameBitmapLoader : AssetBitmapLoader {
     fun loadBottomOfChip(chip: Chip): Bitmap
 }
 
-abstract class CachingAssetBitmapLoader(private val assetManager: AssetManager) : AssetBitmapLoader {
+open class CachingAssetBitmapLoader(private val assetManager: AssetManager) : AssetBitmapLoader {
     private val cache: MutableMap<String, Bitmap> = hashMapOf()
 
     @Throws(IOException::class)
@@ -29,7 +29,7 @@ abstract class CachingAssetBitmapLoader(private val assetManager: AssetManager) 
         }
 }
 
-class GreenGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoader(assetManager)
+abstract class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoader(assetManager)
     , GameBitmapLoader
 {
     override fun loadCell(): Bitmap =
@@ -38,38 +38,47 @@ class GreenGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoad
     override fun loadHighlight(weak: Boolean): Bitmap {
         val opacity = if (weak) 15 else 25
         return loadAssetBitmap("highlight-$opacity.png")
-    }
-
-    override fun loadChip(chip: Chip): Bitmap {
-        require(chip.level.ordinal in 1..7)
-        return loadAssetBitmap("green_chip_set/g1-${chip.level.ordinal}.png")
-    }
-
-    override fun loadBottomOfChip(chip: Chip): Bitmap {
-        require(chip.level.ordinal == 1)
-        return loadAssetBitmap("green_chip_set/g1-reverse.png")
     }
 }
 
-class StandardGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoader(assetManager)
+class StandardGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader(assetManager)
     , GameBitmapLoader
 {
-    override fun loadCell(): Bitmap =
-        loadAssetBitmap("cell.png")
-
-    override fun loadHighlight(weak: Boolean): Bitmap {
-        val opacity = if (weak) 15 else 25
-        return loadAssetBitmap("highlight-$opacity.png")
-    }
-
     override fun loadChip(chip: Chip): Bitmap {
         require(chip.level.ordinal in 1..5) { "Temporary limitation, will be extended to 1..7" }
         require(chip.playerId.id in 0..7) { "Temporary limitation" }
-        return loadAssetBitmap("chip_set/item${chip.level.ordinal}-${chip.playerId.id + 1}.png")
+        return loadAssetBitmap("chip_set/item${i1(chip)}-${i2(chip)}.png")
     }
 
     override fun loadBottomOfChip(chip: Chip): Bitmap {
         require(chip.level.ordinal == 1)
         return loadChip(chip)
     }
+
+    private fun i1(chip: Chip): String =
+        "${chip.level.ordinal}"
+
+    private fun i2(chip: Chip): String =
+        "${chip.playerId.id + 1}"
 }
+
+class GreenGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader(assetManager)
+    , GameBitmapLoader
+{
+    override fun loadChip(chip: Chip): Bitmap {
+        require(chip.level.ordinal in 1..7)
+        return loadAssetBitmap("green_chip_set/g${i1(chip)}-${i2(chip)}.png")
+    }
+
+    override fun loadBottomOfChip(chip: Chip): Bitmap {
+        require(chip.level.ordinal == 1)
+        return loadAssetBitmap("green_chip_set/g${i1(chip)}-reverse.png")
+    }
+
+    private fun i1(chip: Chip): String =
+        "${chip.playerId.id % 2 + 1}"
+
+    private fun i2(chip: Chip): String =
+        "${chip.level.ordinal}"
+}
+
