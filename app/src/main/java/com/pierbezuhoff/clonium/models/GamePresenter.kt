@@ -1,7 +1,6 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.*
-import android.util.Log
 import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
@@ -26,7 +25,7 @@ interface GamePresenter : AnimationAdvancer {
 // MAYBE: rotate rectangular board along with view
 class SimpleGamePresenter(
     private val game: Game,
-    private val bitmapLoader: BitmapLoader
+    private val bitmapLoader: GameBitmapLoader
 ) : Any()
     , AnimationAdvancer by PoolingAnimationAdvancer()
     , GamePresenter
@@ -159,11 +158,16 @@ class SimpleGamePresenter(
 
     private fun explosionAnimation(explosion: Explosion): Animation {
         val (playerId, pos) = explosion
-        val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
+        val bitmapTop = bitmapLoader.loadChip(Chip(playerId, Level(1)))
+        val bitmapBottom = bitmapLoader.loadBottomOfChip(Chip(playerId, Level(1)))
         val startPoint = pos2point(pos)
         val jumpLength = cellSize.toDouble()
-        val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
         val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
+            val bitmap =
+                if (progress <= 0.25 || progress >= 0.75)
+                    bitmapTop
+                else bitmapBottom
+            val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
             val alpha = PI * progress
             // coordinates of chip center
             val r = jumpLength * (1 - cos(alpha)) / 2.0

@@ -4,7 +4,7 @@ import io.kotlintest.properties.Gen
 
 fun Gen.Companion.softChoose(min: Int, max: Int): Gen<Int> =
     when {
-        min > max -> Gen.from(emptyList())
+        min > max -> Gen.from(emptyList()) // NOTE: it throw an exception, I suppose
         min == max -> Gen.constant(min)
         min < max -> Gen.choose(min, max)
         else -> error("impossible")

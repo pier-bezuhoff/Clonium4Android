@@ -1,8 +1,10 @@
 package com.pierbezuhoff.clonium.di
 
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.models.BitmapLoader
+import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GameModel
+import com.pierbezuhoff.clonium.models.GreenGameBitmapLoader
+import com.pierbezuhoff.clonium.models.StandardGameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameGestures
 import com.pierbezuhoff.clonium.ui.game.GameViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -15,12 +17,24 @@ import org.koin.dsl.module
 val gameModule = module {
     factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
     factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
-    single { BitmapLoader(androidContext().assets) }
-    factory { (board: Board, bots: Set<Bot>, coroutineScope: CoroutineScope) ->
-        GameModel(SimpleGame(get { parametersOf(board) }, bots), get(), coroutineScope) }
-    factory(named("withOrder")) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?, coroutineScope: CoroutineScope) ->
-        GameModel(SimpleGame(get { parametersOf(board) }, bots, initialOrder), get(), coroutineScope)
+
+    single<GameBitmapLoader>(named(GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader>(named(STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
+
+    factory<Game>(named(WITH_ORDER)) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
+        SimpleGame(get { parametersOf(board) }, bots, initialOrder) }
+    factory<Game> { (board: Board, bots: Set<Bot>) ->
+        get(named(WITH_ORDER)) { parametersOf(board, bots, null) }
     }
+
+    factory { (game: Game, coroutineScope: CoroutineScope) ->
+        GameModel(game, get(named(STANDARD)), coroutineScope) }
+
     viewModel { GameViewModel(get()) }
+
     single { GameGestures(androidContext()) }
 }
+
+const val GREEN = "green"
+const val STANDARD = "standard"
+const val WITH_ORDER = "withOrder"

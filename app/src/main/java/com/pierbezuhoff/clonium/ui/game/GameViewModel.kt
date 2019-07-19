@@ -38,11 +38,13 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
         val bots: Set<Bot> =
             setOf(
                 RandomPickerBot(PlayerId(0)),
-                RandomPickerBot(PlayerId(1)),
-                LevelMaximizerBot(PlayerId(2), depth = 1),
-                ChipsMaximizerBot(PlayerId(3), depth = 1)
+                RandomPickerBot(PlayerId(2)),
+                RandomPickerBot(PlayerId(3))
+//                LevelMaximizerBot(PlayerId(2), depth = 1),
+//                ChipsMaximizerBot(PlayerId(3), depth = 1)
             )
-        val newGameModel = get<GameModel> { parametersOf(board, bots, viewModelScope) }
+        val game = get<Game> { parametersOf(board, bots) }
+        val newGameModel = get<GameModel> { parametersOf(game, viewModelScope) }
         _gameModel.value = newGameModel
     }
 

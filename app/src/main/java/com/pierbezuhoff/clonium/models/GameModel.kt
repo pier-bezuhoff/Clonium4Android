@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 class GameModel(
     val game: Game,
-    bitmapLoader: BitmapLoader,
+    bitmapLoader: GameBitmapLoader,
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback

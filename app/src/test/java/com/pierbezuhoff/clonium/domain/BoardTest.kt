@@ -138,7 +138,7 @@ class BoardTest : FreeSpec() {
                 }
                 "incAnimated" - {
                     "single chip 3 level" {
-                        SimpleEmptyBoardGenerator().assertAll { emptyBoard: EmptyBoard ->
+                        SimpleEmptyBoardGenerator().assertAll(iterations = 10_000) { emptyBoard: EmptyBoard ->
                             // PrimitiveBoard with single chip 3 level
                             emptyBoard.asPosSet().forAll { pos: Pos ->
                                 val playerId = PlayerId(1)
@@ -176,7 +176,7 @@ class BoardTest : FreeSpec() {
                         }
                     }
                     "transition.interimBoard, transition.endBoard" {
-                        PrimitiveBoardGenerator().assertAll { initialBoard: PrimitiveBoard ->
+                        PrimitiveBoardGenerator().assertAll(iterations = 10_000) { initialBoard: PrimitiveBoard ->
                             initialBoard.asPosMap()
                                 .filterValues { it?.level == Level(3) }
                                 .keys
@@ -205,7 +205,7 @@ class BoardTest : FreeSpec() {
                                 }
                         }
                     }
-                    "example" {
+                    "ultimate example" {
                         val emptyBoard: EmptyBoard = EmptyBoardFactory.square(4).apply {
                             with(EmptyBoardFactory) { symmetricRemove(1, 0) }
                         }
