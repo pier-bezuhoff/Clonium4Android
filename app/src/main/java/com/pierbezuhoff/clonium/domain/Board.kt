@@ -18,6 +18,14 @@ interface EmptyBoard {
     fun hasCell(pos: Pos): Boolean =
         pos in asPosSet()
 
+    /** 4 >= neighbor [Pos]s (with cell) of [pos] */
+    fun neighbors(pos: Pos): Set<Pos> =
+        with(pos) {
+            setOf(Pos(x, y + 1), Pos(x, y - 1), Pos(x + 1, y), Pos(x - 1, y))
+                .filter { hasCell(it) }
+                .toSet()
+        }
+
     fun pos2str(pos: Pos): String =
         when {
             !hasCell(pos) -> "  "
@@ -65,10 +73,15 @@ class SimpleEmptyBoard(
 
 
 /** Owner of [Chip] */
-data class PlayerId(/** non-negative */ val id: Int)
+data class PlayerId(/** non-negative */ val id: Int) {
+    override fun toString(): String =
+        "PlayerId($id)"
+}
 
 /** Level (# of holes) of [Chip] */
 data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
+    override fun toString(): String =
+        "Level($ordinal)"
     override fun compareTo(other: Level): Int =
         ordinal.compareTo(other.ordinal)
     operator fun plus(delta: Int): Level =

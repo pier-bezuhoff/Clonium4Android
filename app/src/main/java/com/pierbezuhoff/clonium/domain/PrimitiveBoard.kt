@@ -115,7 +115,7 @@ class PrimitiveBoard private constructor(
         hasCell(ix) && chips[ix] != NO_CHIP
 
     /** Neighbor indices of [ix] with cell */
-    private fun neighbors(ix: Int): Set<Int> {
+    private inline fun neighbors(ix: Int): Set<Int> {
         val neighbors = mutableSetOf<Int>()
         if (hasCell(ix - width))
             neighbors.add(ix - width)
