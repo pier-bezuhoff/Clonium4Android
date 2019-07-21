@@ -5,7 +5,13 @@ import androidx.annotation.IntRange
 /** [Pos]ition on [Board]:
  * [x] = `0..(board.width - 1)` -- column
  * [y] = `0..(board.height - 1)` -- row */
-data class Pos(val x: Int, val y: Int)
+data class Pos(val x: Int, val y: Int) {
+    val right: Pos = Pos(x + 1, y)
+    val left: Pos = Pos(x - 1, y)
+    val up: Pos = Pos(x, y - 1)
+    val down: Pos = Pos(x, y + 1)
+    val neighbors: Set<Pos> = setOf(right, up, left, down)
+}
 
 /** Empty (= without [Chip]s) board */
 interface EmptyBoard {
