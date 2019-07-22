@@ -102,6 +102,7 @@ class SimpleGamePresenter(
     }
 
     override fun startTransitions(transitions: Iterator<Transition>) {
+        // NOTE: leaks GamePresenter
         startAnimationEmitter(object : AnimationEmitter {
             private val transitionDuration = EXPLOSION_ANIMATION_DURATION + EXPLOSION_PAUSE_DURATION
             private var transitionTime: Long = 0L

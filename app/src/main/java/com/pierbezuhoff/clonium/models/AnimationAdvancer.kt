@@ -1,7 +1,7 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
-import android.util.Log
+import kotlin.math.max
 
 interface Advanceable<T> {
     fun advance(timeDelta: Long): T
@@ -77,3 +77,6 @@ class Animation(
         progressingDraw(progress)
     }
 }
+
+class AnimatibleSequence<State, Animatible>
+
