@@ -1,59 +1,92 @@
-package com.pierbezuhoff.clonium.models
+package com.pierbezuhoff.clonium.models.animation
 
 import com.pierbezuhoff.clonium.domain.*
 
+typealias ExplosionsStep = TransitionStep.Stateful.Explosions
+typealias SwiftRotationsStep = TransitionStep.Stateful.SwiftRotations
+typealias IdleStep = TransitionStep.Stateful.Idle
+typealias FalloutsStep = TransitionStep.Stateless.Fallouts
+private typealias ProgressingStep = WithProgress<TransitionStep>
+private typealias StepAdvancer = Advancer<ProgressingStep>
+
 object TransitionsAdvancer {
 
-    fun make(transitions: Sequence<Transition>): Advancer<List<WithProgress<TransitionStep>>> {
+    fun make(transitions: Sequence<Transition>): Advancer<List<ProgressingStep>> {
         val list = transitions.toList()
         return when {
             list.isEmpty() -> EmptyAdvancer
-            else -> list.drop(1).fold(transitionAdvancer(list.first())) { sequence, transition ->
-                val idle = stepAdvancer(TransitionStep.Stateful.Idle(transition))
+            else -> list.drop(1).fold(
+                transitionAdvancer(
+                    list.first()
+                )
+            ) { sequence, transition ->
                 with(Advancers) {
-                    sequence then idle then transitionAdvancer(transition)
+                    sequence then idle(transition) then transitionAdvancer(
+                        transition
+                    )
                 }
             }
         }
     }
 
-    private fun transitionAdvancer(transition: Transition): AdvancerSequence<WithProgress<TransitionStep>> {
-        val explosions = stepAdvancer(TransitionStep.Stateful.Explosions(transition))
-        val swiftRotations = stepAdvancer(TransitionStep.Stateful.SwiftRotations(transition))
-        val idle = stepAdvancer(TransitionStep.Stateful.Idle(transition))
-        val fallouts = stepAdvancer(TransitionStep.Stateless.Fallouts(transition))
+    private fun transitionAdvancer(transition: Transition): AdvancerSequence<ProgressingStep> {
+        val explosions = explosions(transition)
+        val swiftRotations = swiftRotations(transition)
+        val fallouts = fallouts(transition)
         return with(Advancers) {
-            explosions then (swiftRotations and fallouts)
+            explosions then (/*swiftRotations and */fallouts)
         }
     }
 
-    private fun <S : TransitionStep> stepAdvancer(step: S): Advancer<WithProgress<TransitionStep>> =
-        when (step) {
-            is TransitionStep.Stateful.Explosions -> _stepAdvancer(step, Duration.EXPLOSIONS)
-            is TransitionStep.Stateful.SwiftRotations -> _stepAdvancer(step, Duration.SWIFT_ROTATION)
-            is TransitionStep.Stateful.Idle -> _stepAdvancer(step, Duration.IDLE)
-            is TransitionStep.Stateless.Fallouts -> _stepAdvancer(step, Duration.FALLOUTS)
-            else -> throw IllegalArgumentException("impossible case")
-        }
+    private fun explosions(transition: Transition): StepAdvancer =
+        StepAdvancer(
+            ExplosionsStep(
+                transition
+            ), TransitionsAdvancer.Duration.EXPLOSIONS
+        )
 
-    private fun <S : TransitionStep> _stepAdvancer(step: S, duration: Long): Advancer<WithProgress<S>> =
+    private fun swiftRotations(transition: Transition): StepAdvancer =
+        StepAdvancer(
+            SwiftRotationsStep(
+                transition
+            ), TransitionsAdvancer.Duration.SWIFT_ROTATION
+        )
+
+    private fun idle(transition: Transition): StepAdvancer =
+        StepAdvancer(
+            IdleStep(
+                transition
+            ), TransitionsAdvancer.Duration.IDLE
+        )
+
+    private fun fallouts(transition: Transition): StepAdvancer =
+        StepAdvancer(
+            FalloutsStep(
+                transition
+            ), TransitionsAdvancer.Duration.FALLOUTS
+        )
+
+    @Suppress("FunctionName")
+    private fun <S : TransitionStep> StepAdvancer(step: S, duration: Long): StepAdvancer =
         object : Advancer<WithProgress<S>>(duration) {
             override val blocking: Boolean = step is TransitionStep.Stateful
-            override fun advance(timeDelta: Long): WithProgress<S> {
+            override fun advance(timeDelta: Milliseconds): WithProgress<S> {
                 elapse(timeDelta)
                 return WithProgress(step, progress)
             }
         }
 
-    /** [TransitionStep]s durations in ms */
+    /** [TransitionStep]s durations */
     object Duration {
-        const val EXPLOSIONS: Long = 1_000L
-        const val SWIFT_ROTATION: Long = 300L
-        const val IDLE: Long = 500L
-        const val FALLOUTS: Long = 4_000L
+        const val EXPLOSIONS: Milliseconds = 1_000L
+        const val SWIFT_ROTATION: Milliseconds = 300L
+        const val IDLE: Milliseconds = 500L
+        const val FALLOUTS: Milliseconds = 4_000L
     }
 }
 
+// it's a lie, BTW, secondary constructors ARE used in TransitionsAdvancer(.explosions, ...) (by aliases)
+@Suppress("unused")
 sealed class TransitionStep {
 
     sealed class Stateful(val boardState: Board) : TransitionStep() {
@@ -110,3 +143,4 @@ sealed class TransitionStep {
         }
     }
 }
+

@@ -6,36 +6,71 @@ import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.utils.Once
+import com.pierbezuhoff.clonium.models.animation.TransitionsAnimatedAdvancer
 import kotlin.math.*
 
-/** Draw [Game] state and animation on [Canvas] */
-interface GamePresenter : AnimationAdvancer {
-    var board: Board
-    fun setSize(width: Int, height: Int)
-    fun startTransitions(transitions: Iterator<Transition>)
-    fun draw(canvas: Canvas)
+/** Draw [Game] state and animations on [Canvas] */
+interface GamePresenter : SpatialBoard {
+    val game: Game
+    val animatedAdvancer: TransitionsAnimatedAdvancer?
+    fun startTransitions(transitions: Sequence<Transition>)
+    fun Canvas.draw()
+    fun Canvas.drawBoard(board: Board)
     fun highlight(poss: Set<Pos>, weak: Boolean = false)
     fun unhighlight() =
         highlight(emptySet())
+}
+
+interface SpatialBoard {
+    /** Cell width and height */
+    val cellSize: Int
+    /** How much smaller get a chip with when it's higher */
+    val zZoom: Double
+    /** How much a chip smaller than a cell */
+    val chipCellRatio: Float
+    val jumpHeight: Float // 1f
+    val falloutSpeed: Float
+    val falloutAngleSpeed: Float // 720f
+
+    /** Set target `View` size */
+    fun setSize(width: Int, height: Int)
+    fun rescaleMatrix(bitmap: Bitmap, targetWidth: Int = cellSize, targetHeight: Int = cellSize): Matrix =
+        scaleMatrix(
+            targetWidth.toFloat() / bitmap.width,
+            targetHeight.toFloat() / bitmap.height
+        )
+    fun centeredScaleMatrix(bitmap: Bitmap, scaleX: Float, scaleY: Float = scaleX): Matrix =
+        Matrix().apply {
+            postScale(
+                scaleX, scaleY,
+                bitmap.width / 2f, bitmap.height / 2f
+            )
+        }
+    fun centeredRotateMatrix(bitmap: Bitmap, degrees: Float): Matrix =
+        Matrix().apply {
+            postRotate(degrees, bitmap.width/2f, bitmap.height/2f)
+        }
     fun pos2point(pos: Pos): Point
     fun pointf2pos(point: PointF): Pos
 }
 
 // MAYBE: rotate rectangular board along with view
+// MAYBE: cut out SpatialBoard interface
 class SimpleGamePresenter(
-    private val game: Game,
+    override val game: Game,
     private val bitmapLoader: GameBitmapLoader
 ) : Any()
-    , AnimationAdvancer by PoolingAnimationAdvancer()
     , GamePresenter
 {
+    override var animatedAdvancer: TransitionsAnimatedAdvancer? = null
+
     private var viewWidth: Int = 0
     private var viewHeight: Int = 0
 
-    override var board: Board = game.board
-    private val cellSize: Int
-        get() = min(viewWidth / board.width, viewHeight / board.height)
+    override val cellSize: Int
+        get() = with(game.board) {
+            min(viewWidth / width, viewHeight / height)
+        }
 
     private val paint: Paint = Paint(
         Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
@@ -49,13 +84,19 @@ class SimpleGamePresenter(
         viewHeight = height
     }
 
-    override fun draw(canvas: Canvas) {
-        canvas.drawBoard()
-        canvas.drawAnimations()
+    override fun Canvas.draw() {
+        require(viewWidth > 0 && viewHeight > 0)
+        animatedAdvancer?.apply {
+            if (!blocking)
+                drawGameBoard()
+            draw()
+        } ?: drawGameBoard()
     }
 
-    private fun Canvas.drawBoard() {
-        require(viewWidth > 0 && viewHeight > 0)
+    private fun Canvas.drawGameBoard() =
+        drawBoard(game.board)
+
+    override fun Canvas.drawBoard(board: Board) {
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
             drawCell(pos)
@@ -101,145 +142,9 @@ class SimpleGamePresenter(
         )
     }
 
-    override fun startTransitions(transitions: Iterator<Transition>) {
-        // NOTE: leaks GamePresenter
-        startAnimationEmitter(object : AnimationEmitter {
-            private val transitionDuration = EXPLOSION_ANIMATION_DURATION + EXPLOSION_PAUSE_DURATION
-            private var transitionTime: Long = 0L
-            private val firstAdvance by Once(true)
-            private var startFalloutsOnce by Once(false)
-            private lateinit var transition: Transition
-
-            override fun advance(timeDelta: Long): AnimationEmitter.Output {
-                if (firstAdvance) {
-                    return if (!transitions.hasNext())
-                        endTransitions()
-                    else
-                        startExplosions()
-                }
-                transitionTime += timeDelta
-                if (transitionTime >= transitionDuration) {
-                    return if (transitions.hasNext())
-                        startExplosions()
-                    else
-                        endTransitions()
-                }
-                if (transitionTime >= EXPLOSION_ANIMATION_DURATION) {
-                    if (startFalloutsOnce)
-                        return startFallouts()
-                    else if (!transitions.hasNext())
-                        return endTransitions()
-                }
-                return AnimationEmitter.Output.Continue
-            }
-
-            private fun startExplosions(): AnimationEmitter.Output.Animations {
-                transitionTime = 0L
-                transition = transitions.next()
-                board = transition.interimBoard
-                startFalloutsOnce = true
-                return AnimationEmitter.Output.Animations(
-                    transition.explosions.map { explosionAnimation(it) }
-                )
-            }
-
-            private fun startFallouts(): AnimationEmitter.Output.Animations {
-                board = transition.endBoard
-                return AnimationEmitter.Output.Animations(
-                    transition.explosions.map { falloutAnimation(it) }
-                )
-            }
-
-            private fun endTransitions(): AnimationEmitter.Output.End {
-                board = game.board
-                return AnimationEmitter.Output.End
-            }
-        })
-    }
-
-    private fun explosionAnimation(explosion: Explosion): Animation {
-        val (playerId, pos) = explosion
-        val bitmapTop = bitmapLoader.loadChip(Chip(playerId, Level(1)))
-        val bitmapBottom = bitmapLoader.loadBottomOfChip(Chip(playerId, Level(1)))
-        val startPoint = pos2point(pos)
-        val jumpLength = cellSize.toDouble()
-        val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
-            val bitmap =
-                if (progress <= 0.25 || progress >= 0.75)
-                    bitmapTop
-                else bitmapBottom
-            val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
-            val alpha = PI * progress
-            // coordinates of chip center
-            val r = jumpLength * (1 - cos(alpha)) / 2.0
-            // val z = jumpHeight * sin(alpha)
-            val zScale = 1 + sin(alpha) * Z_ZOOM
-            val phi = 2 * PI * progress
-            val horizontalSqueeze = cos(phi) // negative means upside-down
-            for (theta in listOf(0f, 90f, 180f, 270f)) {
-                // we construct right explosion, then rotate it by theta
-                val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
-                val rotateMatrix =
-                    rotationMatrix(theta, startPoint.x + cellSize/2f, startPoint.y + cellSize/2f)
-                val centeredScaleMatrix = centeredScaleMatrix(
-                    bitmap.width, bitmap.height,
-                    (horizontalSqueeze * CHIP_CELL_RATIO * zScale).toFloat(),
-                    (CHIP_CELL_RATIO * zScale).toFloat()
-                )
-                val translateMatrix = translationMatrix(point.x, point.y)
-                drawBitmap(
-                    bitmap,
-                    rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
-                    paint
-                )
-            }
-
-        }
-        return Animation(
-            duration = EXPLOSION_ANIMATION_DURATION,
-            blocking = true,
-            progressingDraw = progressingDraw
-        )
-    }
-
-    private fun falloutAnimation(explosion: Explosion): Animation {
-        val (playerId, pos) = explosion
-        val bitmap = bitmapLoader.loadChip(Chip(playerId, Level(1)))
-        val startPoint = pos2point(pos)
-        val sides = with(explosion) {
-            listOf(0f to right, 90f to down, 180f to left, 270f to up)
-        }
-        val noFallouts = sides.all { (_, endState) ->
-            endState != Explosion.EndState.FALLOUT
-        }
-        val rescaleMatrix = rescaleMatrix(bitmap.width, bitmap.height)
-        val translateMatrix = translationMatrix((startPoint.x + cellSize).toFloat(), startPoint.y.toFloat())
-        val progressingDraw: Canvas.(progress: Double) -> Unit = { progress ->
-            for ((theta, endState) in sides)
-                if (endState == Explosion.EndState.FALLOUT) {
-                    val rotateMatrix =
-                        rotationMatrix(theta, startPoint.x + cellSize/2f, startPoint.y + cellSize/2f)
-                    val phi = FALLOUT_N_CYCLES * 360 * progress
-                    val centeredRotateMatrix = centeredRotateMatrix(
-                        bitmap.width, bitmap.height, phi.toFloat()
-                    )
-                    val zScale = 1 - FALLOUT_FALLING_VELOCITY * progress * Z_ZOOM
-                    val centeredScaleMatrix = centeredScaleMatrix(
-                        bitmap.width, bitmap.height,
-                        (CHIP_CELL_RATIO * zScale).toFloat()
-                    )
-                    drawBitmap(
-                        bitmap,
-                        rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix * centeredRotateMatrix,
-                        paint
-                    )
-                }
-        }
-        return Animation(
-            duration = if (noFallouts) 0L else FALLOUT_ANIMATION_DURATION,
-            blocking = false,
-            progressingDraw = if (noFallouts) ({}) else progressingDraw
-        )
+    override fun startTransitions(transitions: Sequence<Transition>) {
+        // NOTE: leaky leak of SimpleGamePresenter
+        animatedAdvancer = TransitionsAnimatedAdvancer(transitions, this, bitmapLoader)
     }
 
     private fun rescaleMatrix(
@@ -257,14 +162,6 @@ class SimpleGamePresenter(
                 scaleX, scaleY,
                 width / 2f, height / 2f
             )
-        }
-
-    private fun centeredRotateMatrix(
-        width: Int, height: Int,
-        degrees: Float
-    ): Matrix =
-        Matrix().apply {
-            postRotate(degrees, width/2f, height/2f)
         }
 
     private fun pos2matrix(pos: Pos): Matrix =
@@ -292,4 +189,5 @@ class SimpleGamePresenter(
         private const val FALLOUT_N_CYCLES = 2
         private const val FALLOUT_FALLING_VELOCITY = 2f
     }
+}
 }

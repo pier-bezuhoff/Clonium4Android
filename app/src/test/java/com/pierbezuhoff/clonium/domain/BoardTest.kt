@@ -41,9 +41,9 @@ class BoardTest : FreeSpec() {
                     SimpleBoardGenerator().assertAll(iterations = 1_000) { board: SimpleBoard ->
                         val initialPosMap = board.posMap.toMap()
                         val copied = board.copy()
-                        board.posMap[Pos(board.width - 1, board.height - 1)] = Chip(PlayerId(0), Level(2))
+                        board.posMap[Pos(board.width - 1, board.height - 1)] = Chip(PlayerId0, Level2)
                         board.posMap.remove(board.posMap.keys.first())
-                        board.posMap[Pos(0, 0)] = Chip(PlayerId(1), Level(2))
+                        board.posMap[Pos(0, 0)] = Chip(PlayerId1, Level2)
                         copied.width shouldBe board.width
                         copied.height shouldBe board.height
                         copied.asPosMap() shouldContainExactly initialPosMap
@@ -144,9 +144,9 @@ class BoardTest : FreeSpec() {
                         SimpleEmptyBoardGenerator().assertAll(iterations = 10_000) { emptyBoard: EmptyBoard ->
                             // PrimitiveBoard with single chip 3 level
                             emptyBoard.asPosSet().forEach { pos: Pos ->
-                                val playerId = PlayerId(1)
+                                val playerId = PlayerId1
                                 val _single3: Board = SimpleBoard(emptyBoard).with(
-                                    pos to Chip(playerId, Level(3))
+                                    pos to Chip(playerId, Level3)
                                 )
                                 val single3 = PrimitiveBoard(_single3)
                                 val transitions = single3.incAnimated(pos)
@@ -159,7 +159,7 @@ class BoardTest : FreeSpec() {
                                 val explosion = transition.explosions.first()
                                 explosion.center shouldBe pos
                                 explosion.playerId shouldBe playerId
-                                val newChip = Chip(playerId, Level(1))
+                                val newChip = Chip(playerId, Level1)
                                 val sides = with(explosion) {
                                     mapOf(
                                         right to Pos(pos.x + 1, pos.y),
@@ -181,7 +181,7 @@ class BoardTest : FreeSpec() {
                     "transition.interimBoard and transition.endBoard cannot explode further and match initial (without unstable chip) and end states of board when incAnimated" {
                         PrimitiveBoardGenerator().assertAll(iterations = 10_000) { initialBoard: PrimitiveBoard ->
                             initialBoard.asPosMap()
-                                .filterValues { it?.level == Level(3) }
+                                .filterValues { it?.level == Level3 }
                                 .keys
                                 .forEach { startPos: Pos ->
                                     val board = initialBoard.copy()
@@ -191,7 +191,7 @@ class BoardTest : FreeSpec() {
                                         it.interimBoard.asPosMap()
                                             .values
                                             .filterNotNull()
-                                            .filter { it.level >= Level(4) }
+                                            .filter { it.level >= Level4 }
                                             .shouldBeEmpty()
                                     }
                                     transitions.first().interimBoard shouldMatchBoard
@@ -199,7 +199,7 @@ class BoardTest : FreeSpec() {
                                     transitions.last().endBoard shouldMatchBoard board
                                     board.asPosMap().values
                                         .filterNotNull()
-                                        .filter { it.level >= Level(4) }
+                                        .filter { it.level >= Level4 }
                                         .shouldBeEmpty()
                                 }
                         }
@@ -243,7 +243,7 @@ class BoardTest : FreeSpec() {
                             endBoard1,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(0, 0),
+                                    PlayerId2, Pos(0, 0),
                                     FALLOUT, FALLOUT, LAND, FALLOUT
                                 )
                             )
@@ -259,7 +259,7 @@ class BoardTest : FreeSpec() {
                             endBoard2,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(0, 1),
+                                    PlayerId2, Pos(0, 1),
                                     LAND, LAND, LAND, FALLOUT
                                 )
                             )
@@ -277,11 +277,11 @@ class BoardTest : FreeSpec() {
                             endBoard3,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(0, 2),
+                                    PlayerId2, Pos(0, 2),
                                     LAND, LAND, LAND, FALLOUT
                                 ),
                                 Explosion(
-                                    PlayerId(2), Pos(1, 1),
+                                    PlayerId2, Pos(1, 1),
                                     FALLOUT, LAND, LAND, LAND
                                 )
                             )
@@ -297,7 +297,7 @@ class BoardTest : FreeSpec() {
                             endBoard4,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(1, 2),
+                                    PlayerId2, Pos(1, 2),
                                     LAND, LAND, FALLOUT, LAND
                                 )
                             )
@@ -313,7 +313,7 @@ class BoardTest : FreeSpec() {
                             endBoard5,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(2, 2),
+                                    PlayerId2, Pos(2, 2),
                                     LAND, LAND, FALLOUT, LAND
                                 )
                             )
@@ -331,11 +331,11 @@ class BoardTest : FreeSpec() {
                             endBoard6,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(2, 1),
+                                    PlayerId2, Pos(2, 1),
                                     FALLOUT, LAND, LAND, LAND
                                 ),
                                 Explosion(
-                                    PlayerId(2), Pos(3, 2),
+                                    PlayerId2, Pos(3, 2),
                                     LAND, FALLOUT, LAND, LAND
                                 )
                             )
@@ -351,7 +351,7 @@ class BoardTest : FreeSpec() {
                             endBoard7,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(3, 1),
+                                    PlayerId2, Pos(3, 1),
                                     LAND, FALLOUT, LAND, LAND
                                 )
                             )
@@ -365,7 +365,7 @@ class BoardTest : FreeSpec() {
                             endBoard8,
                             setOf(
                                 Explosion(
-                                    PlayerId(2), Pos(3, 0),
+                                    PlayerId2, Pos(3, 0),
                                     FALLOUT, FALLOUT, LAND, FALLOUT
                                 )
                             )

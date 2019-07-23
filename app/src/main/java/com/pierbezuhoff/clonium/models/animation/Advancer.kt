@@ -1,31 +1,44 @@
-package com.pierbezuhoff.clonium.models
+package com.pierbezuhoff.clonium.models.animation
 
 import kotlin.math.max
 
-class WithProgress<out A>(val value: A, val progress: Double)
+typealias Milliseconds = Long
+typealias Progress = Double
+
+data class WithProgress<out A>(val value: A, val progress: Progress)
+
+interface Advanceable<out T> {
+    val duration: Milliseconds
+    val blocking: Boolean
+    val progress: Progress
+    val ended: Boolean
+
+    fun advance(timeDelta: Milliseconds): T
+}
 
 /** Stackable proto-animation */
 abstract class Advancer<out A>(
-    val duration: Long
+    override val duration: Milliseconds
 ) : Advanceable<A> {
-    abstract val blocking: Boolean
-    protected var elapsed: Long = 0L
+    /** Should be non-increasing (once it's `false` it will not become `true`) */
+    abstract override val blocking: Boolean
+    protected var elapsed: Milliseconds = 0L
         private set
-    val progress: Double
+    override val progress: Progress
         get() = elapsed.toDouble() / duration
-    val ended: Boolean
+    override val ended: Boolean
         get() = elapsed >= duration
 
     /** Should be called in overridden [advance] */
-    protected fun elapse(timeDelta: Long) {
+    protected fun elapse(timeDelta: Milliseconds) {
         elapsed += timeDelta
     }
 }
 
 object EmptyAdvancer : Advancer<Nothing>(0L) {
     override val blocking: Boolean = true
-    override fun advance(timeDelta: Long): Nothing =
-        throw IllegalStateException("EmptyAdvancer can (not) advance")
+    override fun advance(timeDelta: Milliseconds): Nothing =
+        throw IllegalStateException("EmptyAdvancer: You Can (Not) Advance")
 }
 
 class AdvancerPack<A>(
@@ -34,13 +47,12 @@ class AdvancerPack<A>(
     advancers.fold(0L) { d, p -> max(d, p.duration) }
 ) {
     private val advancers: MutableList<Advancer<A>> = advancers.toMutableList()
-    // true => true or false, false => false
     override val blocking: Boolean
         get() = advancers.any { it.blocking }
 
     constructor(advancer: Advancer<A>) : this(listOf(advancer))
 
-    override fun advance(timeDelta: Long): Set<A> {
+    override fun advance(timeDelta: Milliseconds): Set<A> {
         elapse(timeDelta)
         val result = advancers.map { it.advance(timeDelta) }
         advancers.removeAll { it.ended }
@@ -57,7 +69,7 @@ class AdvancerPack<A>(
 
 class AdvancerSequence<A>(
     private val packs: List<AdvancerPack<A>>
-) : Advancer<List<A>>(packs.fold(0L, Long::plus)) {
+) : Advancer<List<A>>(packs.fold(0L, Milliseconds::plus)) {
     private var ix = 0
     // playing part of [packs]; last one is [blocking], the rest is not [blocking]
     private var pack = packs.first()
@@ -67,9 +79,13 @@ class AdvancerSequence<A>(
 
     constructor(pack: AdvancerPack<A>) : this(listOf(pack))
 
-    constructor(advancer: Advancer<A>) : this(AdvancerPack(advancer))
+    constructor(advancer: Advancer<A>) : this(
+        AdvancerPack(
+            advancer
+        )
+    )
 
-    override fun advance(timeDelta: Long): List<A> {
+    override fun advance(timeDelta: Milliseconds): List<A> {
         elapse(timeDelta)
         val lastResult = pack.advance(timeDelta)
         val results = nonBlockingPacks.flatMap { it.advance(timeDelta) }

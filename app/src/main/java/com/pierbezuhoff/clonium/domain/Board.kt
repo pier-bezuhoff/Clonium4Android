@@ -13,7 +13,7 @@ data class Pos(val x: Int, val y: Int) {
     val neighbors: Set<Pos> = setOf(right, up, left, down)
 }
 
-/** Empty (= without [Chip]s) board */
+/** Empty (= without [Chip]s on cells) board */
 interface EmptyBoard {
     val width: Int
     val height: Int
@@ -42,6 +42,7 @@ interface EmptyBoard {
         SimpleEmptyBoard(width, height, asPosSet().toMutableSet())
 
     override fun equals(other: Any?): Boolean
+    override fun hashCode(): Int
 
     fun asString(): String {
         return buildString {
@@ -79,32 +80,51 @@ class SimpleEmptyBoard(
 
 
 /** Owner of [Chip] */
-data class PlayerId(/** non-negative */ val id: Int) {
+open class PlayerId(/** non-negative */ val id: Int) {
     override fun toString(): String =
         "PlayerId($id)"
+    override fun equals(other: Any?): Boolean =
+        other is PlayerId && id == other.id
+    override fun hashCode(): Int =
+        id
 }
+object PlayerId0 : PlayerId(0)
+object PlayerId1 : PlayerId(1)
+object PlayerId2 : PlayerId(2)
+object PlayerId3 : PlayerId(3)
 
 /** Level (# of holes) of [Chip] */
-data class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
+open class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
+    fun valid(): Boolean =
+        Level1 <= this && this <= Level7
     override fun toString(): String =
         "Level($ordinal)"
     override fun compareTo(other: Level): Int =
         ordinal.compareTo(other.ordinal)
+    override fun equals(other: Any?): Boolean =
+        other is Level && ordinal == other.ordinal
+    override fun hashCode(): Int =
+        ordinal
     operator fun plus(delta: Int): Level =
         Level(ordinal + delta)
     operator fun minus(delta: Int): Level =
         Level(ordinal - delta)
     companion object {
-        val MAX_STABLE_LEVEL = Level(3)
-        val MIN_UNSTABLE_LEVEL = Level(4)
-        val MAX_LEVEL = Level(7)
+        val MAX_STABLE_LEVEL = Level3
+        val MIN_UNSTABLE_LEVEL = Level4
+        val MAX_LEVEL = Level7
     }
 }
+object Level1 : Level(1)
+object Level2 : Level(2)
+object Level3 : Level(3)
+object Level4 : Level(4)
+object Level7 : Level(7)
 
 /** Element placed on cell, owned by [playerId] with [level] (= # of holes) */
 data class Chip(val playerId: PlayerId, val level: Level)
 
-/** Board with [Chip]s */
+/** Board with some [Chip]s on cells */
 interface Board : EmptyBoard {
     override fun asPosSet(): Set<Pos> = asPosMap().keys
 
