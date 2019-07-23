@@ -20,11 +20,6 @@ abstract class Advancer<A>(
     protected fun elapse(timeDelta: Long) {
         elapsed += timeDelta
     }
-
-    fun advanceWithProgress(timeDelta: Long): WithProgress<A> {
-        val value = advance(timeDelta)
-        return WithProgress(value, progress)
-    }
 }
 
 class AdvancerPack<A>(

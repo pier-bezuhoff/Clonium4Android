@@ -13,19 +13,41 @@ class TransitionsAdvancer(
 }
 
 sealed class TransitionStep {
+
     sealed class Stateful(val boardState: Board) : TransitionStep() {
+
         class Explosions(
             boardState: Board,
             val places: Map<Pos, PlayerId>
-        ) : Stateful(boardState)
+        ) : Stateful(boardState) {
+            constructor(transition: Transition) : this(
+                transition.interimBoard,
+                transition.explosions.associate { it.center to it.playerId }
+            )
+        }
+
         class SwiftRotations(
             boardState: Board,
             val places: Map<Pos, PlayerId>
-        ) : Stateful(boardState)
+        ) : Stateful(boardState) {
+            constructor(transition: Transition) : this(
+                TODO(),
+                TODO()
+            )
+        }
     }
+
     sealed class Stateless : TransitionStep() {
         class Fallouts(
             val places: Map<Pos, PlayerId>
-        ) : Stateless()
+        ) : Stateless() {
+            constructor(transition: Transition) : this(
+                transition.explosions
+                    .flatMap { it.center.neighbors
+                        .filterNot { pos -> transition.interimBoard.hasCell(pos) }
+                        .map { pos -> pos to it.playerId }
+                    }.toMap()
+            )
+        }
     }
 }
