@@ -1,9 +1,8 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
-import kotlin.math.max
 
-interface Advanceable<T> {
+interface Advanceable<out T> {
     fun advance(timeDelta: Long): T
 }
 

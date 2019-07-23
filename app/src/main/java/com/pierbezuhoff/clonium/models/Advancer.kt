@@ -2,10 +2,10 @@ package com.pierbezuhoff.clonium.models
 
 import kotlin.math.max
 
-class WithProgress<A>(val value: A, val progress: Double)
+class WithProgress<out A>(val value: A, val progress: Double)
 
 /** Stackable proto-animation */
-abstract class Advancer<A>(
+abstract class Advancer<out A>(
     val duration: Long
 ) : Advanceable<A> {
     abstract val blocking: Boolean
@@ -20,6 +20,12 @@ abstract class Advancer<A>(
     protected fun elapse(timeDelta: Long) {
         elapsed += timeDelta
     }
+}
+
+object EmptyAdvancer : Advancer<Nothing>(0L) {
+    override val blocking: Boolean = true
+    override fun advance(timeDelta: Long): Nothing =
+        throw IllegalStateException("EmptyAdvancer can (not) advance")
 }
 
 class AdvancerPack<A>(
