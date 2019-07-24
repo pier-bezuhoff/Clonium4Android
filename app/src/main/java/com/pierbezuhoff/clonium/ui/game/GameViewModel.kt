@@ -37,7 +37,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
 
     private fun exampleGame() {
         val game = get<Game>(named(NAMES.EXAMPLE))
-        val newGameModel = get<GameModel> { parametersOf(game, viewModelScope) }
+        val newGameModel = GameModel(game, viewModelScope)
         _gameModel.value = newGameModel
     }
 

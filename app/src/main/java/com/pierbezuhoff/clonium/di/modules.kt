@@ -1,10 +1,9 @@
 package com.pierbezuhoff.clonium.di
 
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.models.GameBitmapLoader
-import com.pierbezuhoff.clonium.models.GameModel
-import com.pierbezuhoff.clonium.models.GreenGameBitmapLoader
-import com.pierbezuhoff.clonium.models.StandardGameBitmapLoader
+import com.pierbezuhoff.clonium.models.*
+import com.pierbezuhoff.clonium.models.animation.TransitionAnimationsHost
+import com.pierbezuhoff.clonium.models.animation.TransitionAnimationsPool
 import com.pierbezuhoff.clonium.ui.game.GameGestures
 import com.pierbezuhoff.clonium.ui.game.GameViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +13,7 @@ import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
+@Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
     factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
     factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
@@ -28,17 +28,18 @@ val gameModule = module {
     }
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
-    factory { (game: Game, coroutineScope: CoroutineScope) ->
-        GameModel(game, get(named(NAMES.GREEN)), coroutineScope) }
+    factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
+    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get()) }
 
-    viewModel { GameViewModel(get()) }
+    viewModel<GameViewModel> { GameViewModel(get()) }
 
-    single { GameGestures(androidContext()) }
+    single<GameGestures> { GameGestures(androidContext()) }
 }
 
 object NAMES {
     const val GREEN = "green"
     const val STANDARD = "standard"
+    const val CHIP_SET = GREEN
     const val WITH_ORDER = "withOrder"
     const val EXAMPLE = "example"
 }

@@ -115,7 +115,7 @@ class SimpleGame(
             val bots: Set<Bot> =
                 setOf(
                     RandomPickerBot(PlayerId(0)),
-//                    RandomPickerBot(PlayerId(1)),
+                    RandomPickerBot(PlayerId(1)),
                     RandomPickerBot(PlayerId(2)),
                     RandomPickerBot(PlayerId(3))
 //                LevelMaximizerBot(PlayerId(2), depth = 1),

@@ -223,8 +223,8 @@ class SimpleBoard(
 }
 
 
-/** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 and
- * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] and [left] */
+/** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 pAndP
+ * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] pAndP [left] */
 data class Explosion(
     val playerId: PlayerId,
     val center: Pos,
@@ -249,18 +249,18 @@ data class Transition(
     val explosions: Set<Explosion>
 )
 
-/** Board with [Chip]s on which [Player]s can make turns ([inc] and [incAnimated]) */
+/** Board with [Chip]s on which [Player]s can make turns ([inc] pAndP [incAnimated]) */
 interface EvolvingBoard : Board {
     class InvalidTurn(reason: String) : Exception(reason)
 
     override fun copy(): EvolvingBoard
 
     @Throws(InvalidTurn::class)
-    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s */
+    /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s */
     fun inc(pos: Pos)
 
     @Throws(InvalidTurn::class)
-    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s while recording [Transition]s */
+    /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s while recording [Transition]s */
     fun incAnimated(pos: Pos): Sequence<Transition>
 }
 // TODO: SimpleEvolvingBoard

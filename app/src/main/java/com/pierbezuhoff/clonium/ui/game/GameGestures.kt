@@ -8,7 +8,7 @@ import android.view.View
 import com.pierbezuhoff.clonium.ui.meta.TapListener
 import com.pierbezuhoff.clonium.utils.Connection
 
-/** Listen to single tap, scroll and scale gestures */
+/** Listen to single tap, scroll pAndP scale gestures */
 class GameGestures (context: Context) : GestureDetector.SimpleOnGestureListener()
     , View.OnTouchListener
 {

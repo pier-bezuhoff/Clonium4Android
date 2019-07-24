@@ -18,12 +18,11 @@ interface Advanceable<out T> {
 
 /** Stackable proto-animation */
 abstract class Advancer<out A>(
-    override val duration: Milliseconds
+    final override val duration: Milliseconds
 ) : Advanceable<A> {
     /** Should be non-increasing (once it's `false` it will not become `true`) */
     abstract override val blocking: Boolean
-    protected var elapsed: Milliseconds = 0L
-        private set
+    private var elapsed: Milliseconds = 0L
     override val progress: Progress
         get() = elapsed.toDouble() / duration
     override val ended: Boolean
@@ -33,6 +32,9 @@ abstract class Advancer<out A>(
     protected fun elapse(timeDelta: Milliseconds) {
         elapsed += timeDelta
     }
+
+    override fun toString(): String =
+        "Advancer(${elapsed}ms of ${duration}ms: progress = $progress, blocking = $blocking, ended = $ended)"
 }
 
 object EmptyAdvancer : Advancer<Nothing>(0L) {
@@ -59,11 +61,11 @@ class AdvancerPack<A>(
         return result.toSet()
     }
 
-    infix fun sAnd(advancer: Advancer<A>): AdvancerPack<A> =
+    infix fun pAnd(advancer: Advancer<A>): AdvancerPack<A> =
         AdvancerPack(advancers + advancer)
 
-    infix fun and(progressionPack: AdvancerPack<A>): AdvancerPack<A> =
-        AdvancerPack(advancers + progressionPack.advancers)
+    infix fun pAndP(pack: AdvancerPack<A>): AdvancerPack<A> =
+        AdvancerPack(advancers + pack.advancers)
 
 }
 
@@ -105,27 +107,43 @@ class AdvancerSequence<A>(
         return results + (lastResult ?: emptyList())
     }
 
-    infix fun sThen(pack: AdvancerPack<A>): AdvancerSequence<A> =
+    infix fun sThenP(pack: AdvancerPack<A>): AdvancerSequence<A> =
         AdvancerSequence(packs + pack)
 
     infix fun sThen(advancer: Advancer<A>): AdvancerSequence<A> =
-        sThen(AdvancerPack(listOf(advancer)))
+        sThenP(AdvancerPack(listOf(advancer)))
 
-    infix fun then(sequence: AdvancerSequence<A>): AdvancerSequence<A> =
+    infix fun sThenS(sequence: AdvancerSequence<A>): AdvancerSequence<A> =
         AdvancerSequence(packs + sequence.packs)
 }
 
 object Advancers {
+    // and:
     infix fun <A> Advancer<A>.and(advancer: Advancer<A>): AdvancerPack<A> =
-        AdvancerPack(this) sAnd advancer
+        AdvancerPack(this) pAnd advancer
+    infix fun <A> Advancer<A>.and(pack: AdvancerPack<A>): AdvancerPack<A> =
+        AdvancerPack(this) pAndP pack
     infix fun <A> AdvancerPack<A>.and(advancer: Advancer<A>): AdvancerPack<A> =
-        sAnd(advancer)
+        pAnd(advancer)
+    infix fun <A> AdvancerPack<A>.and(pack: AdvancerPack<A>): AdvancerPack<A> =
+        this pAndP pack
+    // then:
     infix fun <A> Advancer<A>.then(advancer: Advancer<A>): AdvancerSequence<A> =
         AdvancerSequence(this) sThen advancer
     infix fun <A> Advancer<A>.then(pack: AdvancerPack<A>): AdvancerSequence<A> =
-        AdvancerSequence(this).sThen(pack)
-    infix fun <A> AdvancerSequence<A>.then(pack: AdvancerPack<A>): AdvancerSequence<A> =
-        sThen(pack)
+        AdvancerSequence(this) sThenP pack
+    infix fun <A> Advancer<A>.then(sequence: AdvancerSequence<A>): AdvancerSequence<A> =
+        AdvancerSequence(this) sThenS sequence
+    infix fun <A> AdvancerPack<A>.then(advancer: Advancer<A>): AdvancerSequence<A> =
+        AdvancerSequence(this) sThen advancer
+    infix fun <A> AdvancerPack<A>.then(pack: AdvancerPack<A>): AdvancerSequence<A> =
+        AdvancerSequence(this) sThenP pack
+    infix fun <A> AdvancerPack<A>.then(sequence: AdvancerSequence<A>): AdvancerSequence<A> =
+        AdvancerSequence(this) sThenS sequence
     infix fun <A> AdvancerSequence<A>.then(advancer: Advancer<A>): AdvancerSequence<A> =
-        sThen(advancer)
+        this sThen advancer
+    infix fun <A> AdvancerSequence<A>.then(pack: AdvancerPack<A>): AdvancerSequence<A> =
+        this sThenP pack
+    infix fun <A> AdvancerSequence<A>.then(sequence: AdvancerSequence<A>): AdvancerSequence<A> =
+        this sThenS sequence
 }

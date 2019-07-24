@@ -11,15 +11,18 @@ import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.core.KoinComponent
+import org.koin.core.get
+import org.koin.core.parameter.parametersOf
 
 class GameModel(
     val game: Game,
-    bitmapLoader: GameBitmapLoader,
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
+    , KoinComponent
 {
-    private val gamePresenter: GamePresenter = SimpleGamePresenter(game, bitmapLoader)
+    private val gamePresenter: GamePresenter = get { parametersOf(game) }
     private var continueGameOnce by Once(true)
 
     init {
@@ -36,6 +39,7 @@ class GameModel(
                 gamePresenter.freezeBoard()
                 val transitions = game.humanTurn(pos)
                 gamePresenter.startTransitions(transitions)
+                gamePresenter.unfreezeBoard()
                 continueGameOnce = true
             }
         }
@@ -70,6 +74,7 @@ class GameModel(
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
                 gamePresenter.startTransitions(transitions)
+                gamePresenter.unfreezeBoard()
                 continueGameOnce = true
             }
             else -> {

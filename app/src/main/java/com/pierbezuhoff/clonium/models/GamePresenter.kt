@@ -6,38 +6,41 @@ import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.models.animation.Advanceable
-import com.pierbezuhoff.clonium.models.animation.Milliseconds
-import com.pierbezuhoff.clonium.models.animation.TransitionsAnimatedAdvancer
+import com.pierbezuhoff.clonium.models.animation.*
 import kotlin.math.*
 
-/** Draw [Game] state and animations on [Canvas] */
-interface GamePresenter : SpatialBoard {
+/** Draw [Game] state pAndP animations on [Canvas] */
+interface GamePresenter : SpatialBoard, TransitionAnimationsHost {
     val game: Game
-    val animatedAdvancer: TransitionsAnimatedAdvancer?
     val bitmapPaint: Paint
-    val blocking: Boolean
-    // BUG: does not work!
+    /** Copy [game] [Board]: make board unaffected by [game] changes */
     fun freezeBoard()
+    /** Show [game] [Board]: immediately reflect any [game] changes */
     fun unfreezeBoard()
+    /** Start [Transition]s animations */
     fun startTransitions(transitions: Sequence<Transition>)
-    fun advance(timeDelta: Milliseconds)
-    fun Canvas.draw()
+    /** Draw current [game] state with animations */
+    override fun Canvas.draw()
     fun Canvas.drawBoard(board: Board)
+    /** [weak]ly highlight [poss] */
     fun highlight(poss: Set<Pos>, weak: Boolean = false)
+    /** Unhighlight all previously [highlight]ed poss */
     fun unhighlight() =
         highlight(emptySet())
 }
 
 interface SpatialBoard {
-    /** Cell width and height */
+    /** Cell width pAndP height */
     val cellSize: Int
-    /** How much smaller get a chip with when it's higher */
+    /** How much larger get a chip with when it's higher (+ [zZoom]*100% of [cellSize]) */
     val zZoom: Double
     /** How much a chip smaller than a cell */
     val chipCellRatio: Float
+    /** Height of explosion jump in [cellSize]s */
     val jumpHeight: Float
+    /** Fallout max depth in [cellSize]s */
     val falloutVerticalSpeed: Float
+    /** 360 * (# of full turnaround) */
     val falloutAngleSpeed: Float
 
     /** Set target `View` size */
@@ -90,16 +93,13 @@ private class SimpleSpatialBoard(private val game: Game) : SpatialBoard {
 // MAYBE: rotate rectangular board along with view
 class SimpleGamePresenter(
     override val game: Game,
-    private val bitmapLoader: GameBitmapLoader
+    private val bitmapLoader: GameBitmapLoader,
+    private val transitionsHost: TransitionAnimationsHost
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(game)
+    , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
-    // TODO: advancer pool because of lasting fallout animations
-    override var animatedAdvancer: TransitionsAnimatedAdvancer? = null
-    override val blocking: Boolean
-        get() = animatedAdvancer?.blocking ?: false
-
     override val bitmapPaint: Paint = Paint(
         Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
     )
@@ -108,23 +108,11 @@ class SimpleGamePresenter(
     private var weakHighlight: Boolean = false
     private var highlighted: Set<Pos> = emptySet()
 
-    override fun advance(timeDelta: Milliseconds) {
-        animatedAdvancer?.let {
-            it.advance(timeDelta)
-            if (it.ended || !it.blocking)
-//                unfreezeBoard()
-            if (it.ended)
-                animatedAdvancer = null
-        }
-    }
-
     override fun Canvas.draw() {
         require(cellSize > 0) { "setSize must be called before draw" }
-        animatedAdvancer?.apply {
-            if (!blocking)
-                drawGameBoard()
-            draw()
-        } ?: drawGameBoard()
+        if (!blocking)
+            drawGameBoard()
+        with(transitionsHost) { draw() }
     }
 
     private fun Canvas.drawGameBoard() =
@@ -186,9 +174,8 @@ class SimpleGamePresenter(
 
     override fun startTransitions(transitions: Sequence<Transition>) {
         // NOTE: leaky leak of SimpleGamePresenter (circular reference)
-        if (transitions.iterator().hasNext()) {
-            animatedAdvancer = TransitionsAnimatedAdvancer(transitions, this, bitmapLoader)
-        }
+        // MAYBE: use WeakRef
+        startAdvancer(TransitionsAnimatedAdvancer(transitions, this, bitmapLoader))
     }
 
     override fun highlight(poss: Set<Pos>, weak: Boolean) {

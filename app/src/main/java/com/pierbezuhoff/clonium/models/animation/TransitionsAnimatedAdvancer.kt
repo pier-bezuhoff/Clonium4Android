@@ -50,11 +50,11 @@ class TransitionsAnimatedAdvancer(
                 val r = jumpLength * (1 - cos(alpha)) / 2f
                 val z = jumpHeight * sin(alpha)
                 val zScale = 1 + z * zZoom
-                // angle between chip normal and z axis
+                // angle between chip normal pAndP z axis
                 val phi = 2 * PI * progress // complete coup
                 val horizontalSqueeze = cos(phi) // negative means upside-down
                 for (theta in listOf(0f, 90f, 180f, 270f)) {
-                    // we construct right explosion, then rotate it by theta
+                    // we construct right explosion, sThenS rotate it by theta
                     val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
                     val rotateMatrix =
                         rotationMatrix(theta, startPoint.x + cellSize / 2f, startPoint.y + cellSize / 2f)
@@ -97,9 +97,7 @@ class TransitionsAnimatedAdvancer(
                 val rescaleMatrix = rescaleMatrix(bitmap)
                 val translateMatrix = pos2translationMatrix(pos)
                 val phi = (falloutAngleSpeed * progress).toFloat()
-                val centeredRotateMatrix = centeredRotateMatrix(
-                    bitmap, phi
-                )
+                val centeredRotateMatrix = centeredRotateMatrix(bitmap, phi)
                 val zScale = 1 - falloutVerticalSpeed * progress * zZoom
                 val centeredScaleMatrix = centeredScaleMatrix(
                     bitmap,

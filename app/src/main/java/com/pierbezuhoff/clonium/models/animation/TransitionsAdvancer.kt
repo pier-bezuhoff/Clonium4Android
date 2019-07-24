@@ -15,10 +15,11 @@ object TransitionsAdvancer {
         val list = transitions.toList()
         return when {
             list.isEmpty() -> EmptyAdvancer
-            else -> list.drop(1).fold(transitionAdvancer(list.first())) { sequence, transition ->
-                with(Advancers) {
-                    sequence then idle(transition) then transitionAdvancer(transition)
-                }
+            else -> with(Advancers) {
+                list.dropLast(1)
+                    .foldRight(transitionAdvancer(list.last())) { t, sequence ->
+                        transitionAdvancer(t) then idle(t) then sequence
+                    }
             }
         }
     }
@@ -28,7 +29,7 @@ object TransitionsAdvancer {
         val swiftRotations = swiftRotations(transition)
         val fallouts = fallouts(transition)
         return with(Advancers) {
-            explosions then (/*swiftRotations and */fallouts)
+            explosions then (/*swiftRotations and*/ fallouts)
         }
     }
 

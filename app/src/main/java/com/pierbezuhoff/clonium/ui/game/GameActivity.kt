@@ -8,7 +8,7 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import org.koin.android.viewmodel.ext.android.viewModel
 
-// TODO: stat and action bar
+// TODO: stat pAndP action bar
 class GameActivity : AppCompatActivity() {
     private val gameViewModel: GameViewModel by viewModel()
 
