@@ -6,12 +6,10 @@ import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.Chip
-import com.pierbezuhoff.clonium.domain.Explosion
 import com.pierbezuhoff.clonium.domain.Level1
 import com.pierbezuhoff.clonium.domain.Transition
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GamePresenter
-import com.pierbezuhoff.clonium.models.SpatialBoard
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -69,7 +67,7 @@ class TransitionsAnimatedAdvancer(
                     drawBitmap(
                         bitmap,
                         rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
-                        null // for experiment, may use GamePresenter.paint
+                        bitmapPaint
                     )
                 }
             }
@@ -106,7 +104,7 @@ class TransitionsAnimatedAdvancer(
                 val centeredRotateMatrix = centeredRotateMatrix(
                     bitmap, phi
                 )
-                val zScale = 1 - falloutSpeed * progress * zZoom
+                val zScale = 1 - falloutVerticalSpeed * progress * zZoom
                 val centeredScaleMatrix = centeredScaleMatrix(
                     bitmap,
                     (chipCellRatio * zScale).toFloat()
@@ -114,7 +112,7 @@ class TransitionsAnimatedAdvancer(
                 drawBitmap(
                     bitmap,
                     translateMatrix * rescaleMatrix * centeredScaleMatrix * centeredRotateMatrix,
-                    null // exp
+                    bitmapPaint
                 )
             }
         }

@@ -21,9 +21,9 @@ interface Game {
     /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
     fun stat(): Map<Player, Pair<Int, Int>?>
 
-    fun humanTurn(pos: Pos): Iterator<Transition>
+    fun humanTurn(pos: Pos): Sequence<Transition>
 
-    fun CoroutineScope.botTurnAsync(): Deferred<Iterator<Transition>>
+    fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>>
 }
 
 class SimpleGame(
@@ -84,21 +84,21 @@ class SimpleGame(
     override fun isEnd(): Boolean =
         lives.values.filter { it }.size <= 1
 
-    private fun makeTurn(turn: Pos): Iterator<Transition> {
+    private fun makeTurn(turn: Pos): Sequence<Transition> {
         require(turn in possibleTurns())
         val transitions = board.incAnimated(turn)
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
-        return transitions.iterator()
+        return transitions
     }
 
-    override fun humanTurn(pos: Pos): Iterator<Transition> {
+    override fun humanTurn(pos: Pos): Sequence<Transition> {
         require(currentPlayer is HumanPlayer)
         return makeTurn(pos)
     }
 
-    override fun CoroutineScope.botTurnAsync(): Deferred<Iterator<Transition>> {
+    override fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>> {
         require(currentPlayer is Bot)
         return async(Dispatchers.Default) {
             val turn =
@@ -115,7 +115,7 @@ class SimpleGame(
             val bots: Set<Bot> =
                 setOf(
                     RandomPickerBot(PlayerId(0)),
-                    RandomPickerBot(PlayerId(1)),
+//                    RandomPickerBot(PlayerId(1)),
                     RandomPickerBot(PlayerId(2)),
                     RandomPickerBot(PlayerId(3))
 //                LevelMaximizerBot(PlayerId(2), depth = 1),

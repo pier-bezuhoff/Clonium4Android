@@ -69,13 +69,15 @@ class AdvancerPack<A>(
 
 class AdvancerSequence<A>(
     private val packs: List<AdvancerPack<A>>
-) : Advancer<List<A>>(packs.fold(0L, Milliseconds::plus)) {
+) : Advancer<List<A>>(
+    packs.fold(0L) { d, p -> d + p.duration }
+) {
     private var ix = 0
     // playing part of [packs]; last one is [blocking], the rest is not [blocking]
-    private var pack = packs.first()
+    private var pack: AdvancerPack<A>? = packs.first()
     private val nonBlockingPacks: MutableList<AdvancerPack<A>> = mutableListOf()
     override val blocking: Boolean
-        get() = pack.blocking
+        get() = pack?.blocking ?: false
 
     constructor(pack: AdvancerPack<A>) : this(listOf(pack))
 
@@ -87,16 +89,20 @@ class AdvancerSequence<A>(
 
     override fun advance(timeDelta: Milliseconds): List<A> {
         elapse(timeDelta)
-        val lastResult = pack.advance(timeDelta)
+        val lastResult = pack?.advance(timeDelta)
         val results = nonBlockingPacks.flatMap { it.advance(timeDelta) }
         nonBlockingPacks.removeAll { it.ended }
-        if (pack.ended) {
-            pack = packs[++ix]
-        } else if (!pack.blocking) {
-            nonBlockingPacks.add(pack)
-            pack = packs[++ix]
+        pack?.let { pack ->
+            if (!pack.blocking)
+                nonBlockingPacks.add(pack)
+            if (pack.ended || !pack.blocking) {
+                if (ix < packs.lastIndex)
+                    this.pack = packs[++ix]
+                else
+                    this.pack = null
+            }
         }
-        return results + lastResult
+        return results + (lastResult ?: emptyList())
     }
 
     infix fun sThen(pack: AdvancerPack<A>): AdvancerSequence<A> =

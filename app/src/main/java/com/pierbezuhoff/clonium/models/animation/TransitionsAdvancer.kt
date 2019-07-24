@@ -15,15 +15,9 @@ object TransitionsAdvancer {
         val list = transitions.toList()
         return when {
             list.isEmpty() -> EmptyAdvancer
-            else -> list.drop(1).fold(
-                transitionAdvancer(
-                    list.first()
-                )
-            ) { sequence, transition ->
+            else -> list.drop(1).fold(transitionAdvancer(list.first())) { sequence, transition ->
                 with(Advancers) {
-                    sequence then idle(transition) then transitionAdvancer(
-                        transition
-                    )
+                    sequence then idle(transition) then transitionAdvancer(transition)
                 }
             }
         }
@@ -39,32 +33,16 @@ object TransitionsAdvancer {
     }
 
     private fun explosions(transition: Transition): StepAdvancer =
-        StepAdvancer(
-            ExplosionsStep(
-                transition
-            ), TransitionsAdvancer.Duration.EXPLOSIONS
-        )
+        StepAdvancer(ExplosionsStep(transition), TransitionsAdvancer.Duration.EXPLOSIONS)
 
     private fun swiftRotations(transition: Transition): StepAdvancer =
-        StepAdvancer(
-            SwiftRotationsStep(
-                transition
-            ), TransitionsAdvancer.Duration.SWIFT_ROTATION
-        )
+        StepAdvancer(SwiftRotationsStep(transition), TransitionsAdvancer.Duration.SWIFT_ROTATION)
 
     private fun idle(transition: Transition): StepAdvancer =
-        StepAdvancer(
-            IdleStep(
-                transition
-            ), TransitionsAdvancer.Duration.IDLE
-        )
+        StepAdvancer(IdleStep(transition), TransitionsAdvancer.Duration.IDLE)
 
     private fun fallouts(transition: Transition): StepAdvancer =
-        StepAdvancer(
-            FalloutsStep(
-                transition
-            ), TransitionsAdvancer.Duration.FALLOUTS
-        )
+        StepAdvancer(FalloutsStep(transition), TransitionsAdvancer.Duration.FALLOUTS)
 
     @Suppress("FunctionName")
     private fun <S : TransitionStep> StepAdvancer(step: S, duration: Long): StepAdvancer =

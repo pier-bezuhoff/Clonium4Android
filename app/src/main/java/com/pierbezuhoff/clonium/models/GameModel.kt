@@ -29,13 +29,13 @@ class GameModel(
 
     fun userTap(point: PointF) {
         game.isEnd()
-        if (!gamePresenter.hasBlockingAnimations() && game.currentPlayer is HumanPlayer) {
+        if (!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
             val pos = gamePresenter.pointf2pos(point)
             if (pos in game.possibleTurns()) {
                 gamePresenter.unhighlight()
-                gamePresenter.board = game.board.copy() // freeze board before changes
+                gamePresenter.freezeBoard()
                 val transitions = game.humanTurn(pos)
-                gamePresenter.startTransitions(transitions) // unfreeze board eventually
+                gamePresenter.startTransitions(transitions)
                 continueGameOnce = true
             }
         }
@@ -45,11 +45,13 @@ class GameModel(
         gamePresenter.setSize(width, height)
 
     override fun draw(canvas: Canvas) =
-        gamePresenter.draw(canvas)
+        with(gamePresenter) {
+            canvas.draw()
+        }
 
     override fun advance(timeDelta: Long) {
         gamePresenter.advance((GAME_SPEED * timeDelta).toLong())
-        if (!gamePresenter.hasBlockingAnimations() && continueGameOnce)
+        if (!gamePresenter.blocking && continueGameOnce)
             continueGame()
     }
 
@@ -64,10 +66,10 @@ class GameModel(
             game.currentPlayer is Bot -> coroutineScope.launch {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
                 delay(BOT_MIN_TIME)
-                gamePresenter.board = game.board.copy() // freeze board before changes
+                gamePresenter.freezeBoard()
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
-                gamePresenter.startTransitions(transitions) // unfreeze board eventually
+                gamePresenter.startTransitions(transitions)
                 continueGameOnce = true
             }
             else -> {

@@ -6,11 +6,11 @@ import androidx.annotation.IntRange
  * [x] = `0..(board.width - 1)` -- column
  * [y] = `0..(board.height - 1)` -- row */
 data class Pos(val x: Int, val y: Int) {
-    val right: Pos = Pos(x + 1, y)
-    val left: Pos = Pos(x - 1, y)
-    val up: Pos = Pos(x, y - 1)
-    val down: Pos = Pos(x, y + 1)
-    val neighbors: Set<Pos> = setOf(right, up, left, down)
+    val right: Pos get() = Pos(x + 1, y)
+    val left: Pos get() = Pos(x - 1, y)
+    val up: Pos get() = Pos(x, y - 1)
+    val down: Pos get() = Pos(x, y + 1)
+    val neighbors: Set<Pos> get() = setOf(right, up, left, down)
 }
 
 /** Empty (= without [Chip]s on cells) board */
