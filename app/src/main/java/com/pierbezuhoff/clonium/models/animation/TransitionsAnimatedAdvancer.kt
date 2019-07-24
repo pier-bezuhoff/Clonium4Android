@@ -94,12 +94,8 @@ class TransitionsAnimatedAdvancer(
         with(gamePresenter) {
             for ((pos, playerId) in fallouts.places) {
                 val bitmap = bitmapLoader.loadChip(Chip(playerId, Level1))
-                val startPoint = pos2point(pos)
                 val rescaleMatrix = rescaleMatrix(bitmap)
-                val translateMatrix = translationMatrix(
-                    (startPoint.x + cellSize).toFloat(),
-                    startPoint.y.toFloat()
-                )
+                val translateMatrix = pos2translationMatrix(pos)
                 val phi = (falloutAngleSpeed * progress).toFloat()
                 val centeredRotateMatrix = centeredRotateMatrix(
                     bitmap, phi
