@@ -5,16 +5,23 @@ package com.pierbezuhoff.clonium.models.animation
 import io.kotlintest.properties.Gen
 
 fun <A> ConstAdvancer(result: A, duration: Milliseconds, blocking: Boolean): Advancer<A> =
-    object : Advancer<A>(duration) {
+    object : Advancer<A>(duration, if (blocking) duration else 0L) {
         override val blocking: Boolean = blocking
-        override fun advance(timeDelta: Milliseconds): A =
-            result
+        override fun advance(timeDelta: Milliseconds): A {
+            elapse(timeDelta)
+            return result
+        }
+        override fun toString(): String =
+            "ConstAdvancer($result) [${super.toString()}]"
     }
 
 fun <A> LambdaAdvancer(duration: Milliseconds, blocking: Boolean, getResult: (Progress) -> A): Advancer<A> =
-    object : Advancer<A>(duration) {
+    object : Advancer<A>(duration, if (blocking) duration else 0L) {
         override val blocking: Boolean = blocking
-        override fun advance(timeDelta: Milliseconds): A = getResult(progress)
+        override fun advance(timeDelta: Milliseconds): A {
+            elapse(timeDelta)
+            return getResult(progress)
+        }
     }
 
 fun <A> ConstAdvancerGenerator(

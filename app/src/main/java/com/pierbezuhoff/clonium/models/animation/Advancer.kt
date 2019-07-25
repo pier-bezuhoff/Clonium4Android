@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models.animation
 
 import kotlin.math.max
+import kotlin.math.min
 
 typealias Milliseconds = Long
 typealias Progress = Double
@@ -9,6 +10,7 @@ data class WithProgress<out A>(val value: A, val progress: Progress)
 
 interface Advanceable<out T> {
     val duration: Milliseconds
+    val blockingDuration: Milliseconds
     val blocking: Boolean
     val progress: Progress
     val ended: Boolean
@@ -18,35 +20,40 @@ interface Advanceable<out T> {
 
 /** Stackable proto-animation */
 abstract class Advancer<out A>(
-    final override val duration: Milliseconds
+    final override val duration: Milliseconds,
+    final override val blockingDuration: Milliseconds
 ) : Advanceable<A> {
     /** Should be non-increasing (once it's `false` it will not become `true`) */
     abstract override val blocking: Boolean
     private var elapsed: Milliseconds = 0L
-    override val progress: Progress
-        get() = elapsed.toDouble() / duration
+    override var progress: Progress = 0.0
     override val ended: Boolean
         get() = elapsed >= duration
 
     /** Should be called in overridden [advance] */
     protected fun elapse(timeDelta: Milliseconds) {
         elapsed += timeDelta
+        progress = min(1.0, elapsed.toDouble() / duration)
     }
 
     override fun toString(): String =
-        "Advancer(${elapsed}ms of ${duration}ms: progress = $progress, blocking = $blocking, ended = $ended)"
+        "Advancer(${elapsed} ms of ${duration} ms: progress = $progress, blocking = $blocking, ended = $ended)"
 }
 
-object EmptyAdvancer : Advancer<Nothing>(0L) {
-    override val blocking: Boolean = true
+object EmptyAdvancer : Advancer<Nothing>(0L, 0L) {
+    override val blocking: Boolean = false
     override fun advance(timeDelta: Milliseconds): Nothing =
         throw IllegalStateException("EmptyAdvancer: You Can (Not) Advance")
+
+    override fun toString(): String =
+        "EmptyAdvancer"
 }
 
 class AdvancerPack<A>(
     advancers: List<Advancer<A>>
-) : Advancer<Set<A>>(
-    advancers.fold(0L) { d, p -> max(d, p.duration) }
+) : Advancer<List<A>>(
+    duration = advancers.fold(0L) { d, p -> max(d, p.duration) },
+    blockingDuration = advancers.fold(0L) { d, p -> max(d, p.blockingDuration) }
 ) {
     private val advancers: MutableList<Advancer<A>> = advancers.toMutableList()
     override val blocking: Boolean
@@ -54,12 +61,15 @@ class AdvancerPack<A>(
 
     constructor(advancer: Advancer<A>) : this(listOf(advancer))
 
-    override fun advance(timeDelta: Milliseconds): Set<A> {
+    override fun advance(timeDelta: Milliseconds): List<A> {
         elapse(timeDelta)
         val result = advancers.map { it.advance(timeDelta) }
         advancers.removeAll { it.ended }
-        return result.toSet()
+        return result
     }
+
+    override fun toString(): String =
+        "Pack [${super.toString()}], playing:\n\t${advancers.joinToString(separator = "\n\tand ")}"
 
     infix fun pAnd(advancer: Advancer<A>): AdvancerPack<A> =
         AdvancerPack(advancers + advancer)
@@ -72,7 +82,9 @@ class AdvancerPack<A>(
 class AdvancerSequence<A>(
     private val packs: List<AdvancerPack<A>>
 ) : Advancer<List<A>>(
-    packs.fold(0L) { d, p -> d + p.duration }
+    duration = if (packs.isEmpty()) 0L else
+        packs.dropLast(1).fold(0L) { d, p -> d + p.blockingDuration } + packs.last().duration,
+    blockingDuration = packs.fold(0L) { d, p -> d + p.blockingDuration }
 ) {
     private var ix = 0
     // playing part of [packs]; last one is [blocking], the rest is not [blocking]
@@ -83,11 +95,7 @@ class AdvancerSequence<A>(
 
     constructor(pack: AdvancerPack<A>) : this(listOf(pack))
 
-    constructor(advancer: Advancer<A>) : this(
-        AdvancerPack(
-            advancer
-        )
-    )
+    constructor(advancer: Advancer<A>) : this(AdvancerPack(advancer))
 
     override fun advance(timeDelta: Milliseconds): List<A> {
         elapse(timeDelta)
@@ -106,6 +114,9 @@ class AdvancerSequence<A>(
         }
         return results + (lastResult ?: emptyList())
     }
+
+    override fun toString(): String =
+        "Sequence [${super.toString()}]: \n\t${packs.joinToString(separator = "\n\tthen ")}"
 
     infix fun sThenP(pack: AdvancerPack<A>): AdvancerSequence<A> =
         AdvancerSequence(packs + pack)

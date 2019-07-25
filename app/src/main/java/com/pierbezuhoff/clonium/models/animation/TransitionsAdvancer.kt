@@ -47,7 +47,10 @@ object TransitionsAdvancer {
 
     @Suppress("FunctionName")
     private fun <S : TransitionStep> StepAdvancer(step: S, duration: Long): StepAdvancer =
-        object : Advancer<WithProgress<S>>(duration) {
+        object : Advancer<WithProgress<S>>(
+            duration = duration,
+            blockingDuration = if (step is TransitionStep.Stateful) duration else 0L
+        ) {
             override val blocking: Boolean = step is TransitionStep.Stateful
             override fun advance(timeDelta: Milliseconds): WithProgress<S> {
                 elapse(timeDelta)

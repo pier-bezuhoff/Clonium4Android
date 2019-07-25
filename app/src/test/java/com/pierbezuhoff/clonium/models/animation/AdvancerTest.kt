@@ -2,6 +2,7 @@ package com.pierbezuhoff.clonium.models.animation
 
 import io.kotlintest.matchers.collections.shouldContainExactly
 import io.kotlintest.matchers.doubles.shouldBeGreaterThan
+import io.kotlintest.matchers.withClue
 import io.kotlintest.properties.Gen
 import io.kotlintest.properties.assertAll
 import io.kotlintest.specs.FreeSpec
@@ -23,12 +24,17 @@ class AdvancerTest : FreeSpec() {
                     shouldThrow<IllegalStateException> { pack.advance(0L) }
                 }
             }
-            "pack.duration is max" {
+            "example" {
                 val a1 = ConstAdvancer(1, 0L, false)
                 val a2 = ConstAdvancer(2, 1_501L, true)
-                val a3 = ConstAdvancer(4, 1_500L, false)
+                val a3 = ConstAdvancer(3, 1_600L, false)
                 val pack = AdvancerPack(listOf(a1, a2, a3))
-                pack.duration shouldBe 1_501L
+                pack.shouldAdvanceTo(0L, listOf(1, 2, 3), blocking = true, ended = false)
+                pack.shouldAdvanceTo(0L, listOf(2, 3), blocking = true, ended = false)
+                pack.shouldAdvanceTo(1_501L, listOf(2, 3), blocking = false, ended = false)
+                pack.shouldAdvanceTo(0L, listOf(3), blocking = false, ended = false)
+                pack.shouldAdvanceTo(99L, listOf(3), blocking = false, ended = true)
+                pack.shouldAdvanceTo(0L, listOf(), blocking = false, ended = true)
             }
             "all in pack advance" {
                 Gen.list(BooleanAdvancerGenerator()).assertAll { advancers ->
@@ -40,6 +46,50 @@ class AdvancerTest : FreeSpec() {
                     }
                 }
             }
+            "pack is parallel" {
+                Gen.list(ConstAdvancerGenerator((1..1000).toList())).assertAll { advancers ->
+                    val results = advancers.associateWith { it.advance(0L) }
+                    val activeAdvancers = advancers.toMutableList()
+                    fun activeResults(): List<Int> =
+                        activeAdvancers.map { results.getValue(it) }
+                    val pack = AdvancerPack(advancers)
+                    pack.advance(0L) shouldContainExactly activeResults()
+                    var elapsed: Milliseconds = 0L
+                    val durations = advancers.groupBy { it.duration }
+                    val groups = durations.entries
+                        .sortedBy { it.value.first().duration }
+                        .map { it.value }
+                    for (group in groups) {
+                        pack.advance(group.first().duration - elapsed) shouldContainExactly activeResults()
+                        elapsed = group.first().duration
+                        activeAdvancers.removeAll(group)
+                        withClue("pack = $pack\n") {
+                            pack.advance(0L) shouldContainExactly activeResults()
+                        }
+                    }
+                    pack.blocking shouldBe false
+                    pack.ended shouldBe true
+                }
+            }
+        }
+        "AdvancerSequence" - {
+            "sequence is sequential" {
+                Gen.list(ConstAdvancerGenerator((1..1000).toList())).assertAll { advancers ->
+                    if (advancers.isNotEmpty()) {
+                        val sequence = AdvancerSequence(advancers.map { AdvancerPack(it) })
+                        val activeAdvancers = mutableListOf<Advancer<Int>>()
+                        fun activeResults() = activeAdvancers.map { it.advance(0L) }
+                        for (advancer in advancers) {
+                            activeAdvancers.add(advancer)
+                            withClue("running advancer $advancer:\n") {
+                                sequence.shouldAdvanceTo(advancer.blockingDuration, activeResults())
+                            }
+                            activeAdvancers.removeAll { it.ended }
+                        }
+                        sequence.shouldAdvanceTo(0L, blocking = false)
+                    }
+                }
+            }
         }
         "Advancers" - {
             "example" - {
@@ -48,14 +98,14 @@ class AdvancerTest : FreeSpec() {
                 val b3 = ConstAdvancer(3, 1_500L, true)
                 val c4 = ConstAdvancer(4, 200L, true)
                 val c5 = ConstAdvancer(5, 3_000L, false)
-                "DSL" {
+                "DSL type check" {
                     with(Advancers) {
-                        // 2 * 2 = 4
+                        // 2 ^ 2 = 4
                         val paa: AdvancerPack<Int> = a1 and a2
                         val ppa: AdvancerPack<Int> = paa and c4
                         val pap: AdvancerPack<Int> = a1 and paa
                         val ppp: AdvancerPack<Int> = ppa and pap
-                        // 3 * 3 = 9
+                        // 3 ^ 2 = 9
                         val saa: AdvancerSequence<Int> = a1 then a2
                         val sap: AdvancerSequence<Int> = a1 then paa
                         val spa: AdvancerSequence<Int> = paa then b3
@@ -80,7 +130,7 @@ class AdvancerTest : FreeSpec() {
                     sequence.shouldAdvanceTo(500L, listOf(2, 3), blocking = true, ended = false)
                     sequence.shouldAdvanceTo(1L, listOf(2, 4, 5), blocking = true, ended = false)
                     sequence.shouldAdvanceTo(198L, listOf(2, 4, 5), blocking = true, ended = false)
-                    sequence.shouldAdvanceTo(1L, listOf(2, 4, 5), blocking = true, ended = false)
+                    sequence.shouldAdvanceTo(1L, listOf(2, 4, 5), blocking = false, ended = false)
                     sequence.shouldAdvanceTo(1L, listOf(2, 5), blocking = false, ended = false)
                     sequence.shouldAdvanceTo(300L, listOf(2, 5), blocking = false, ended = false)
                     sequence.shouldAdvanceTo(1L, listOf(5), blocking = false, ended = false)

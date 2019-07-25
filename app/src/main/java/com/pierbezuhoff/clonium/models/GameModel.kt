@@ -73,6 +73,7 @@ class GameModel(
                 gamePresenter.freezeBoard()
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
+                // FIX: gamePresenter.blocking => AnimationHost: failed requirement
                 gamePresenter.startTransitions(transitions)
                 gamePresenter.unfreezeBoard()
                 continueGameOnce = true
