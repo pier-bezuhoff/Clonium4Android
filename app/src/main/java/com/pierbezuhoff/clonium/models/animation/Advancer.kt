@@ -6,8 +6,6 @@ import kotlin.math.min
 typealias Milliseconds = Long
 typealias Progress = Double
 
-data class WithProgress<out A>(val value: A, val progress: Progress)
-
 interface Advanceable<out T> {
     val duration: Milliseconds
     val blockingDuration: Milliseconds
@@ -37,14 +35,13 @@ abstract class Advancer<out A>(
     }
 
     override fun toString(): String =
-        "Advancer(${elapsed} ms of ${duration} ms: progress = $progress, blocking = $blocking, ended = $ended)"
+        "Advancer($elapsed ms of $duration ms: progress = $progress, blocking = $blocking, ended = $ended)"
 }
 
 object EmptyAdvancer : Advancer<Nothing>(0L, 0L) {
     override val blocking: Boolean = false
     override fun advance(timeDelta: Milliseconds): Nothing =
         throw IllegalStateException("EmptyAdvancer: You Can (Not) Advance")
-
     override fun toString(): String =
         "EmptyAdvancer"
 }
@@ -57,7 +54,7 @@ class AdvancerPack<A>(
 ) {
     private val advancers: MutableList<Advancer<A>> = advancers.toMutableList()
     override val blocking: Boolean
-        get() = advancers.any { it.blocking }
+        get() = !ended && advancers.any { it.blocking }
 
     constructor(advancer: Advancer<A>) : this(listOf(advancer))
 
@@ -87,11 +84,16 @@ class AdvancerSequence<A>(
     blockingDuration = packs.fold(0L) { d, p -> d + p.blockingDuration }
 ) {
     private var ix = 0
-    // playing part of [packs]; last one is [blocking], the rest is not [blocking]
-    private var pack: AdvancerPack<A>? = packs.first()
+    /** Currently playing blocking pack */
+    private var pack: AdvancerPack<A>? = null
     private val nonBlockingPacks: MutableList<AdvancerPack<A>> = mutableListOf()
     override val blocking: Boolean
-        get() = pack?.blocking ?: false
+        get() = !ended && (pack?.blocking ?: false)
+
+    init {
+        pack = packs.firstOrNull { it.blocking }
+        nonBlockingPacks.takeWhile { !it.blocking }
+    }
 
     constructor(pack: AdvancerPack<A>) : this(listOf(pack))
 
@@ -102,18 +104,24 @@ class AdvancerSequence<A>(
         val lastResult = pack?.advance(timeDelta)
         val results = nonBlockingPacks.flatMap { it.advance(timeDelta) }
         nonBlockingPacks.removeAll { it.ended }
-        pack?.let { pack ->
-            if (!pack.blocking)
-                nonBlockingPacks.add(pack)
-            if (pack.ended || !pack.blocking) {
-                if (ix < packs.lastIndex)
-                    this.pack = packs[++ix]
-                else
-                    this.pack = null
+        pack?.let {
+            while (pack?.blocking == false || pack?.ended == true) {
+                if (pack!!.ended) {
+                    pack = nextPack()
+                } else if (!pack!!.blocking) {
+                    nonBlockingPacks.add(pack!!)
+                    pack = nextPack()
+                }
             }
         }
         return results + (lastResult ?: emptyList())
     }
+
+    private fun nextPack(): AdvancerPack<A>? =
+        if (ix < packs.lastIndex)
+            packs[++ix]
+        else
+            null
 
     override fun toString(): String =
         "Sequence [${super.toString()}]: \n\t${packs.joinToString(separator = "\n\tthen ")}"
@@ -128,6 +136,7 @@ class AdvancerSequence<A>(
         AdvancerSequence(packs + sequence.packs)
 }
 
+/** Contains fully overloaded (Advancer, AdvancerPack, AdvancerSequence) extension methods `and` and `then` */
 object Advancers {
     // and:
     infix fun <A> Advancer<A>.and(advancer: Advancer<A>): AdvancerPack<A> =

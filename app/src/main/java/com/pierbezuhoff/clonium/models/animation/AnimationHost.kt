@@ -31,17 +31,25 @@ class TransitionAnimationsPool : Any()
     }
 
     override fun Canvas.draw() {
-        val (blockingPart, nonBlockingPart) =
-            pool.partition { it.blocking }
-        for (advancer in (blockingPart + nonBlockingPart))
-            with(advancer) { draw() }
+        val (blocking, nonBlocking) =
+            pool.flatMap { advancer -> advancer.lastOutput
+                .map { step -> advancer to step }
+            }.partition { (_, step) -> step.blocking }
+        // heterogeneous list => type of [step] is lost
+        for ((advancer, step) in (blocking + nonBlocking)) {
+            unsafeDrawOne(advancer, step)
+        }
+    }
+
+    private fun <S : AnimatedStep> Canvas.unsafeDrawOne(advancer: AnimatiedAdvancer<*>, step: S) {
+        with(advancer as AnimatiedAdvancer<S>) { drawOne(step) }
     }
 
     override fun startAdvancer(animatedAdvancer: AnimatiedAdvancer<*>) {
+        require(!blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
         if (!animatedAdvancer.ended) {
-            require(!blocking)
             pool.add(animatedAdvancer)
-            animatedAdvancer.advance(0L)
+            animatedAdvancer.advance(0L) // emit initial advance result
         }
     }
 

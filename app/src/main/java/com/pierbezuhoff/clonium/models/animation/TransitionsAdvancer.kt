@@ -34,16 +34,16 @@ object TransitionsAdvancer {
     }
 
     private fun explosions(transition: Transition): StepAdvancer =
-        StepAdvancer(ExplosionsStep(transition), TransitionsAdvancer.Duration.EXPLOSIONS)
+        StepAdvancer(ExplosionsStep(transition), Duration.EXPLOSIONS)
 
     private fun swiftRotations(transition: Transition): StepAdvancer =
-        StepAdvancer(SwiftRotationsStep(transition), TransitionsAdvancer.Duration.SWIFT_ROTATION)
+        StepAdvancer(SwiftRotationsStep(transition), Duration.SWIFT_ROTATION)
 
     private fun idle(transition: Transition): StepAdvancer =
-        StepAdvancer(IdleStep(transition), TransitionsAdvancer.Duration.IDLE)
+        StepAdvancer(IdleStep(transition), Duration.IDLE)
 
     private fun fallouts(transition: Transition): StepAdvancer =
-        StepAdvancer(FalloutsStep(transition), TransitionsAdvancer.Duration.FALLOUTS)
+        StepAdvancer(FalloutsStep(transition), Duration.FALLOUTS)
 
     @Suppress("FunctionName")
     private fun <S : TransitionStep> StepAdvancer(step: S, duration: Long): StepAdvancer =
@@ -69,9 +69,10 @@ object TransitionsAdvancer {
 
 // it's a lie, BTW, secondary constructors ARE used in TransitionsAdvancer(.explosions, ...) (by aliases)
 @Suppress("unused")
-sealed class TransitionStep {
+sealed class TransitionStep : AnimatedStep {
 
     sealed class Stateful(val boardState: Board) : TransitionStep() {
+        override val blocking: Boolean = true
 
         class Explosions(
             boardState: Board,
@@ -112,6 +113,8 @@ sealed class TransitionStep {
     }
 
     sealed class Stateless : TransitionStep() {
+        override val blocking: Boolean = false
+
         class Fallouts(
             val places: Map<Pos, PlayerId>
         ) : Stateless() {
@@ -125,4 +128,9 @@ sealed class TransitionStep {
         }
     }
 }
+
+data class WithProgress<out A : AnimatedStep>(
+    val value: A,
+    val progress: Progress
+) : AnimatedStep by value
 

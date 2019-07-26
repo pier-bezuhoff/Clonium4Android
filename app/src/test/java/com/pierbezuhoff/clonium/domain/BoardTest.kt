@@ -117,7 +117,7 @@ class BoardTest : FreeSpec() {
 
         "interface EvolvingBoard" - {
             "PrimitiveBoard" - {
-                "inc pAndP incAnimated yield the same changes, pAndP throws when pos has no chip" {
+                "inc and incAnimated yield the same changes, and throws when pos has no chip" {
                     PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         board.asPosMap()
                             .filterValues { it != null }
@@ -140,7 +140,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "incAnimated" - {
-                    "board with single chip 3 level: full check on transitions pAndP changes" {
+                    "board with single chip 3 level: full check on transitions and changes" {
                         SimpleEmptyBoardGenerator().assertAll(iterations = 10_000) { emptyBoard: EmptyBoard ->
                             // PrimitiveBoard with single chip 3 level
                             emptyBoard.asPosSet().forEach { pos: Pos ->
@@ -178,7 +178,7 @@ class BoardTest : FreeSpec() {
                             }
                         }
                     }
-                    "transition.interimBoard pAndP transition.endBoard cannot explode further pAndP match initial (without unstable chip) pAndP end states of board when incAnimated" {
+                    "transition.interimBoard and transition.endBoard cannot explode further and match initial (without unstable chip) and end states of board when incAnimated" {
                         PrimitiveBoardGenerator().assertAll(iterations = 10_000) { initialBoard: PrimitiveBoard ->
                             initialBoard.asPosMap()
                                 .filterValues { it?.level == Level3 }
