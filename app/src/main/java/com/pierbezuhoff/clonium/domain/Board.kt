@@ -11,6 +11,16 @@ data class Pos(val x: Int, val y: Int) {
     val up: Pos get() = Pos(x, y - 1)
     val down: Pos get() = Pos(x, y + 1)
     val neighbors: Set<Pos> get() = setOf(right, up, left, down)
+    val directedNeigbors: Map<Direction, Pos> get() =
+        Direction.DIRECTIONS.associateWith { neighborAt(it) }
+
+    fun neighborAt(direction: Direction): Pos =
+        when (direction) {
+            is Direction.Up -> up
+            is Direction.Right -> right
+            is Direction.Down -> down
+            is Direction.Left -> left
+        }
 }
 
 /** Empty (= without [Chip]s on cells) board */
@@ -26,11 +36,13 @@ interface EmptyBoard {
 
     /** 4 >= neighbor [Pos]s (with cell) of [pos] */
     fun neighbors(pos: Pos): Set<Pos> =
-        with(pos) {
-            setOf(Pos(x, y + 1), Pos(x, y - 1), Pos(x + 1, y), Pos(x - 1, y))
-                .filter { hasCell(it) }
-                .toSet()
-        }
+        pos.neighbors
+            .filter { hasCell(it) }
+            .toSet()
+
+    fun directedNeighbors(pos: Pos): Map<Direction, Pos> =
+        pos.directedNeigbors
+            .filterValues { hasCell(it) }
 
     fun pos2str(pos: Pos): String =
         when {
@@ -223,8 +235,19 @@ class SimpleBoard(
 }
 
 
-/** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 pAndP
- * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] pAndP [left] */
+sealed class Direction {
+    object Up : Direction()
+    object Right : Direction()
+    object Down : Direction()
+    object Left : Direction()
+
+    companion object {
+        val DIRECTIONS = listOf(Up, Right, Down, Left)
+    }
+}
+
+/** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 and
+ * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] and [left] */
 data class Explosion(
     val playerId: PlayerId,
     val center: Pos,
@@ -239,6 +262,14 @@ data class Explosion(
         /** After [Explosion] [Chip] falls from the [Board] */
         FALLOUT
     }
+
+    fun endStateAt(direction: Direction) =
+        when (direction) {
+            is Direction.Up -> up
+            is Direction.Right -> right
+            is Direction.Down -> down
+            is Direction.Left -> left
+        }
 }
 /** Single-step effect of [EvolvingBoard.inc]: series of simultaneous [explosions] */
 data class Transition(
@@ -249,7 +280,7 @@ data class Transition(
     val explosions: Set<Explosion>
 )
 
-/** Board with [Chip]s on which [Player]s can make turns ([inc] pAndP [incAnimated]) */
+/** Board with [Chip]s on which [Player]s can make turns ([inc] and [incAnimated]) */
 interface EvolvingBoard : Board {
     class InvalidTurn(reason: String) : Exception(reason)
 

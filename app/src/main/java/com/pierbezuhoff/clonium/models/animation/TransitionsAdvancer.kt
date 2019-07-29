@@ -86,7 +86,7 @@ sealed class TransitionStep : AnimatedStep {
 
         class SwiftRotations(
             boardState: Board,
-            val places: Map<Pos, PlayerId>
+            val places: Map<Pos, Pair<PlayerId, Direction>>
         ) : Stateful(boardState) {
             constructor(transition: Transition) : this(
                 SimpleBoard(transition.endBoard).apply {
@@ -99,9 +99,9 @@ sealed class TransitionStep : AnimatedStep {
                 },
                 with(transition.endBoard) {
                     transition.explosions
-                        .flatMap { neighbors(it.center)
-                            .filter { pos -> levelAt(pos)?.ordinal == 1 }
-                            .map { pos -> pos to it.playerId }
+                        .flatMap { directedNeighbors(it.center)
+                            .filterValues { pos -> levelAt(pos) == Level1 }
+                            .map { (direction, pos) -> pos to Pair(it.playerId, direction) }
                         }.toMap()
                 }
             )

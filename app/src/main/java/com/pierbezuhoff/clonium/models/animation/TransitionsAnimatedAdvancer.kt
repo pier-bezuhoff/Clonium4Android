@@ -6,6 +6,7 @@ import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.Chip
+import com.pierbezuhoff.clonium.domain.Direction
 import com.pierbezuhoff.clonium.domain.Level1
 import com.pierbezuhoff.clonium.domain.Transition
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
@@ -75,10 +76,21 @@ class TransitionsAnimatedAdvancer(
     }
 
     private fun Canvas.drawSwiftRotations(progressingSwiftRotations: WithProgress<SwiftRotationsStep>) {
+        val angles = mapOf(
+            Direction.Right to 0f,
+            Direction.Down to 90f,
+            Direction.Left to 180f,
+            Direction.Up to 270f
+        )
         val (swiftRotations, progress) = progressingSwiftRotations
         with(gamePresenter) {
             drawBoard(swiftRotations.boardState)
-            TODO("copy from respective branch")
+            for ((pos, playerIdAndDirection) in swiftRotations.places) {
+                val (playerId, direction) = playerIdAndDirection
+                val bitmap = bitmapLoader.loadChip(Chip(playerId, Level1))
+                val rescaleMatrix = rescaleMatrix(bitmap)
+                val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
+            }
         }
     }
 
