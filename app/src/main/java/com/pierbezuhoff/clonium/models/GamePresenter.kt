@@ -9,26 +9,6 @@ import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.animation.*
 import kotlin.math.*
 
-/** Draw [Game] state pAndP animations on [Canvas] */
-interface GamePresenter : SpatialBoard, TransitionAnimationsHost {
-    val game: Game
-    val bitmapPaint: Paint
-    /** Copy [game] [Board]: make board unaffected by [game] changes */
-    fun freezeBoard()
-    /** Show [game] [Board]: immediately reflect any [game] changes */
-    fun unfreezeBoard()
-    /** Start [Transition]s animations */
-    fun startTransitions(transitions: Sequence<Transition>)
-    /** Draw current [game] state with animations */
-    override fun Canvas.draw()
-    fun Canvas.drawBoard(board: Board)
-    /** [weak]ly highlight [poss] */
-    fun highlight(poss: Set<Pos>, weak: Boolean = false)
-    /** Unhighlight all previously [highlight]ed poss */
-    fun unhighlight() =
-        highlight(emptySet())
-}
-
 interface SpatialBoard {
     /** Cell width pAndP height */
     val cellSize: Int
@@ -69,12 +49,12 @@ interface SpatialBoard {
         pos2point(pos).let { translationMatrix(it.x.toFloat(), it.y.toFloat()) }
 }
 
-private class SimpleSpatialBoard(private val game: Game) : SpatialBoard {
+private class SimpleSpatialBoard(private val board: Board) : SpatialBoard {
     private var viewWidth: Int = 0
     private var viewHeight: Int = 0
 
     override val cellSize: Int
-        get() = with(game.board) {
+        get() = with(board) {
             min(viewWidth / width, viewHeight / height)
         }
 
@@ -90,6 +70,102 @@ private class SimpleSpatialBoard(private val game: Game) : SpatialBoard {
     }
 }
 
+interface BoardPresenter : SpatialBoard {
+    val board: Board
+    val bitmapPaint: Paint
+    fun Canvas.draw() {
+        drawBoard(board)
+    }
+    fun Canvas.drawBoard(board: Board)
+    /** [weak]ly highlight [poss] */
+    fun highlight(poss: Set<Pos>, weak: Boolean = false)
+    /** Unhighlight all previously [highlight]ed poss */
+    fun unhighlight() =
+        highlight(emptySet())
+}
+
+class SimpleBoardPresenter(
+    override val board: Board,
+    private val bitmapLoader: GameBitmapLoader
+) : Any()
+    , SpatialBoard by SimpleSpatialBoard(board)
+    , BoardPresenter
+{
+    override val bitmapPaint: Paint = Paint(
+        Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
+    )
+    private var weakHighlight: Boolean = false
+    private var highlighted: Set<Pos> = emptySet()
+
+    override fun Canvas.drawBoard(board: Board) {
+        drawColor(BACKGROUND_COLOR)
+        for (pos in board.asPosSet())
+            drawCell(pos)
+        for (pos in highlighted)
+            drawHighlight(pos)
+        for ((pos, maybeChip) in board.asPosMap())
+            maybeChip?.let {
+                drawChip(pos, it)
+            }
+    }
+
+    private fun Canvas.drawCell(pos: Pos) {
+        val bitmap = bitmapLoader.loadCell()
+        val rescaleMatrix = rescaleMatrix(bitmap)
+        val translateMatrix = pos2translationMatrix(pos)
+        drawBitmap(
+            bitmap,
+            translateMatrix * rescaleMatrix,
+            bitmapPaint
+        )
+    }
+
+    private fun Canvas.drawHighlight(pos: Pos) {
+        val bitmap = bitmapLoader.loadHighlight(weak = weakHighlight)
+        val rescaleMatrix = rescaleMatrix(bitmap)
+        val translateMatrix = pos2translationMatrix(pos)
+        drawBitmap(
+            bitmap,
+            translateMatrix * rescaleMatrix,
+            bitmapPaint
+        )
+    }
+
+    private fun Canvas.drawChip(pos: Pos, chip: Chip) {
+        val bitmap = bitmapLoader.loadChip(chip)
+        val rescaleMatrix = rescaleMatrix(bitmap)
+        val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
+        val translateMatrix = pos2translationMatrix(pos)
+        drawBitmap(
+            bitmap,
+            translateMatrix * rescaleMatrix * centeredScaleMatrix,
+            bitmapPaint
+        )
+    }
+
+    override fun highlight(poss: Set<Pos>, weak: Boolean) {
+        highlighted = poss
+        weakHighlight = weak
+    }
+
+    companion object {
+        private const val BACKGROUND_COLOR: Int = Color.BLACK
+    }
+}
+
+/** Draw [Game] state pAndP animations on [Canvas] */
+interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
+    val game: Game
+    /** Copy [game] [Board]: make board unaffected by [game] changes */
+    fun freezeBoard()
+    /** Show [game] [Board]: immediately reflect any [game] changes */
+    fun unfreezeBoard()
+    /** Start [Transition]s animations */
+    fun startTransitions(transitions: Sequence<Transition>)
+    /** Draw current [game] state with animations */
+    override fun Canvas.draw()
+}
+
 // MAYBE: rotate rectangular board along with view
 class SimpleGamePresenter(
     override val game: Game,
@@ -97,7 +173,7 @@ class SimpleGamePresenter(
     private val symmetry: ChipSymmetry,
     private val transitionsHost: TransitionAnimationsHost
 ) : Any()
-    , SpatialBoard by SimpleSpatialBoard(game)
+    , SpatialBoard by SimpleSpatialBoard(game.board)
     , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
@@ -105,7 +181,8 @@ class SimpleGamePresenter(
         Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
     )
 
-    private var board: Board = game.board
+    override var board: Board = game.board
+        private set
     private var weakHighlight: Boolean = false
     private var highlighted: Set<Pos> = emptySet()
 

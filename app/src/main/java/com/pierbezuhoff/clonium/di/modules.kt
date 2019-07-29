@@ -30,6 +30,7 @@ val gameModule = module {
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
+    factory<BoardPresenter> { (board: Board) -> SimpleGamePresenter("" as Game, get(named(NAMES.CHIP_SET), get(), get())) }
     factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
