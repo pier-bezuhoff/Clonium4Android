@@ -1,7 +1,6 @@
 package com.pierbezuhoff.clonium.models.animation
 
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 typealias Milliseconds = Long
 typealias Progress = Double
@@ -79,9 +78,10 @@ class AdvancerPack<A>(
 class AdvancerSequence<A>(
     private val packs: List<AdvancerPack<A>>
 ) : Advancer<List<A>>(
-    duration = if (packs.isEmpty()) 0L else
-        packs.dropLast(1).fold(0L) { d, p -> d + p.blockingDuration } + packs.last().duration,
-    blockingDuration = packs.fold(0L) { d, p -> d + p.blockingDuration }
+    duration = packs.fold(0L to 0L) { (duration, nonBlockingDuration), pack ->
+        (duration + pack.blockingDuration) to (max(nonBlockingDuration, pack.duration) - pack.blockingDuration)
+    }.let { (blockingDuration, lasting) -> blockingDuration + lasting },
+    blockingDuration = packs.map { it.blockingDuration }.fold(0L, Long::plus)
 ) {
     private var ix = 0
     /** Currently playing blocking pack */
@@ -92,7 +92,7 @@ class AdvancerSequence<A>(
 
     init {
         pack = packs.firstOrNull { it.blocking }
-        nonBlockingPacks.takeWhile { !it.blocking }
+        nonBlockingPacks.addAll(packs.takeWhile { !it.blocking })
     }
 
     constructor(pack: AdvancerPack<A>) : this(listOf(pack))
