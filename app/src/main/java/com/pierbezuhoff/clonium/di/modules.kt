@@ -6,7 +6,8 @@ import com.pierbezuhoff.clonium.models.animation.TransitionAnimationsHost
 import com.pierbezuhoff.clonium.models.animation.TransitionAnimationsPool
 import com.pierbezuhoff.clonium.ui.game.GameGestures
 import com.pierbezuhoff.clonium.ui.game.GameViewModel
-import kotlinx.coroutines.CoroutineScope
+import com.pierbezuhoff.clonium.ui.newgame.NewGameBoardGestures
+import com.pierbezuhoff.clonium.ui.newgame.NewGameViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.viewmodel.dsl.viewModel
 import org.koin.core.parameter.parametersOf
@@ -30,12 +31,14 @@ val gameModule = module {
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<BoardPresenter> { (board: Board) -> SimpleGamePresenter("" as Game, get(named(NAMES.CHIP_SET), get(), get())) }
+    factory<BoardPresenter> { (board: Board) -> SimpleBoardPresenter(board, get(named(NAMES.CHIP_SET))) }
     factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
+    viewModel<NewGameViewModel> { NewGameViewModel(get()) }
 
     single<GameGestures> { GameGestures(androidContext()) }
+    single<NewGameBoardGestures> { NewGameBoardGestures(androidContext()) }
 }
 
 object NAMES {

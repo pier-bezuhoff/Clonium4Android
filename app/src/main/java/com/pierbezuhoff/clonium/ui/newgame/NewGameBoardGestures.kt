@@ -1,4 +1,5 @@
-package com.pierbezuhoff.clonium.ui.game
+package com.pierbezuhoff.clonium.ui.newgame
+
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -9,7 +10,7 @@ import com.pierbezuhoff.clonium.ui.meta.TapListener
 import com.pierbezuhoff.clonium.utils.Connection
 
 /** Listen to single tap */
-class GameGestures (context: Context) : GestureDetector.SimpleOnGestureListener()
+class NewGameBoardGestures(context: Context) : GestureDetector.SimpleOnGestureListener()
     , View.OnTouchListener
 {
     private val gestureDetector = GestureDetector(context.applicationContext, this)

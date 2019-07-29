@@ -70,6 +70,7 @@ private class SimpleSpatialBoard(private val board: Board) : SpatialBoard {
     }
 }
 
+
 interface BoardPresenter : SpatialBoard {
     val board: Board
     val bitmapPaint: Paint
@@ -153,6 +154,7 @@ class SimpleBoardPresenter(
     }
 }
 
+
 /** Draw [Game] state pAndP animations on [Canvas] */
 interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     val game: Game
@@ -173,18 +175,12 @@ class SimpleGamePresenter(
     private val symmetry: ChipSymmetry,
     private val transitionsHost: TransitionAnimationsHost
 ) : Any()
-    , SpatialBoard by SimpleSpatialBoard(game.board)
+    , BoardPresenter by SimpleBoardPresenter(game.board, bitmapLoader)
     , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
-    override val bitmapPaint: Paint = Paint(
-        Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG
-    )
-
     override var board: Board = game.board
         private set
-    private var weakHighlight: Boolean = false
-    private var highlighted: Set<Pos> = emptySet()
 
     override fun Canvas.draw() {
         require(cellSize > 0) { "setSize must be called before draw" }
@@ -195,52 +191,6 @@ class SimpleGamePresenter(
 
     private fun Canvas.drawGameBoard() =
         drawBoard(board)
-
-    override fun Canvas.drawBoard(board: Board) {
-        drawColor(BACKGROUND_COLOR)
-        for (pos in board.asPosSet())
-            drawCell(pos)
-        for (pos in highlighted)
-            drawHighlight(pos)
-        for ((pos, maybeChip) in board.asPosMap())
-            maybeChip?.let {
-                drawChip(pos, it)
-            }
-    }
-
-    private fun Canvas.drawCell(pos: Pos) {
-        val bitmap = bitmapLoader.loadCell()
-        val rescaleMatrix = rescaleMatrix(bitmap)
-        val translateMatrix = pos2translationMatrix(pos)
-        drawBitmap(
-            bitmap,
-            translateMatrix * rescaleMatrix,
-            bitmapPaint
-        )
-    }
-
-    private fun Canvas.drawHighlight(pos: Pos) {
-        val bitmap = bitmapLoader.loadHighlight(weak = weakHighlight)
-        val rescaleMatrix = rescaleMatrix(bitmap)
-        val translateMatrix = pos2translationMatrix(pos)
-        drawBitmap(
-            bitmap,
-            translateMatrix * rescaleMatrix,
-            bitmapPaint
-        )
-    }
-
-    private fun Canvas.drawChip(pos: Pos, chip: Chip) {
-        val bitmap = bitmapLoader.loadChip(chip)
-        val rescaleMatrix = rescaleMatrix(bitmap)
-        val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
-        val translateMatrix = pos2translationMatrix(pos)
-        drawBitmap(
-            bitmap,
-            translateMatrix * rescaleMatrix * centeredScaleMatrix,
-            bitmapPaint
-        )
-    }
 
     override fun freezeBoard() {
         board = game.board.copy()
@@ -254,15 +204,5 @@ class SimpleGamePresenter(
         // NOTE: leaky leak of SimpleGamePresenter (circular reference)
         // MAYBE: use WeakRef
         startAdvancer(TransitionsAnimatedAdvancer(transitions, symmetry, this, bitmapLoader))
-    }
-
-    override fun highlight(poss: Set<Pos>, weak: Boolean) {
-        highlighted = poss
-        weakHighlight = weak
-    }
-
-    companion object {
-        private const val TAG = "GamePresenter"
-        private const val BACKGROUND_COLOR: Int = Color.BLACK
     }
 }
