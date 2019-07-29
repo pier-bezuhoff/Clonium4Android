@@ -11,25 +11,29 @@ private typealias StepAdvancer = Advancer<ProgressingStep>
 
 object TransitionsAdvancer {
 
-    fun make(transitions: Sequence<Transition>): Advancer<List<ProgressingStep>> {
+    fun make(transitions: Sequence<Transition>, symmetry: ChipSymmetry): Advancer<List<ProgressingStep>> {
         val list = transitions.toList()
+        val useSwiftRotations = symmetry !is ChipSymmetry.Four
         return when {
             list.isEmpty() -> EmptyAdvancer
             else -> with(Advancers) {
                 list.dropLast(1)
-                    .foldRight(transitionAdvancer(list.last())) { t, sequence ->
-                        transitionAdvancer(t) then idle(t) then sequence
+                    .foldRight(transitionAdvancer(list.last(), useSwiftRotations)) { t, sequence ->
+                        transitionAdvancer(t, useSwiftRotations) then idle(t) then sequence
                     }
             }
         }
     }
 
-    private fun transitionAdvancer(transition: Transition): AdvancerSequence<ProgressingStep> {
+    private fun transitionAdvancer(transition: Transition, useSwiftRotations: Boolean): AdvancerSequence<ProgressingStep> {
         val explosions = explosions(transition)
         val swiftRotations = swiftRotations(transition)
         val fallouts = fallouts(transition)
         return with(Advancers) {
-            explosions then (/*swiftRotations and*/ fallouts)
+            if (useSwiftRotations)
+                explosions then (swiftRotations and fallouts)
+            else
+                explosions then fallouts
         }
     }
 
@@ -92,7 +96,7 @@ sealed class TransitionStep : AnimatedStep {
                 SimpleBoard(transition.endBoard).apply {
                     transition.explosions
                         .flatMap { neighbors(it.center) }
-                        .filter { levelAt(it)?.ordinal == 1 }
+                        .filter { levelAt(it) == Level1 }
                         .forEach {
                             posMap[it] = null
                         }

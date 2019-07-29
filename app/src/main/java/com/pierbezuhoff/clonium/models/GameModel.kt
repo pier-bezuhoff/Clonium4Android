@@ -17,6 +17,7 @@ import org.koin.core.parameter.parametersOf
 
 class GameModel(
     val game: Game,
+    private val config: GameConfig,
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
@@ -54,14 +55,12 @@ class GameModel(
         }
 
     override fun advance(timeDelta: Long) {
-        gamePresenter.advance((GAME_SPEED * timeDelta).toLong())
+        gamePresenter.advance((config.gameSpeed * timeDelta).toLong())
         if (!gamePresenter.blocking && continueGameOnce)
             continueGame()
     }
 
     private fun continueGame() {
-//        Log.i(TAG, "${game.currentPlayer} (${game.currentPlayer.playerId})")
-//        Log.i(TAG, game.board.asString())
         when {
             game.isEnd() -> {
                 Log.i(TAG, "game ended")
@@ -69,11 +68,10 @@ class GameModel(
             }
             game.currentPlayer is Bot -> coroutineScope.launch {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
-                delay(BOT_MIN_TIME)
+                delay(config.botMinTime)
                 gamePresenter.freezeBoard()
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
-                // FIX: gamePresenter.blocking => AnimationHost: failed requirement
                 gamePresenter.startTransitions(transitions)
                 gamePresenter.unfreezeBoard()
                 continueGameOnce = true
@@ -87,7 +85,5 @@ class GameModel(
 
     companion object {
         private const val TAG = "GameModel"
-        private const val BOT_MIN_TIME: Long = 300L
-        private const val GAME_SPEED: Float = 1f
     }
 }

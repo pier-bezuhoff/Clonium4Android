@@ -5,10 +5,7 @@ import android.graphics.PointF
 import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
-import com.pierbezuhoff.clonium.domain.Chip
-import com.pierbezuhoff.clonium.domain.Direction
-import com.pierbezuhoff.clonium.domain.Level1
-import com.pierbezuhoff.clonium.domain.Transition
+import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GamePresenter
 import kotlin.math.PI
@@ -17,10 +14,11 @@ import kotlin.math.sin
 
 class TransitionsAnimatedAdvancer(
     transitions: Sequence<Transition>,
+    private val symmetry: ChipSymmetry,
     private val gamePresenter: GamePresenter,
     private val bitmapLoader: GameBitmapLoader
 ) : AnimatiedAdvancer<WithProgress<TransitionStep>>(
-    TransitionsAdvancer.make(transitions)
+    TransitionsAdvancer.make(transitions, symmetry)
 ) {
     @Suppress("UNCHECKED_CAST")
     override fun Canvas.drawOne(output: WithProgress<TransitionStep>) {
@@ -90,6 +88,20 @@ class TransitionsAnimatedAdvancer(
                 val bitmap = bitmapLoader.loadChip(Chip(playerId, Level1))
                 val rescaleMatrix = rescaleMatrix(bitmap)
                 val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
+                val translateMatrix = pos2translationMatrix(pos)
+                val angle0 = angles.getValue(direction) // 0f <= angle0 < 360f
+                val angle = when (symmetry) {
+                    is ChipSymmetry.None -> if (angle0 <= 180f) angle0 else angle0 - 360f
+                    is ChipSymmetry.Two -> angle0 % 180f
+                    is ChipSymmetry.Four -> throw IllegalStateException("There is no sense in rotating 4-symmetric chip")
+                }
+                val theta = (angle * (1 - progress)).toFloat()
+                val centeredRotateMatrix = centeredRotateMatrix(bitmap, theta)
+                drawBitmap(
+                    bitmap,
+                    translateMatrix * rescaleMatrix * centeredScaleMatrix * centeredRotateMatrix,
+                    bitmapPaint
+                )
             }
         }
     }

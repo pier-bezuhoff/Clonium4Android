@@ -15,6 +15,7 @@ import org.koin.dsl.module
 
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
+    single<ChipSymmetry> { ChipSymmetry.None }
     factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
     factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
 
@@ -29,7 +30,7 @@ val gameModule = module {
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get()) }
+    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
 

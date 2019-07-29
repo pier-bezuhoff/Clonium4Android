@@ -94,6 +94,7 @@ private class SimpleSpatialBoard(private val game: Game) : SpatialBoard {
 class SimpleGamePresenter(
     override val game: Game,
     private val bitmapLoader: GameBitmapLoader,
+    private val symmetry: ChipSymmetry,
     private val transitionsHost: TransitionAnimationsHost
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(game)
@@ -175,7 +176,7 @@ class SimpleGamePresenter(
     override fun startTransitions(transitions: Sequence<Transition>) {
         // NOTE: leaky leak of SimpleGamePresenter (circular reference)
         // MAYBE: use WeakRef
-        startAdvancer(TransitionsAnimatedAdvancer(transitions, this, bitmapLoader))
+        startAdvancer(TransitionsAnimatedAdvancer(transitions, symmetry, this, bitmapLoader))
     }
 
     override fun highlight(poss: Set<Pos>, weak: Boolean) {

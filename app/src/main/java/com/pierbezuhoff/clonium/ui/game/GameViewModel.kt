@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.pierbezuhoff.clonium.di.NAMES
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.models.GameConfig
 import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.ui.meta.TapListener
@@ -37,7 +38,8 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
 
     private fun exampleGame() {
         val game = get<Game>(named(NAMES.EXAMPLE))
-        val newGameModel = GameModel(game, viewModelScope)
+        val gameConfig = GameConfig()
+        val newGameModel = GameModel(game, gameConfig, viewModelScope)
         _gameModel.value = newGameModel
     }
 

@@ -136,6 +136,15 @@ object Level7 : Level(7)
 /** Element placed on cell, owned by [playerId] with [level] (= # of holes) */
 data class Chip(val playerId: PlayerId, val level: Level)
 
+sealed class ChipSymmetry {
+    /** No known symmetries */
+    object None : ChipSymmetry()
+    /** 2 axis of symmetry, invariant to 180-rotation */
+    object Two : ChipSymmetry()
+    /** 4 axis of symmetry (as square), invariant to 90-rotation */
+    object Four : ChipSymmetry()
+}
+
 /** Board with some [Chip]s on cells */
 interface Board : EmptyBoard {
     override fun asPosSet(): Set<Pos> = asPosMap().keys
