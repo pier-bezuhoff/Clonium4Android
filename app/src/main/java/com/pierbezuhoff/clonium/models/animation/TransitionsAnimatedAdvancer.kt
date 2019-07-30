@@ -17,7 +17,7 @@ class TransitionsAnimatedAdvancer(
     private val symmetry: ChipSymmetry,
     private val gamePresenter: GamePresenter,
     private val bitmapLoader: GameBitmapLoader
-) : AnimatiedAdvancer<WithProgress<TransitionStep>>(
+) : AnimatedAdvancer<WithProgress<TransitionStep>>(
     TransitionsAdvancer.make(transitions, symmetry)
 ) {
     @Suppress("UNCHECKED_CAST")

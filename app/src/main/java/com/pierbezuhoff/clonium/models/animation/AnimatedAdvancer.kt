@@ -6,7 +6,7 @@ interface AnimatedStep {
     val blocking: Boolean
 }
 
-abstract class AnimatiedAdvancer<A : AnimatedStep>(
+abstract class AnimatedAdvancer<A : AnimatedStep>(
     private val advancer: Advancer<List<A>>
 ) : Any()
     , Advanceable<List<A>> by advancer

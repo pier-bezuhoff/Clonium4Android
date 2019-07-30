@@ -33,7 +33,7 @@ abstract class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAsset
     , GameBitmapLoader
 {
     override fun loadCell(): Bitmap =
-        loadAssetBitmap("cell.png")
+        loadAssetBitmap("cells/blue.png")
 
     override fun loadHighlight(weak: Boolean): Bitmap {
         val opacity = if (weak) 15 else 25

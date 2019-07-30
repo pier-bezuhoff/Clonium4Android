@@ -50,8 +50,6 @@ class BoardView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        viewModel.boardPresenter.value?.let {
-            with(it) { canvas.draw() }
-        }
+        viewModel.boardPresenter.value?.draw(canvas)
     }
 }

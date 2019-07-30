@@ -74,8 +74,8 @@ private class SimpleSpatialBoard(private val board: Board) : SpatialBoard {
 interface BoardPresenter : SpatialBoard {
     val board: Board
     val bitmapPaint: Paint
-    fun Canvas.draw() {
-        drawBoard(board)
+    fun draw(canvas: Canvas) {
+        canvas.drawBoard(board)
     }
     fun Canvas.drawBoard(board: Board)
     /** [weak]ly highlight [poss] */
@@ -158,14 +158,15 @@ class SimpleBoardPresenter(
 /** Draw [Game] state pAndP animations on [Canvas] */
 interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     val game: Game
-    /** Copy [game] [Board]: make board unaffected by [game] changes */
+    fun advance(timeDelta: Milliseconds)
+    /** Copy [game]'s [Board]: make [board] unaffected by [game] changes */
     fun freezeBoard()
-    /** Show [game] [Board]: immediately reflect any [game] changes */
+    /** Show [game]'s [Board]: immediately reflect any [game] changes */
     fun unfreezeBoard()
     /** Start [Transition]s animations */
     fun startTransitions(transitions: Sequence<Transition>)
     /** Draw current [game] state with animations */
-    override fun Canvas.draw()
+    override fun draw(canvas: Canvas)
 }
 
 // MAYBE: rotate rectangular board along with view
@@ -173,7 +174,7 @@ class SimpleGamePresenter(
     override val game: Game,
     private val bitmapLoader: GameBitmapLoader,
     private val symmetry: ChipSymmetry,
-    private val transitionsHost: TransitionAnimationsHost
+    transitionsHost: TransitionAnimationsHost
 ) : Any()
     , BoardPresenter by SimpleBoardPresenter(game.board, bitmapLoader)
     , TransitionAnimationsHost by transitionsHost
@@ -182,15 +183,16 @@ class SimpleGamePresenter(
     override var board: Board = game.board
         private set
 
-    override fun Canvas.draw() {
-        require(cellSize > 0) { "setSize must be called before draw" }
-        if (!blocking)
-            drawGameBoard()
-        with(transitionsHost) { draw() }
+    override fun advance(timeDelta: Milliseconds) {
+        advanceAnimations(timeDelta)
     }
 
-    private fun Canvas.drawGameBoard() =
-        drawBoard(board)
+    override fun draw(canvas: Canvas) {
+        require(cellSize > 0) { "setSize must be called before draw" }
+        if (!blocking)
+            canvas.drawBoard(board)
+        drawAnimations(canvas)
+    }
 
     override fun freezeBoard() {
         board = game.board.copy()
@@ -203,6 +205,13 @@ class SimpleGamePresenter(
     override fun startTransitions(transitions: Sequence<Transition>) {
         // NOTE: leaky leak of SimpleGamePresenter (circular reference)
         // MAYBE: use WeakRef
-        startAdvancer(TransitionsAnimatedAdvancer(transitions, symmetry, this, bitmapLoader))
+        startAdvancer(
+            TransitionsAnimatedAdvancer(
+                transitions = transitions,
+                symmetry = symmetry,
+                gamePresenter = this,
+                bitmapLoader = bitmapLoader
+            )
+        )
     }
 }

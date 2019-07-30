@@ -2,7 +2,7 @@ package com.pierbezuhoff.clonium.utils
 
 import kotlin.reflect.KProperty
 
-/** Become false after every view [getValue] */
+/** Become `false` after every [getValue] */
 class Once(initialValue: Boolean = true) {
     private var value: Boolean = initialValue
 

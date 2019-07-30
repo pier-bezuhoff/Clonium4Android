@@ -50,9 +50,7 @@ class GameModel(
         gamePresenter.setSize(width, height)
 
     override fun draw(canvas: Canvas) =
-        with(gamePresenter) {
-            canvas.draw()
-        }
+        gamePresenter.draw(canvas)
 
     override fun advance(timeDelta: Long) {
         gamePresenter.advance((config.gameSpeed * timeDelta).toLong())

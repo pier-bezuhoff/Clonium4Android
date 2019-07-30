@@ -17,8 +17,8 @@ import org.koin.dsl.module
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
     single<ChipSymmetry> { ChipSymmetry.None }
-    factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
     factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
+    factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
 
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }

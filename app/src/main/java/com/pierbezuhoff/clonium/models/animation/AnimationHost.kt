@@ -7,45 +7,46 @@ interface AnimationsHost {
     /** Whether animations are blocking user input (i.e. [Game.humanTurn]) */
     val blocking: Boolean
     /** Advance animation time */
-    fun advance(timeDelta: Milliseconds)
+    fun advanceAnimations(timeDelta: Milliseconds)
     /** Draw all animations */
-    fun Canvas.draw()
+    fun drawAnimations(canvas: Canvas)
 }
 
 interface TransitionAnimationsHost : AnimationsHost {
-    fun startAdvancer(animatedAdvancer: AnimatiedAdvancer<*>)
+    fun startAdvancer(animatedAdvancer: AnimatedAdvancer<*>)
 }
 
 class TransitionAnimationsPool : Any()
     , TransitionAnimationsHost
 {
-    private val pool: MutableList<AnimatiedAdvancer<*>> = mutableListOf()
+    private val pool: MutableList<AnimatedAdvancer<*>> = mutableListOf()
     override val blocking: Boolean
         get() = pool.any { it.blocking }
 
-    override fun advance(timeDelta: Milliseconds) {
+    override fun advanceAnimations(timeDelta: Milliseconds) {
         for (advancer in pool) {
             advancer.advance(timeDelta)
         }
         pool.removeAll { it.ended }
     }
 
-    override fun Canvas.draw() {
+    override fun drawAnimations(canvas: Canvas) {
         val (blocking, nonBlocking) =
             pool.flatMap { advancer -> advancer.lastOutput
                 .map { step -> advancer to step }
             }.partition { (_, step) -> step.blocking }
         // heterogeneous list => type of [step] is lost
         for ((advancer, step) in (blocking + nonBlocking)) {
-            unsafeDrawOne(advancer, step)
+            canvas.unsafeDrawOne(advancer, step)
         }
     }
 
-    private fun <S : AnimatedStep> Canvas.unsafeDrawOne(advancer: AnimatiedAdvancer<*>, step: S) {
-        with(advancer as AnimatiedAdvancer<S>) { drawOne(step) }
+    @Suppress("UNCHECKED_CAST")
+    private fun <S : AnimatedStep> Canvas.unsafeDrawOne(advancer: AnimatedAdvancer<*>, step: S) {
+        with(advancer as AnimatedAdvancer<S>) { drawOne(step) }
     }
 
-    override fun startAdvancer(animatedAdvancer: AnimatiedAdvancer<*>) {
+    override fun startAdvancer(animatedAdvancer: AnimatedAdvancer<*>) {
         require(!blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
         if (!animatedAdvancer.ended) {
             pool.add(animatedAdvancer)
