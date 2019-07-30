@@ -16,7 +16,8 @@ class RandomPickerBot(override val playerId: PlayerId) : Bot {
     override val difficultyName = "Random picker"
 
     override fun CoroutineScope.makeTurnAsync(
-        board: Board, order: List<PlayerId>
+        board: Board,
+        order: List<PlayerId>
     ): Deferred<Pos> = async {
         val possibleTurns = board.possOf(playerId)
         return@async possibleTurns.random()
@@ -55,11 +56,13 @@ object MaximizingStrategy {
             }
     }
 
-    // MAYBE: inline recursion somehow
+    // MAYBE: inline recursion somehow ([depth] is decreasing)
     fun estimateTurn(
         turn: Pos,
-        depth: Int, estimate: (Board) -> Int,
-        playerId: PlayerId, order: List<PlayerId>,
+        depth: Int,
+        estimate: (Board) -> Int,
+        playerId: PlayerId,
+        order: List<PlayerId>,
         board: EvolvingBoard
     ): Int {
         if (depth == 0)
@@ -109,7 +112,7 @@ abstract class MaximizerBot(
                 }!!
             val elapsedTime = System.currentTimeMillis() - startTime
             withContext(Dispatchers.Main) {
-                Log.i(difficultyName, "thought ${elapsedTime}ms")
+                Log.i(difficultyName, "thought $elapsedTime ms")
             }
             return@async bestTurn
         }
@@ -117,21 +120,23 @@ abstract class MaximizerBot(
 }
 
 class LevelMaximizerBot(
-    playerId: PlayerId, depth: Int
+    playerId: PlayerId,
+    depth: Int
 ) : MaximizerBot(
     playerId,
-    { board -> board.possOf(playerId).sumBy { board.levelAt(it)?.ordinal ?: 0 } },
-    depth
+    estimate = { board -> board.possOf(playerId).sumBy { board.levelAt(it)?.ordinal ?: 0 } },
+    depth = depth
 ) {
-    override val difficultyName: String = "Level maximizer-$depth"
+    override val difficultyName: String = "Level maximizer $depth"
 }
 
-class ChipsMaximizerBot(
-    playerId: PlayerId, depth: Int
+class ChipCountMaximizerBot(
+    playerId: PlayerId,
+    depth: Int
 ) : MaximizerBot(
     playerId,
-    { board -> board.possOf(playerId).size },
-    depth
+    estimate = { board -> board.possOf(playerId).size },
+    depth = depth
 ) {
-    override val difficultyName: String = "Chips maximizer-$depth"
+    override val difficultyName: String = "Chip count maximizer $depth"
 }

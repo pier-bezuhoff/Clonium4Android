@@ -14,8 +14,11 @@ import org.koin.core.parameter.parametersOf
 class NewGameViewModel(application: Application) : CloniumAndroidViewModel(application) {
     private val _boardPresenter: MutableLiveData<BoardPresenter> = MutableLiveData()
     val boardPresenter: LiveData<BoardPresenter> = _boardPresenter
-    private lateinit var board: Board
+    lateinit var board: Board
+        private set
     lateinit var playerItems: MutableList<PlayerItem>
+        private set
+    var useRandomOrder: Boolean = false
         private set
 
     init {
@@ -26,7 +29,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         return BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
     }
 
-    private fun setBoard(board: Board) {
+    fun setBoard(board: Board) {
         this.board = board
         playerItems = playerItemsOf(board).toMutableList()
         _boardPresenter.value = get<BoardPresenter> { parametersOf(board) }
@@ -34,5 +37,5 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
 
     private fun playerItemsOf(board: Board): List<PlayerItem> =
         board.players()
-            .map { PlayerItem(it, PlayerTactics.RANDOM_BOT, participate = true) }
+            .map { PlayerItem(it, PlayerTactic.RANDOM_BOT, participate = true) }
 }

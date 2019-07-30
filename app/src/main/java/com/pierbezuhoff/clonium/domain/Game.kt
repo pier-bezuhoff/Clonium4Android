@@ -4,8 +4,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import java.io.Serializable
 
 interface Game {
+    /** Initial [Game] parameters, [Game] can be constructed from it */
+    data class State(
+        val board: Board,
+        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
+        val bots: Set<Bot>,
+        /** `null` means shuffle before starting game */
+        val order: List<PlayerId>? = null
+    ) : Serializable
+
     val board: Board
     val players: Map<PlayerId, Player>
     val order: List<Player>
@@ -39,7 +49,7 @@ class SimpleGame(
 
     init {
         initialOrder?.let {
-            require(board.players() == initialOrder.toSet()) { "initialOrder is incomplete" }
+            require(board.players() == initialOrder.toSet()) { "order is incomplete" }
         }
         val playerIds = initialOrder ?: board.players().shuffled().toList()
         require(bots.map { it.playerId }.all { it in playerIds }) { "Not all bot ids are on the board" }
@@ -53,6 +63,8 @@ class SimpleGame(
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
     }
+
+    constructor(gameState: Game.State) : this(PrimitiveBoard(gameState.board), gameState.bots, gameState.order)
 
     private fun isAlive(player: Player): Boolean =
         lives.getValue(player)
@@ -119,7 +131,7 @@ class SimpleGame(
                     RandomPickerBot(PlayerId(2)),
                     RandomPickerBot(PlayerId(3))
 //                LevelMaximizerBot(PlayerId(2), depth = 1),
-//                ChipsMaximizerBot(PlayerId(3), depth = 1)
+//                ChipCountMaximizerBot(PlayerId(3), depth = 1)
                 )
             return SimpleGame(PrimitiveBoard(board), bots)
         }

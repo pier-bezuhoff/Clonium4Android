@@ -29,14 +29,16 @@
                 android:id="@+id/players_recycler_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 app:layout_constraintTop_toBottomOf="@+id/board_view"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 android:layout_marginTop="24dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
-        >
-        </androidx.recyclerview.widget.RecyclerView>
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        />
+        <!-- random order switch -->
         <LinearLayout
                 android:orientation="horizontal"
                 android:layout_width="match_parent"

@@ -1,12 +1,14 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
 import android.content.Context
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.BaseAdapter
 import androidx.annotation.StringRes
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
@@ -17,20 +19,66 @@ import org.jetbrains.anko.layoutInflater
 
 data class PlayerItem(
     val playerId: PlayerId,
-    var tactics: PlayerTactics,
+    var tactic: PlayerTactic,
     var participate: Boolean
 ) {
     fun toPlayer(): Player =
-        when (tactics) {
-            PlayerTactics.HUMAN -> HumanPlayer(playerId)
-            PlayerTactics.RANDOM_BOT -> RandomPickerBot(playerId)
+        when (tactic) {
+            PlayerTactic.HUMAN -> HumanPlayer(playerId)
+            PlayerTactic.RANDOM_BOT -> RandomPickerBot(playerId)
         }
+}
+
+class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
+    override fun isLongPressDragEnabled(): Boolean =
+        true
+    override fun isItemViewSwipeEnabled(): Boolean =
+        false
+
+    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) { }
+
+    override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int =
+        makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+
+    override fun onMove(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+        target: RecyclerView.ViewHolder
+    ): Boolean {
+        rowManager.moveRow(
+            fromPosition = viewHolder.adapterPosition,
+            toPosition = target.adapterPosition
+        )
+        return true
+    }
+
+    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+        if (actionState != ItemTouchHelper.ACTION_STATE_IDLE && viewHolder is PlayerAdapter.ViewHolder) {
+            rowManager.selectRow(viewHolder)
+        }
+        super.onSelectedChanged(viewHolder, actionState)
+    }
+
+    override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+        super.clearView(recyclerView, viewHolder)
+        if (viewHolder is PlayerAdapter.ViewHolder) {
+            rowManager.unselectRow(viewHolder)
+        }
+    }
+}
+
+interface RowManager {
+    fun moveRow(fromPosition: Int, toPosition: Int)
+    fun selectRow(viewHolder: PlayerAdapter.ViewHolder)
+    fun unselectRow(viewHolder: PlayerAdapter.ViewHolder)
 }
 
 class PlayerAdapter(
     private val playerItems: MutableList<PlayerItem>,
     private val bitmapLoader: GameBitmapLoader
-) : RecyclerView.Adapter<PlayerAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<PlayerAdapter.ViewHolder>()
+    , RowManager
+{
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         lateinit var playerItem: PlayerItem
     }
@@ -46,19 +94,18 @@ class PlayerAdapter(
         val playerItem = playerItems[position]
         holder.playerItem = playerItem
         with(holder) {
-            itemView.player_layout.setOnClickListener {
-//                TODO("choose it")
-            }
             itemView.use_player.isChecked = playerItem.participate
             itemView.use_player.setOnCheckedChangeListener { _, checked ->
                 playerItem.participate = checked
             }
             itemView.colored_chip.setImageBitmap(bitmapLoader.loadChip(Chip(playerItem.playerId, Level1)))
-//            itemView.player_tactics.setSelection()
+            itemView.player_tactics.setSelection(PlayerTactic.values().indexOf(playerItem.tactic))
+            itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) { }
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    TODO("not implemented")
+                    val tactic = itemView.player_tactics.getItemAtPosition(position) as PlayerTactic
+                    playerItem.tactic = tactic
                 }
             }
         }
@@ -66,13 +113,27 @@ class PlayerAdapter(
 
     override fun getItemCount(): Int =
         playerItems.size
+
+    override fun moveRow(fromPosition: Int, toPosition: Int) {
+        val removed = playerItems.removeAt(fromPosition)
+        val targetPosition = if (toPosition >= fromPosition) (toPosition + 1) else toPosition
+        playerItems.add(targetPosition, removed)
+        notifyItemMoved(fromPosition, toPosition)
+    }
+
+    override fun selectRow(viewHolder: ViewHolder) {
+        viewHolder.itemView.setBackgroundColor(Color.YELLOW)
+    }
+
+    override fun unselectRow(viewHolder: ViewHolder) {
+        viewHolder.itemView.setBackgroundColor(Color.WHITE)
+    }
 }
 
 class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
-    private class ViewHolder(val view: View)
-    private val tactics = PlayerTactics.values()
+    private val tactics = PlayerTactic.values()
 
-    override fun getItem(position: Int): PlayerTactics =
+    override fun getItem(position: Int): PlayerTactic =
         tactics[position]
 
     override fun getItemId(position: Int): Long =
@@ -89,7 +150,7 @@ class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
             }
 }
 
-enum class PlayerTactics {
+enum class PlayerTactic {
     HUMAN, RANDOM_BOT;
     
     @get:StringRes val descriptionId: Int get() =

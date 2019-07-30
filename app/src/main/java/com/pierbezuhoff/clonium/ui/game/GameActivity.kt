@@ -6,6 +6,8 @@ import android.view.View
 import androidx.databinding.DataBindingUtil
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
+import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
 import org.koin.android.viewmodel.ext.android.viewModel
 
 // TODO: stat and action bar
@@ -19,10 +21,12 @@ class GameActivity : AppCompatActivity() {
             DataBindingUtil.setContentView(this, R.layout.activity_game)
         binding.lifecycleOwner = this
         binding.viewModel = gameViewModel
-        gameViewModel.newGame()
+        (intent.getSerializableExtra(NewGameActivity.GAME_STATE_EXTRA) as Game.State?)?.let {
+            gameViewModel.newGame(it)
+        } ?: gameViewModel.newGame()
     }
 
-    /** Enforce fullscreen sticky immersive mode  */
+    /** Enforce fullscreen sticky immersive mode */
     private fun setupWindow() {
         window.decorView.apply {
             systemUiVisibility = IMMERSIVE_UI_VISIBILITY

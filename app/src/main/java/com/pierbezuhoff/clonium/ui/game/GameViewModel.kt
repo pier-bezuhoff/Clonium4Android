@@ -30,15 +30,25 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
         gestures.tapSubscription.subscribeFrom(this)
     }
 
-    fun newGame() {
+    fun newGame(gameState: Game.State) {
         if (firstNewGame) {
-            exampleGame()
+            newGame(
+                get<Game> { parametersOf(gameState) },
+                GameConfig()
+            )
         }
     }
 
-    private fun exampleGame() {
-        val game = get<Game>(named(NAMES.EXAMPLE))
-        val gameConfig = GameConfig()
+    fun newGame() {
+        if (firstNewGame) {
+            newGame(
+                get<Game>(named(NAMES.EXAMPLE)),
+                GameConfig()
+            )
+        }
+    }
+
+    private fun newGame(game: Game, gameConfig: GameConfig = GameConfig()) {
         val newGameModel = GameModel(game, gameConfig, viewModelScope)
         _gameModel.value = newGameModel
     }

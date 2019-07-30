@@ -23,11 +23,7 @@ val gameModule = module {
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
 
-    factory<Game>(named(NAMES.WITH_ORDER)) { (board: Board, bots: Set<Bot>, initialOrder: List<PlayerId>?) ->
-        SimpleGame(get { parametersOf(board) }, bots, initialOrder) }
-    factory<Game> { (board: Board, bots: Set<Bot>) ->
-        get(named(NAMES.WITH_ORDER)) { parametersOf(board, bots, null) }
-    }
+    factory<Game> { (gameState: Game.State) -> SimpleGame(gameState) }
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
