@@ -1,11 +1,12 @@
 package com.pierbezuhoff.clonium.domain
 
 import androidx.annotation.IntRange
+import java.io.Serializable
 
 /** [Pos]ition on [Board]:
  * [x] = `0..(board.width - 1)` -- column
  * [y] = `0..(board.height - 1)` -- row */
-data class Pos(val x: Int, val y: Int) {
+data class Pos(val x: Int, val y: Int) : Serializable {
     val right: Pos get() = Pos(x + 1, y)
     val left: Pos get() = Pos(x - 1, y)
     val up: Pos get() = Pos(x, y - 1)
@@ -76,7 +77,10 @@ class SimpleEmptyBoard(
     override val width: Int,
     override val height: Int,
     val posSet: MutableSet<Pos>
-) : EmptyBoard {
+) : Any()
+    , EmptyBoard
+    , Serializable
+{
     override fun asPosSet(): Set<Pos> =
         posSet
 
@@ -92,7 +96,7 @@ class SimpleEmptyBoard(
 
 
 /** Owner of [Chip] */
-open class PlayerId(/** non-negative */ val id: Int) {
+open class PlayerId(/** non-negative */ val id: Int) : Serializable {
     override fun toString(): String =
         "PlayerId($id)"
     override fun equals(other: Any?): Boolean =
@@ -106,7 +110,10 @@ object PlayerId2 : PlayerId(2)
 object PlayerId3 : PlayerId(3)
 
 /** Level (# of holes) of [Chip] */
-open class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Comparable<Level> {
+open class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Any()
+    , Comparable<Level>
+    , Serializable
+{
     fun valid(): Boolean =
         Level1 <= this && this <= Level7
     override fun toString(): String =
@@ -134,7 +141,7 @@ object Level4 : Level(4)
 object Level7 : Level(7)
 
 /** Element placed on cell, owned by [playerId] with [level] (= # of holes) */
-data class Chip(val playerId: PlayerId, val level: Level)
+data class Chip(val playerId: PlayerId, val level: Level) : Serializable
 
 sealed class ChipSymmetry {
     /** No known symmetries */
@@ -205,7 +212,10 @@ class SimpleBoard(
     override val width: Int,
     override val height: Int,
     val posMap: MutableMap<Pos, Chip?>
-) : Board {
+) : Any()
+    , Board
+    , Serializable
+{
     constructor(emptyBoard: EmptyBoard) : this(
         emptyBoard.width, emptyBoard.height,
         mutableMapOf<Pos, Chip?>().apply {

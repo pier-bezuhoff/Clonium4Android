@@ -13,34 +13,11 @@ interface Game {
     /** Initial [Game] parameters, [Game] can be constructed from it */
     data class State(
         val board: SimpleBoard,
-//        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
-//        val bots: Set<Bot>,
+        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
+        val bots: Map<PlayerId, PlayerTactic.Bot>,
         /** `null` means shuffle before starting game */
         val order: List<PlayerId>? = null
-    ) : Serializable {
-        @Throws(IOException::class)
-        private fun writeObject(output: ObjectOutputStream) {
-            output.defaultWriteObject()
-            val size = listOf(board.width, board.height)
-            output.writeObject(size)
-            output.writeObject(board.asPosMap())
-            // bots!
-            output.writeObject(order)
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        @Throws(ClassNotFoundException::class, IOException::class)
-        private fun readObject(input: ObjectInputStream) {
-            input.defaultReadObject()
-            val (width, height) = input.readObject() as List<Int>
-            val posMap = input.readObject() as Map<Pos, Chip?>
-            val board = SimpleBoard(width, height, posMap.toMutableMap())
-            // bots!
-            val bots: Set<Bot> = "todo"
-            val order = input.readObject() as List<PlayerId>?
-            val state = State(board, bots, order)
-        }
-    }
+    ) : Serializable
 
     val board: Board
     val players: Map<PlayerId, Player>
@@ -90,7 +67,11 @@ class SimpleGame(
         currentPlayer = order.first { isAlive(it) }
     }
 
-    constructor(gameState: Game.State) : this(PrimitiveBoard(gameState.board), gameState.bots, gameState.order)
+    constructor(gameState: Game.State) : this(
+        PrimitiveBoard(gameState.board)/*example().board*/,
+        /*gameState.bots*/emptySet(),
+        gameState.order
+    )
 
     private fun isAlive(player: Player): Boolean =
         lives.getValue(player)

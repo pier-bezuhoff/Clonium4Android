@@ -1,14 +1,11 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
 import android.content.Context
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.BaseAdapter
-import androidx.annotation.StringRes
-import androidx.core.graphics.scale
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
@@ -24,10 +21,7 @@ data class PlayerItem(
     var participate: Boolean
 ) {
     fun toPlayer(): Player =
-        when (tactic) {
-            PlayerTactic.HUMAN -> HumanPlayer(playerId)
-            PlayerTactic.RANDOM_BOT -> RandomPickerBot(playerId)
-        }
+        tactic.toPlayer(playerId)
 }
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
@@ -102,7 +96,7 @@ class PlayerAdapter(
             }
             val chipBitmap = bitmapLoader.loadChip(Chip(playerItem.playerId, Level1))
             itemView.colored_chip.setImageBitmap(chipBitmap)
-            itemView.player_tactics.setSelection(PlayerTactic.values().indexOf(playerItem.tactic))
+            itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
             itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) { }
@@ -139,7 +133,7 @@ class PlayerAdapter(
 }
 
 class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
-    private val tactics = PlayerTactic.values()
+    private val tactics = PLAYER_TACTICS
 
     override fun getItem(position: Int): PlayerTactic =
         tactics[position]
@@ -154,16 +148,13 @@ class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
         convertView ?: context.layoutInflater
             .inflate(R.layout.player_tactic_item, parent, false).apply {
                 val tactic = getItem(position)
-                tactic_description.text = context.getString(tactic.descriptionId)
+                tactic_description.text = context.getString(tacticDescriptionId(tactic))
             }
 }
 
-enum class PlayerTactic {
-    HUMAN, RANDOM_BOT;
-    
-    @get:StringRes val descriptionId: Int get() =
-        when (this) {
-            HUMAN -> R.string.human
-            RANDOM_BOT -> R.string.random_picker
-        }
-}
+fun tacticDescriptionId(tactic: PlayerTactic): Int =
+    when (tactic) {
+        PlayerTactic.Human -> R.string.human
+        PlayerTactic.Bot.RandomPicker -> R.string.random_picker
+        else -> throw NotImplementedError("todo")
+    }

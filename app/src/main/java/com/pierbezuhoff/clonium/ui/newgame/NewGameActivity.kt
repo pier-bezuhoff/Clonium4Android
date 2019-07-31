@@ -10,6 +10,7 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.domain.Bot
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.domain.SimpleBoard
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import kotlinx.android.synthetic.main.activity_new_game.*
@@ -45,11 +46,11 @@ class NewGameActivity : AppCompatActivity() {
         val intent = Intent(this, GameActivity::class.java)
         val gameState = with(newGameViewModel) {
             Game.State(
-                board,
-                playerItems
-                    .map { it.toPlayer() }
-                    .filterIsInstance<Bot>()
-                    .toSet(),
+                SimpleBoard(board),
+//                playerItems
+//                    .map { it.toPlayer() }
+//                    .filterIsInstance<Bot>()
+//                    .toSet(),
                 if (useRandomOrder.value!!) null else playerItems.map { it.playerId }
             )
         }

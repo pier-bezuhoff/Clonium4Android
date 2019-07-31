@@ -14,6 +14,7 @@ interface Bot : Player {
 
 class RandomPickerBot(override val playerId: PlayerId) : Bot {
     override val difficultyName = "Random picker"
+    override val tactic = PlayerTactic.Bot.RandomPicker
 
     override fun CoroutineScope.makeTurnAsync(
         board: Board,
@@ -128,6 +129,7 @@ class LevelMaximizerBot(
     depth = depth
 ) {
     override val difficultyName: String = "Level maximizer $depth"
+    override val tactic = PlayerTactic.Bot.LevelMaximizer(depth)
 }
 
 class ChipCountMaximizerBot(
@@ -139,4 +141,5 @@ class ChipCountMaximizerBot(
     depth = depth
 ) {
     override val difficultyName: String = "Chip count maximizer $depth"
+    override val tactic = PlayerTactic.Bot.ChipCountMaximizer(depth)
 }
