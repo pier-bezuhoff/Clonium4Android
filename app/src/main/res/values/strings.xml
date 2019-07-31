@@ -5,4 +5,5 @@
     <string name="human">Human</string>
     <string name="random_picker">Random picker</string>
     <string name="player_tactics_prompt">Choose type of player</string>
+    <string name="use_random_order">Random order</string>
 </resources>

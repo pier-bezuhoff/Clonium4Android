@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.BaseAdapter
 import androidx.annotation.StringRes
+import androidx.core.graphics.scale
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
@@ -97,8 +98,10 @@ class PlayerAdapter(
             itemView.use_player.isChecked = playerItem.participate
             itemView.use_player.setOnCheckedChangeListener { _, checked ->
                 playerItem.participate = checked
+                // TODO: show/hide chips on board depending on [checked]
             }
-            itemView.colored_chip.setImageBitmap(bitmapLoader.loadChip(Chip(playerItem.playerId, Level1)))
+            val chipBitmap = bitmapLoader.loadChip(Chip(playerItem.playerId, Level1))
+            itemView.colored_chip.setImageBitmap(chipBitmap)
             itemView.player_tactics.setSelection(PlayerTactic.values().indexOf(playerItem.tactic))
             itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -116,17 +119,22 @@ class PlayerAdapter(
 
     override fun moveRow(fromPosition: Int, toPosition: Int) {
         val removed = playerItems.removeAt(fromPosition)
-        val targetPosition = if (toPosition >= fromPosition) (toPosition + 1) else toPosition
-        playerItems.add(targetPosition, removed)
+        if (toPosition < itemCount) {
+            val targetPosition = if (toPosition >= fromPosition) (toPosition + 1) else toPosition
+            playerItems.add(targetPosition, removed)
+        } else {
+            playerItems.add(removed)
+        }
         notifyItemMoved(fromPosition, toPosition)
     }
 
     override fun selectRow(viewHolder: ViewHolder) {
-        viewHolder.itemView.setBackgroundColor(Color.YELLOW)
+        // TODO: highlight, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
+        // MAYBE: highlight chips on board
     }
 
     override fun unselectRow(viewHolder: ViewHolder) {
-        viewHolder.itemView.setBackgroundColor(Color.WHITE)
+        // TODO: unhighlight
     }
 }
 

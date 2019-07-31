@@ -9,7 +9,7 @@ import androidx.databinding.DataBindingUtil
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityMainBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
-import kotlinx.android.synthetic.main.activity_main.*
+import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
 
 class MainActivity : AppCompatActivity() {
     interface Callbacks {
@@ -23,7 +23,7 @@ class MainActivity : AppCompatActivity() {
         }
         override fun onNewGame(view: View) {
             Log.i(TAG, "onNewGame")
-            navigateToGameActivity()
+            navigateToNewGameActivity()
         }
         override fun onBoardEditor(view: View) {
             Log.i(TAG, "onBoardEditor")
@@ -38,8 +38,13 @@ class MainActivity : AppCompatActivity() {
         binding.callbacks = callbacks
     }
 
-    private fun navigateToGameActivity() {
+    private fun navigateToExampleGameActivity() {
         val intent = Intent(this, GameActivity::class.java)
+        startActivityForResult(intent, NEW_GAME_REQUEST_CODE)
+    }
+
+    private fun navigateToNewGameActivity() {
+        val intent = Intent(this, NewGameActivity::class.java)
         startActivityForResult(intent, NEW_GAME_REQUEST_CODE)
     }
 

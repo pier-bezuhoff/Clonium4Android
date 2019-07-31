@@ -4,17 +4,43 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import java.io.IOException
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 import java.io.Serializable
 
 interface Game {
     /** Initial [Game] parameters, [Game] can be constructed from it */
     data class State(
-        val board: Board,
-        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
-        val bots: Set<Bot>,
+        val board: SimpleBoard,
+//        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
+//        val bots: Set<Bot>,
         /** `null` means shuffle before starting game */
         val order: List<PlayerId>? = null
-    ) : Serializable
+    ) : Serializable {
+        @Throws(IOException::class)
+        private fun writeObject(output: ObjectOutputStream) {
+            output.defaultWriteObject()
+            val size = listOf(board.width, board.height)
+            output.writeObject(size)
+            output.writeObject(board.asPosMap())
+            // bots!
+            output.writeObject(order)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        @Throws(ClassNotFoundException::class, IOException::class)
+        private fun readObject(input: ObjectInputStream) {
+            input.defaultReadObject()
+            val (width, height) = input.readObject() as List<Int>
+            val posMap = input.readObject() as Map<Pos, Chip?>
+            val board = SimpleBoard(width, height, posMap.toMutableMap())
+            // bots!
+            val bots: Set<Bot> = "todo"
+            val order = input.readObject() as List<PlayerId>?
+            val state = State(board, bots, order)
+        }
+    }
 
     val board: Board
     val players: Map<PlayerId, Player>

@@ -18,6 +18,7 @@ import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.KoinComponent
 import org.koin.core.get
 
+// TODO: drag chips on board
 // MAYBE: intercept destroy-like event somehow
 class BoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0

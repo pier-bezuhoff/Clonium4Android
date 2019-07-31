@@ -22,13 +22,14 @@ val gameModule = module {
 
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
 
     factory<Game> { (gameState: Game.State) -> SimpleGame(gameState) }
     factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<BoardPresenter> { (board: Board) -> SimpleBoardPresenter(board, get(named(NAMES.CHIP_SET))) }
-    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(named(NAMES.CHIP_SET)), get(), get()) }
+    factory<BoardPresenter> { (board: Board) -> SimpleBoardPresenter(board, get()) }
+    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
     viewModel<NewGameViewModel> { NewGameViewModel(get()) }
@@ -40,7 +41,6 @@ val gameModule = module {
 object NAMES {
     const val GREEN = "green"
     const val STANDARD = "standard"
-    const val CHIP_SET = GREEN
     const val WITH_ORDER = "withOrder"
     const val EXAMPLE = "example"
 }

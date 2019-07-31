@@ -11,7 +11,7 @@ data class Pos(val x: Int, val y: Int) {
     val up: Pos get() = Pos(x, y - 1)
     val down: Pos get() = Pos(x, y + 1)
     val neighbors: Set<Pos> get() = setOf(right, up, left, down)
-    val directedNeigbors: Map<Direction, Pos> get() =
+    val directedNeighbors: Map<Direction, Pos> get() =
         Direction.DIRECTIONS.associateWith { neighborAt(it) }
 
     fun neighborAt(direction: Direction): Pos =
@@ -41,7 +41,7 @@ interface EmptyBoard {
             .toSet()
 
     fun directedNeighbors(pos: Pos): Map<Direction, Pos> =
-        pos.directedNeigbors
+        pos.directedNeighbors
             .filterValues { hasCell(it) }
 
     fun pos2str(pos: Pos): String =

@@ -1,9 +1,8 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
-import android.app.Activity
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -16,8 +15,6 @@ import com.pierbezuhoff.clonium.ui.game.GameActivity
 import kotlinx.android.synthetic.main.activity_new_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
-import java.io.Serializable
-import java.util.ArrayList
 
 class NewGameActivity : AppCompatActivity() {
     private val newGameViewModel: NewGameViewModel by viewModel()
@@ -50,10 +47,10 @@ class NewGameActivity : AppCompatActivity() {
             Game.State(
                 board,
                 playerItems
-                    .filter { it.tactic != PlayerTactic.HUMAN }
-                    .map { it.toPlayer() as Bot }
+                    .map { it.toPlayer() }
+                    .filterIsInstance<Bot>()
                     .toSet(),
-                if (useRandomOrder) null else playerItems.map { it.playerId }
+                if (useRandomOrder.value!!) null else playerItems.map { it.playerId }
             )
         }
         intent.putExtra(GAME_STATE_EXTRA, gameState)

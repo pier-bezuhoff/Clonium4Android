@@ -18,8 +18,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         private set
     lateinit var playerItems: MutableList<PlayerItem>
         private set
-    var useRandomOrder: Boolean = false
-        private set
+    val useRandomOrder: MutableLiveData<Boolean> = MutableLiveData(true)
 
     init {
         setBoard(getLastBoard())
