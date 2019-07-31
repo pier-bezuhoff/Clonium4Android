@@ -169,13 +169,14 @@ class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
         convertView ?: context.layoutInflater
             .inflate(R.layout.player_tactic_item, parent, false).apply {
                 val tactic = getItem(position)
-                tactic_description.text = context.getString(tacticDescriptionId(tactic))
+                tactic_description.text = context.tacticDescription(tactic)
             }
 }
 
-fun tacticDescriptionId(tactic: PlayerTactic): Int =
+fun Context.tacticDescription(tactic: PlayerTactic): String =
     when (tactic) {
-        PlayerTactic.Human -> R.string.human
-        PlayerTactic.Bot.RandomPicker -> R.string.random_picker
-        else -> throw NotImplementedError("todo")
+        PlayerTactic.Human -> getString(R.string.human)
+        PlayerTactic.Bot.RandomPicker -> getString(R.string.random_picker)
+        is PlayerTactic.Bot.LevelMaximizer -> getString(R.string.level_maximizer, tactic.depth)
+        is PlayerTactic.Bot.ChipCountMaximizer -> getString(R.string.chip_count_maximizer, tactic.depth)
     }

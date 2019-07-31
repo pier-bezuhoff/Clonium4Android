@@ -23,6 +23,9 @@ class RandomPickerBot(override val playerId: PlayerId) : Bot {
         val possibleTurns = board.possOf(playerId)
         return@async possibleTurns.random()
     }
+
+    override fun toString(): String =
+        "RandomPickerBot($playerId)"
 }
 
 object MaximizingStrategy {
@@ -118,6 +121,9 @@ abstract class MaximizerBot(
             return@async bestTurn
         }
     }
+
+    override fun toString(): String =
+        "MaximizerBot($playerId, $difficultyName)"
 }
 
 class LevelMaximizerBot(

@@ -28,7 +28,7 @@ class PrimitiveBoard private constructor(
     )
 
     override fun copy(): PrimitiveBoard =
-        PrimitiveBoard(width, height, chips.clone(), ownedIxs)
+        PrimitiveBoard(width, height, chips.clone(), ownedIxs.mapValues { it.value.toMutableSet() })
 
     private inline fun validPos(pos: Pos): Boolean =
         (pos.x in 0 until width) && (pos.y in 0 until height)
@@ -104,7 +104,7 @@ class PrimitiveBoard private constructor(
         ownedIxs.getValue(playerId).map { ix2pos(it) }.toSet()
 
     override fun isAlive(playerId: PlayerId): Boolean =
-        ownedIxs.getValue(playerId).isNotEmpty()
+        ownedIxs[playerId]?.isNotEmpty() ?: false
 
     override fun players(): Set<PlayerId> =
         ownedIxs
@@ -197,9 +197,9 @@ class PrimitiveBoard private constructor(
     override fun inc(pos: Pos) {
         val ix = pos2ix(pos)
         if (!hasCell(ix))
-            throw EvolvingBoard.InvalidTurn("There is no cell on $pos")
+            throw EvolvingBoard.InvalidTurn("There is no cell on $pos in $this")
         if (!hasChip(ix))
-            throw EvolvingBoard.InvalidTurn("There is no chip on $pos")
+            throw EvolvingBoard.InvalidTurn("There is no chip on $pos in $this")
         inc(ix)
     }
 

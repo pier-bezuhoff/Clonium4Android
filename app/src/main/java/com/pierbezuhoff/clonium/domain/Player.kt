@@ -9,6 +9,8 @@ interface Player {
 
 class HumanPlayer(override val playerId: PlayerId) : Player {
     override val tactic = PlayerTactic.Human
+    override fun toString(): String =
+        "HumanPlayer($playerId)"
 }
 
 sealed class PlayerTactic : Serializable {
@@ -37,6 +39,8 @@ sealed class PlayerTactic : Serializable {
 
 val PLAYER_TACTICS = listOf(
     PlayerTactic.Human,
-    PlayerTactic.Bot.RandomPicker
+    PlayerTactic.Bot.RandomPicker,
+    PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: thinks up to 9s on tower board
+    PlayerTactic.Bot.ChipCountMaximizer(1)
 )
 

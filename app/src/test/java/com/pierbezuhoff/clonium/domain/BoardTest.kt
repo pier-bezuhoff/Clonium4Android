@@ -27,7 +27,7 @@ class BoardTest : FreeSpec() {
         "interface EmptyBoard" - {
             "copy: changing original does not affect its copy" - {
                 "EmptyBoard" {
-                    SimpleEmptyBoardGenerator().assertAll(iterations = 1_000) { board: SimpleEmptyBoard ->
+                    SimpleEmptyBoardGenerator().assertAll { board: SimpleEmptyBoard ->
                         val initialPoss = board.posSet.toSet()
                         val copied = board.copy()
                         board.posSet.add(Pos(board.width - 1, board.height - 1))
@@ -38,7 +38,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "SimpleBoard" {
-                    SimpleBoardGenerator().assertAll(iterations = 1_000) { board: SimpleBoard ->
+                    SimpleBoardGenerator().assertAll { board: SimpleBoard ->
                         val initialPosMap = board.posMap.toMap()
                         val copied = board.copy()
                         board.posMap[Pos(board.width - 1, board.height - 1)] = Chip(PlayerId0, Level2)
@@ -50,13 +50,16 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "PrimitiveBoard" {
-                    PopulatedPrimitiveBoardGenerator().assertAll(iterations = 1_000) { board: PrimitiveBoard ->
+                    PopulatedPrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         val initialPosMap = board.asPosMap()
                         val copied = board.copy()
                         board.inc(board.possOf(board.players().first()).last())
+                        val posMap1 = board.asPosMap()
                         copied.width shouldBe board.width
                         copied.height shouldBe board.height
                         copied.asPosMap() shouldContainExactly initialPosMap
+                        copied.inc(copied.possOf(copied.players().first()).last())
+                        board.asPosMap() shouldContainExactly posMap1
                     }
                 }
             }

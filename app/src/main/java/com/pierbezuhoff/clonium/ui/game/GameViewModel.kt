@@ -34,7 +34,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
         if (firstNewGame) {
             newGame(
                 get<Game> { parametersOf(gameState) },
-                GameConfig()
+                GameConfig()//botMinTime = 100L, gameSpeed = 5f)
             )
         }
     }
