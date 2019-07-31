@@ -12,20 +12,27 @@ class HumanPlayer(override val playerId: PlayerId) : Player {
 }
 
 sealed class PlayerTactic : Serializable {
-    object Human : PlayerTactic()
+    object Human : PlayerTactic() {
+        override fun toPlayer(playerId: PlayerId) =
+            HumanPlayer(playerId)
+    }
     sealed class Bot : PlayerTactic() {
-        object RandomPicker : Bot()
-        class LevelMaximizer(val depth: Int) : Bot()
-        class ChipCountMaximizer(val depth: Int) : Bot()
+        abstract override fun toPlayer(playerId: PlayerId): com.pierbezuhoff.clonium.domain.Bot
+        object RandomPicker : Bot() {
+            override fun toPlayer(playerId: PlayerId) =
+                RandomPickerBot(playerId)
+        }
+        class LevelMaximizer(val depth: Int) : Bot() {
+            override fun toPlayer(playerId: PlayerId) =
+                LevelMaximizerBot(playerId, depth)
+        }
+        class ChipCountMaximizer(val depth: Int) : Bot() {
+            override fun toPlayer(playerId: PlayerId) =
+                ChipCountMaximizerBot(playerId, depth)
+        }
     }
 
-    fun toPlayer(playerId: PlayerId): Player =
-        when (this) {
-            Human -> HumanPlayer(playerId)
-            Bot.RandomPicker -> RandomPickerBot(playerId)
-            is Bot.LevelMaximizer -> LevelMaximizerBot(playerId, depth)
-            is Bot.ChipCountMaximizer -> ChipCountMaximizerBot(playerId, depth)
-        }
+    abstract fun toPlayer(playerId: PlayerId): Player
 }
 
 val PLAYER_TACTICS = listOf(

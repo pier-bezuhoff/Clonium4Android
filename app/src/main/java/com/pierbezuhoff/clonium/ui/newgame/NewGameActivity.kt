@@ -10,6 +10,7 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.domain.Bot
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.domain.PlayerTactic
 import com.pierbezuhoff.clonium.domain.SimpleBoard
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
@@ -17,6 +18,7 @@ import kotlinx.android.synthetic.main.activity_new_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
+// TODO: remember last default config
 class NewGameActivity : AppCompatActivity() {
     private val newGameViewModel: NewGameViewModel by viewModel()
 
@@ -30,6 +32,8 @@ class NewGameActivity : AppCompatActivity() {
         newGameViewModel.boardPresenter.observe(this, Observer {
             @Suppress("RemoveExplicitTypeArguments")
             val adapter = PlayerAdapter(newGameViewModel.playerItems, get<GameBitmapLoader>())
+            adapter.boardPlayerVisibilitySubscription.subscribeFrom(newGameViewModel)
+            adapter.boardPlayerHighlightingSubscription.subscribeFrom(newGameViewModel)
             players_recycler_view.adapter = adapter
             val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
             ItemTouchHelper(callback).attachToRecyclerView(players_recycler_view)
@@ -44,13 +48,13 @@ class NewGameActivity : AppCompatActivity() {
 
     private fun startGame() {
         val intent = Intent(this, GameActivity::class.java)
+        // TODO: delete item whe not participate
         val gameState = with(newGameViewModel) {
             Game.State(
                 SimpleBoard(board),
-//                playerItems
-//                    .map { it.toPlayer() }
-//                    .filterIsInstance<Bot>()
-//                    .toSet(),
+                playerItems
+                    .filter { it.tactic is PlayerTactic.Bot }
+                    .associate { it.playerId to (it.tactic as PlayerTactic.Bot) },
                 if (useRandomOrder.value!!) null else playerItems.map { it.playerId }
             )
         }

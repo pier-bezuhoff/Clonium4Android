@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
+import com.pierbezuhoff.clonium.utils.Connection
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
 import org.jetbrains.anko.layoutInflater
@@ -78,6 +79,14 @@ class PlayerAdapter(
         lateinit var playerItem: PlayerItem
     }
 
+    interface BoardPlayerHider { fun hidePlayer(playerId: PlayerId); fun showPlayer(playerId: PlayerId) }
+    private val boardPlayerVisibility = Connection<BoardPlayerHider>()
+    val boardPlayerVisibilitySubscription = boardPlayerVisibility.subscription
+
+    interface BoardPlayerHighlighter { fun highlighPlayer(playerId: PlayerId); fun unhighlight() }
+    private val boardPlayerHighlighting = Connection<BoardPlayerHighlighter>()
+    val boardPlayerHighlightingSubscription = boardPlayerHighlighting.subscription
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater
             .from(parent.context)
@@ -92,10 +101,17 @@ class PlayerAdapter(
             itemView.use_player.isChecked = playerItem.participate
             itemView.use_player.setOnCheckedChangeListener { _, checked ->
                 playerItem.participate = checked
-                // TODO: show/hide chips on board depending on [checked]
+                val playerId = playerItem.playerId
+                boardPlayerVisibility.send {
+                    if (checked)
+                        showPlayer(playerId)
+                    else
+                        hidePlayer(playerId)
+                }
             }
             val chipBitmap = bitmapLoader.loadChip(Chip(playerItem.playerId, Level1))
             itemView.colored_chip.setImageBitmap(chipBitmap)
+            // BUG: does not set random picker
             itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
             itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -123,12 +139,17 @@ class PlayerAdapter(
     }
 
     override fun selectRow(viewHolder: ViewHolder) {
-        // TODO: highlight, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
-        // MAYBE: highlight chips on board
+        // TODO: highlight row, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
+        val playerId = viewHolder.playerItem.playerId
+        boardPlayerHighlighting.send {
+            highlighPlayer(playerId)
+        }
     }
 
     override fun unselectRow(viewHolder: ViewHolder) {
-        // TODO: unhighlight
+        boardPlayerHighlighting.send {
+            unhighlight()
+        }
     }
 }
 

@@ -8,7 +8,6 @@ class Connection<ListenerInterface> {
     val subscription: Subscription = Subscription()
 
     fun <Response> send(act: ListenerInterface.() -> Response): Response? {
-        // callsInPlace(act, InvocationKind.AT_MOST_ONCE)
         return listener?.get()?.act()
     }
 

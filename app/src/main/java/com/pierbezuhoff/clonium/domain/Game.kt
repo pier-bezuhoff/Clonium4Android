@@ -68,8 +68,10 @@ class SimpleGame(
     }
 
     constructor(gameState: Game.State) : this(
-        PrimitiveBoard(gameState.board)/*example().board*/,
-        /*gameState.bots*/emptySet(),
+        PrimitiveBoard(gameState.board),
+        gameState.bots
+            .map { (playerId, tactic) -> tactic.toPlayer(playerId) }
+            .toSet(),
         gameState.order
     )
 

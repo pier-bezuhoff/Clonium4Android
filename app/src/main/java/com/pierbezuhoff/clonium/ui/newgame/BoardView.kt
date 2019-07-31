@@ -24,6 +24,7 @@ class BoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr)
     , LifecycleOwner
+    , NewGameViewModel.BoardViewInvalidator
     , KoinComponent
 {
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -46,11 +47,18 @@ class BoardView @JvmOverloads constructor(
             viewModel.boardPresenter.observe(this, Observer {
                 it.setSize(width, height)
             })
+            viewModel.boardViewInvalidatingSubscription
+                .subscribeFrom(this)
+                .unsubscribeOnDestroy(this)
         }
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         viewModel.boardPresenter.value?.draw(canvas)
+    }
+
+    override fun invalidateBoardView() {
+        postInvalidate()
     }
 }

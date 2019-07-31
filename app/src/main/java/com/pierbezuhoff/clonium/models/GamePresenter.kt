@@ -72,7 +72,7 @@ private class SimpleSpatialBoard(private val board: Board) : SpatialBoard {
 
 
 interface BoardPresenter : SpatialBoard {
-    val board: Board
+    var board: Board
     val bitmapPaint: Paint
     fun draw(canvas: Canvas) {
         canvas.drawBoard(board)
@@ -86,7 +86,7 @@ interface BoardPresenter : SpatialBoard {
 }
 
 class SimpleBoardPresenter(
-    override val board: Board,
+    override var board: Board,
     private val bitmapLoader: GameBitmapLoader
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board)
@@ -181,7 +181,6 @@ class SimpleGamePresenter(
     , GamePresenter
 {
     override var board: Board = game.board
-        private set
 
     override fun advance(timeDelta: Milliseconds) {
         advanceAnimations(timeDelta)
@@ -194,6 +193,7 @@ class SimpleGamePresenter(
         drawAnimations(canvas)
     }
 
+    // BUG: SOMETIMES we can see future of explosion (transition.endBoard)
     override fun freezeBoard() {
         board = game.board.copy()
     }
