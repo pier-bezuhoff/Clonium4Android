@@ -188,6 +188,31 @@ interface Board : EmptyBoard {
     fun isAlive(playerId: PlayerId): Boolean =
         possOf(playerId).isNotEmpty()
 
+    /** [Set] of transitive [Level3] neighbors */
+    fun chains(): Set<Set<Pos>> {
+        val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
+        val chains = mutableSetOf<MutableSet<Pos>>()
+        val chained = mutableSetOf<Pos>()
+        for (pos in level3poss) {
+            val chainedNeighbors = neighbors(pos).intersect(chained)
+            val neighborChains = chains.filter { it.intersect(chainedNeighbors).isNotEmpty() }
+            if (neighborChains.isEmpty()) {
+                chains.add(mutableSetOf(pos))
+            } else {
+                val mainChain = neighborChains.first()
+                mainChain.add(pos)
+                if (neighborChains.size > 1) {
+                    for (chain in neighborChains.drop(1)) {
+                        chains.remove(chain)
+                        mainChain.addAll(chain)
+                    }
+                }
+            }
+            chained.add(pos)
+        }
+        return chains
+    }
+
     override fun pos2str(pos: Pos): String =
         when {
             !hasCell(pos) -> "  "

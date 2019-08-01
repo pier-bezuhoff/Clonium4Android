@@ -28,10 +28,13 @@ android {
     dataBinding {
         enabled true
     }
-    testOptions {
-        unitTests.all {
-            useJUnitPlatform()
-        }
+//    testOptions {
+//        unitTests.all {
+//            useJUnitPlatform()
+//        }
+//    }
+    test {
+        useJUnitPlatform()
     }
 }
 

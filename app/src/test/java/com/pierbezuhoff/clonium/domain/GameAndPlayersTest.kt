@@ -20,7 +20,7 @@ class GameAndPlayersTest : FreeSpec() {
                 //
             }
 
-            "maximizers" {
+            "!maximizers" {
                 val board = BoardFactory.DEFAULT_1
                 val bots = mapOf(
                     PlayerId0 to PlayerTactic.Bot.LevelMaximizer(depth = 1),
@@ -32,7 +32,7 @@ class GameAndPlayersTest : FreeSpec() {
                 val state = Game.State(board, bots, order)
                 val game = SimpleGame(state)
                 with(game) {
-                    repeat(20) {
+                    repeat(100) {
                         withClue("turn $it, player = ${game.currentPlayer}, board = ${game.board}") {
                             runBlocking {
                                 val turn = with(game.currentPlayer as Bot) {

@@ -1,26 +1,20 @@
 package com.pierbezuhoff.clonium.domain
 
-import com.pierbezuhoff.clonium.domain.Explosion.EndState.*
-import io.kotlintest.data.forall
-import io.kotlintest.inspectors.forAll
+import com.pierbezuhoff.clonium.domain.Explosion.EndState.FALLOUT
+import com.pierbezuhoff.clonium.domain.Explosion.EndState.LAND
+import io.kotlintest.inspectors.forOne
 import io.kotlintest.matchers.collections.shouldBeEmpty
 import io.kotlintest.matchers.collections.shouldContainExactly
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
 import io.kotlintest.matchers.maps.shouldContainExactly
-import io.kotlintest.matchers.sequences.shouldContainExactly
 import io.kotlintest.matchers.sequences.shouldHaveAtLeastSize
 import io.kotlintest.matchers.sequences.shouldHaveSize
 import io.kotlintest.matchers.withClue
-import io.kotlintest.properties.Gen
 import io.kotlintest.properties.assertAll
-import io.kotlintest.should
 import io.kotlintest.shouldBe
-import io.kotlintest.shouldNotBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.FreeSpec
-import kotlinx.coroutines.plus
-import kotlin.math.exp
 
 class BoardTest : FreeSpec() {
     init {
@@ -75,9 +69,62 @@ class BoardTest : FreeSpec() {
         }
 
         "interface Board" - {
+            "Board" - {
+                "chains example" {
+                    val board = SimpleBoard(
+                        EmptyBoardFactory.square(6).apply {
+                            posSet.removeAll(setOf(Pos(0, 2), Pos(3, 3), Pos(5, 4), Pos(5, 5)))
+                        }
+                    ).with(
+                        Pos(0, 1) to Chip(PlayerId0, Level3),
+                        Pos(0, 2) to Chip(PlayerId0, Level1),
+                        Pos(0, 3) to Chip(PlayerId3, Level4),
+                        Pos(1, 0) to Chip(PlayerId1, Level3),
+                        Pos(1, 1) to Chip(PlayerId1, Level3),
+                        Pos(1, 2) to Chip(PlayerId3, Level3),
+                        Pos(1, 3) to Chip(PlayerId3, Level3),
+                        Pos(1, 5) to Chip(PlayerId2, Level3),
+                        Pos(2, 2) to Chip(PlayerId3, Level4),
+                        Pos(2, 3) to Chip(PlayerId3, Level2),
+                        Pos(2, 4) to Chip(PlayerId2, Level3),
+                        Pos(2, 5) to Chip(PlayerId0, Level2),
+                        Pos(3, 4) to Chip(PlayerId2, Level3),
+                        Pos(3, 5) to Chip(PlayerId2, Level3),
+                        Pos(4, 0) to Chip(PlayerId1, Level3),
+                        Pos(4, 1) to Chip(PlayerId1, Level3),
+                        Pos(4, 2) to Chip(PlayerId1, Level3),
+                        Pos(4, 4) to Chip(PlayerId2, Level3),
+                        Pos(4, 5) to Chip(PlayerId2, Level3),
+                        Pos(5, 2) to Chip(PlayerId1, Level3)
+                    )
+                    // □ 3¹□ □ 3¹□
+                    // 3⁰3¹□ □ 3¹□
+                    // 1⁰3³4³□ 3¹3¹
+                    // 4³3³2³  □ □
+                    // □ □ 3²3²3²
+                    // □ 3²2⁰3²3²
+                    val expectedChains = setOf(
+                        setOf(Pos(0, 1), Pos(0, 3), Pos(1, 0), Pos(1, 1), Pos(1, 2), Pos(1, 3), Pos(2, 2)),
+                        setOf(Pos(1, 5)),
+                        setOf(Pos(2, 4), Pos(3, 4), Pos(3, 5), Pos(4, 4), Pos(4, 5)),
+                        setOf(Pos(4, 0), Pos(4, 1), Pos(4, 2), Pos(5, 2))
+                    )
+                    val actualChains = board.chains()
+                    withClue("board = $board,\nactualChains =\n${actualChains.joinToString(separator = ",\n") {
+                        it.joinToString(prefix = "{", postfix = "}") { it.toString() }
+                    } }\n") {
+                        actualChains shouldHaveSize expectedChains.size
+                        for (expectedChain in expectedChains) {
+                            actualChains.forOne {
+                                it shouldContainExactlyInAnyOrder expectedChain
+                            }
+                        }
+                    }
+                }
+            }
             "PrimitiveBoard" - {
                 "asPosSet & asPosMap & chipAt & hasCell & hasChip" {
-                    PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
+                    PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         board.asPosSet() shouldContainExactlyInAnyOrder board.asPosMap().keys
                         PosGenerator(board).assertAll(iterations = 10) { pos: Pos ->
                             (board.chipAt(pos) != null) shouldBe board.hasChip(pos)
@@ -86,7 +133,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "chipAt & playerAt & levelAt" {
-                    PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
+                    PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         PosGenerator(board).assertAll(iterations = 10) { pos: Pos ->
                             board.chipAt(pos)?.level shouldBe board.levelAt(pos)
                             board.chipAt(pos)?.playerId shouldBe board.playerAt(pos)
@@ -94,7 +141,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "asPosMap & players & isAlive" {
-                    PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
+                    PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         board.players() shouldContainExactlyInAnyOrder
                                 board.asPosMap()
                                     .values.mapNotNull { it?.playerId }
@@ -103,7 +150,7 @@ class BoardTest : FreeSpec() {
                     }
                 }
                 "asPosMap & possOf & players & isAlive" {
-                    PrimitiveBoardGenerator().assertAll(iterations = 10_000) { board: PrimitiveBoard ->
+                    PrimitiveBoardGenerator().assertAll { board: PrimitiveBoard ->
                         board.players().forEach { playerId ->
                             board.possOf(playerId) shouldContainExactlyInAnyOrder
                                     board.asPosMap()
