@@ -1,6 +1,10 @@
 package com.pierbezuhoff.clonium.domain
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlin.math.max
 
 class AsyncGame(
     override val board: EvolvingBoard,
@@ -64,49 +68,77 @@ class AsyncGame(
     }
 }
 
-private class _TurnSequence(
+private class LinkedTurns(
     board: EvolvingBoard,
     order: List<PlayerId>,
     private val players: Map<PlayerId, Player>,
     private val coroutineScope: CoroutineScope
 ) {
-    private var turns: MutableMap<HumanTurns, Chain> = mutableMapOf()
-    private var layout: MutableMap<HumanTurns, ChainLink> = mutableMapOf()
+    data class Computation(
+        private val player: Player,
+        private val board: EvolvingBoard,
+        private val order: List<PlayerId>
+    ) {
+        inline fun run(andThen: () -> Unit = {}): Deferred<Link.FutureTurn.Bot.Computed> =
+            TODO()
+    }
+
+    private lateinit var focus: Link
+    private var exploredDepth = 0
+    private var computation: Deferred<Link.FutureTurn.Bot.Computed>? = null
+    private val computations: MutableSet<Computation> = mutableSetOf()
 
     init {
         require(order.isNotEmpty())
-        if (order.size > 1) {
+        if (order.size == 1) {
+            focus = Link.End
+        } else {
             scheduleInitialTurns(board, order)
         }
     }
 
     private fun scheduleInitialTurns(board: EvolvingBoard, order: List<PlayerId>) {
         val playerId = order.first()
+        focus = scheduleTurnOf(board, order, playerId, depth = 1)
+    }
+
+    private fun scheduleTurnOf(board: EvolvingBoard, order: List<PlayerId>, playerId: PlayerId, depth: Int): Link {
         val player = players.getValue(playerId)
-        if (player is BotPlayer) {
-            layout[HumanTurns(emptyList())] = ChainLink.Computing(Turn.Bot.Computing(playerId))
+        val link: Link.FutureTurn
+        if (player.tactic is PlayerTactic.Human) {
+            val possibleTurns = board.possOf(player.playerId)
+            link = Link.FutureTurn.Human.OneOf(
+                player.playerId,
+                possibleTurns.associateWith { turn ->
+                    val nextBoard = board.copy()
+                    val transitions = nextBoard.incAnimated(turn)
+                    val nextOrder = shiftedOrderOn(order, nextBoard)
+                    val nextLink = if (nextOrder.isEmpty()) Link.End else Link.FutureTurn.Unknown(nextOrder.first(), depth = depth)
+                    return@associateWith Next(nextBoard, nextOrder, transitions, nextLink)
+                }
+            )
+            scheduleTurnsAfterHuman(board, link, depth = depth+1)
         } else {
-            val chains = board.chains()
-            turns = mutableMapOf<HumanTurns, Chain>().apply {
-                board.distinctTurns(playerId)
-                    .map { turn ->
-                        val endBoard = board.copy()
-                        Turn.Human(
-                            playerId,
-                            turn,
-                            if (board.levelAt(turn)!! != Level3)
-                                null
-                            else
-                                chains.first { turn in it }
-                                    .filter { board.playerAt(it) == playerId }
-                                    .toSet()
-                            ,
-                            endBoard.incAnimated(turn)
-                        ) to endBoard
-                    }.associateTo(this) { (humanTurn: Turn.Human, endBoard: EvolvingBoard) ->
-                        HumanTurns(listOf(humanTurn)) to Chain(emptyList(), BoardState(endBoard, shiftedOrderOn(order, endBoard)))
-                    }
-            }
+            link = Link.FutureTurn.Bot.Computing(player.playerId)
+            scheduleComputation(player, board, order)
+        }
+        return link
+    }
+
+    private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf, depth: Int) {
+        val (chained, free) = root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
+        for ((_, next) in free) {
+            next.link = rescheduleUnknownFutureTurn(next, depth = depth)
+        }
+        val turns = chained.map { it.key }
+        val chains = rootBoard.chains().toList()
+        val chainIds = turns.associateWith { pos -> chains.indexOfFirst { pos in it } }
+        val chainedLinks: Map<Int, Link> = chains
+            .mapIndexed { id, chain ->
+                id to rescheduleUnknownFutureTurn(root.nexts.getValue(chain.first()), depth = depth)
+            }.toMap()
+        for ((turn, next) in chained) {
+            next.link = chainedLinks.getValue(chainIds.getValue(turn))
         }
     }
 
@@ -114,109 +146,66 @@ private class _TurnSequence(
         require(order.isNotEmpty())
         val playerId = order.first()
         val filteredOrder = order.filter { endBoard.isAlive(playerId) }
-        return filteredOrder.drop(1) + filteredOrder.first()
+        return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
+    }
+
+    private fun rescheduleUnknownFutureTurn(next: Next, depth: Int): Link {
+        val link = next.link
+        return if (link is Link.FutureTurn.Unknown)
+            scheduleTurnOf(next.board, next.order, link.playerId, depth = depth)
+        else link
+    }
+
+    private fun scheduleComputation(player: Player, board: EvolvingBoard, order: List<PlayerId>) {
+        if (computation == null) {
+            computation = ""
+        } else {
+            // store
+        }
     }
 }
 
-private class LinkedTurns(
-    board: EvolvingBoard,
-    order: List<PlayerId>,
-    private val players: Map<PlayerId, Player>,
-    private val coroutineScope: CoroutineScope
-) {
-    private lateinit var focus: Link
-
-    init {
-        scheduleInitialTurns(board, order)
-    }
-
-    fun scheduleInitialTurns(board: EvolvingBoard, order: List<PlayerId>) {
-        focus = Link.Start(board, "")
-    }
-}
-
-private sealed class Link(val startBoard: EvolvingBoard) {
+private sealed class Link {
     interface Terminal
 
-    class Start(
-        startBoard: EvolvingBoard,
-        val next: FutureTurn
-    ) : Link(startBoard)
+    object End : Link(), Terminal
 
     sealed class FutureTurn(
-        startBoard: EvolvingBoard,
         val playerId: PlayerId
-    ) : Link(startBoard) {
+    ) : Link() {
+
+        class Unknown(
+            playerId: PlayerId,
+            val depth: Int
+        ) : FutureTurn(playerId), Terminal
 
         sealed class Human(
-            startBoard: EvolvingBoard, playerId: PlayerId
-        ) : FutureTurn(startBoard, playerId) {
-
+            playerId: PlayerId
+        ) : FutureTurn(playerId) {
             class OneOf(
-                startBoard: EvolvingBoard, playerId: PlayerId,
-                val possibleTurns: Set<Pos>,
-                val nexts: Map<Pos, FutureTurn>
-            ) : Human(startBoard, playerId)
-
-            class Deferred(
-                startBoard: EvolvingBoard, playerId: PlayerId
-            ) : Human(startBoard, playerId), Terminal
+                playerId: PlayerId,
+                val nexts: Map<Pos, Next>
+            ) : Human(playerId)
         }
 
         sealed class Bot(
-            startBoard: EvolvingBoard, playerId: PlayerId
-        ) : FutureTurn(startBoard, playerId) {
-
+            playerId: PlayerId
+        ) : FutureTurn(playerId) {
             class Computed(
-                startBoard: EvolvingBoard, playerId: PlayerId,
+                playerId: PlayerId,
                 val pos: Pos,
-                val next: FutureTurn
-            ) : Bot(startBoard, playerId)
-
+                val next: Next
+            ) : Bot(playerId)
             class Computing(
-                startBoard: EvolvingBoard, playerId: PlayerId
-            ) : Bot(startBoard, playerId), Terminal
+                playerId: PlayerId
+            ) : Bot(playerId), Terminal
         }
-
     }
 }
 
-private class HumanTurns(turns: List<Turn.Human>) : List<Turn.Human> by turns
-
-private data class Chain(val turns: List<Turn.Bot>, val endState: BoardState)
-
-private sealed class ChainLink {
-    class Computed(val turn: Turn.Bot.Computed, val boardState: BoardState) : ChainLink()
-    class Computing(val turn: Turn.Bot.Computing) : ChainLink()
-    class Unknown(val turn: Turn.Bot.Unknown) : ChainLink()
-}
-
-private data class BoardState(val board: EvolvingBoard, val order: List<PlayerId>)
-
-private sealed class Turn(val playerId: PlayerId) {
-    interface Known {
-        val turn: Pos
-        val transitions: Sequence<Transition>
-    }
-
-    class Human(
-        playerId: PlayerId,
-        override val turn: Pos,
-        /** [Set] of [Pos] with [playerId]'s [Chip]s with [Level3] if [Chip] at [turn] has [Level3] else `null` */
-        val posChain: Set<Pos>?,
-        override val transitions: Sequence<Transition>
-    ) : Turn(playerId), Known
-
-    sealed class Bot(playerId: PlayerId) : Turn(playerId) {
-
-        class Computed(
-            playerId: PlayerId,
-            override val turn: Pos,
-            override val transitions: Sequence<Transition>
-        ) : Bot(playerId), Known
-
-        class Computing(playerId: PlayerId) : Bot(playerId)
-
-        class Unknown(playerId: PlayerId) : Bot(playerId)
-    }
-}
+private data class Next(
+    val board: EvolvingBoard,
+    val order: List<PlayerId>,
+    val transitions: Sequence<Transition>,
+    var link: Link
+)
