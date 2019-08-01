@@ -64,7 +64,9 @@ interface EmptyBoard {
             for (y in 0 until height) {
                 appendln()
                 append((0 until width)
-                    .joinToString(prefix = "$y|", separator = "", postfix = "|$y") { x -> pos2str(Pos(x, y)) })
+                    .joinToString(prefix = "$y|", separator = "", postfix = "|$y") { x ->
+                        try { pos2str(Pos(x, y)) } catch (_: Exception) { "! " }
+                    })
             }
             appendln()
             append((0 until width).joinToString(prefix = "x>", separator = "", postfix = "<x") { x -> "$x " })
@@ -211,6 +213,21 @@ interface Board : EmptyBoard {
             chained.add(pos)
         }
         return chains
+    }
+
+    fun chainOf(pos: Pos): Set<Pos>? =
+        if (levelAt(pos)?.let { it < Level3 } ?: true)
+            null
+        else
+            chains().firstOrNull { pos in it }
+
+    fun distinctTurns(playerId: PlayerId): Set<Pos> {
+        val chains = chains()
+        fun chainIdOf(pos: Pos): Int =
+            chains.indexOfFirst { pos in it }
+        val poss = possOf(playerId)
+        val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
+        return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
     }
 
     override fun pos2str(pos: Pos): String =

@@ -83,12 +83,12 @@ object MaximizingStrategy {
             return worstCase?.let(estimate) ?: Int.MAX_VALUE
         }
         return variations.map { variation ->
-            board.possOf(playerId).map { turn ->
+            board.distinctTurns(playerId).map { turn ->
                 estimateTurn(
                     turn, depth - 1, estimate,
                     playerId, order, variation
                 )
-            }.max() ?: -1 // no turns means death
+            }.max() ?: Int.MIN_VALUE // no turns means death
         }.min() ?: Int.MAX_VALUE
     }
 }
@@ -103,8 +103,10 @@ abstract class MaximizerBot(
         board: Board, order: List<PlayerId>
     ): Deferred<Pos> {
         return async(Dispatchers.Default) {
-            val possibleTurns = board.possOf(playerId)
-            require(possibleTurns.isNotEmpty())
+            val possibleTurns = board.distinctTurns(playerId)
+            require(possibleTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (possibleTurns.size == 1)
+                return@async possibleTurns.first()
             val evolvingBoard = PrimitiveBoard(board)
             val startTime = System.currentTimeMillis()
             val bestTurn = possibleTurns

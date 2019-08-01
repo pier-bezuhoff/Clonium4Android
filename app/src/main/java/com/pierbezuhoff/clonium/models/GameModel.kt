@@ -15,6 +15,8 @@ import org.koin.core.KoinComponent
 import org.koin.core.get
 import org.koin.core.parameter.parametersOf
 
+// MAYBE: non-significant explosions are non-blocking
+// TODO: calc maximizers turns ahead while animation or waiting player
 class GameModel(
     val game: Game,
     private val config: GameConfig,

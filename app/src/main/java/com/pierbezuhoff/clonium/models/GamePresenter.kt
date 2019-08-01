@@ -193,7 +193,7 @@ class SimpleGamePresenter(
         drawAnimations(canvas)
     }
 
-    // BUG: SOMETIMES we can see future of explosion (transition.endBoard)
+    // BUG: SOMETIMES we can see future of explosion (transition.endBoard) when first turn
     override fun freezeBoard() {
         board = game.board.copy()
     }

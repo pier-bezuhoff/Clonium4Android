@@ -52,7 +52,7 @@ class SimpleGame(
 
     init {
         initialOrder?.let {
-            require(board.players() == initialOrder.toSet()) { "order is incomplete" }
+            require(board.players() == initialOrder.toSet()) { "order is incomplete: $initialOrder instead of ${board.players()}" }
         }
         val playerIds = initialOrder ?: board.players().shuffled().toList()
         require(bots.map { it.playerId }.all { it in playerIds }) { "Not all bot ids are on the board" }

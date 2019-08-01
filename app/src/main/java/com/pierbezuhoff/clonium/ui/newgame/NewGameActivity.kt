@@ -3,6 +3,7 @@ package com.pierbezuhoff.clonium.ui.newgame
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -15,6 +16,7 @@ import com.pierbezuhoff.clonium.domain.SimpleBoard
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import kotlinx.android.synthetic.main.activity_new_game.*
+import org.jetbrains.anko.defaultSharedPreferences
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
@@ -48,16 +50,16 @@ class NewGameActivity : AppCompatActivity() {
 
     private fun startGame() {
         val intent = Intent(this, GameActivity::class.java)
-        // TODO: delete item whe not participate
-        val gameState = with(newGameViewModel) {
-            Game.State(
-                SimpleBoard(board),
-                playerItems
-                    .filter { it.tactic is PlayerTactic.Bot }
-                    .associate { it.playerId to (it.tactic as PlayerTactic.Bot) },
-                if (useRandomOrder.value!!) null else playerItems.map { it.playerId }
-            )
-        }
+        val board = SimpleBoard(newGameViewModel.board)
+        val bots = newGameViewModel.playerItems
+            .filter { it.tactic is PlayerTactic.Bot }
+            .associate { it.playerId to (it.tactic as PlayerTactic.Bot) }
+        val order =
+            if (newGameViewModel.useRandomOrder.value!!) null
+            else newGameViewModel.playerItems
+                .filter { it.participate }
+                .map { it.playerId }
+        val gameState = Game.State(board, bots, order)
         intent.putExtra(GAME_STATE_EXTRA, gameState)
         startActivityForResult(intent, GAME_REQUEST_CODE)
     }

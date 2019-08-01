@@ -111,9 +111,8 @@ class PlayerAdapter(
             }
             val chipBitmap = bitmapLoader.loadChip(Chip(playerItem.playerId, Level1))
             itemView.colored_chip.setImageBitmap(chipBitmap)
-            // BUG: does not set random picker
-            itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
             itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
+            itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) { }
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {

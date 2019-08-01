@@ -20,7 +20,7 @@ class GameAndPlayersTest : FreeSpec() {
                 //
             }
 
-            "!maximizers" {
+            "maximizers" {
                 val board = BoardFactory.DEFAULT_1
                 val bots = mapOf(
                     PlayerId0 to PlayerTactic.Bot.LevelMaximizer(depth = 1),
@@ -35,11 +35,6 @@ class GameAndPlayersTest : FreeSpec() {
                     repeat(100) {
                         withClue("turn $it, player = ${game.currentPlayer}, board = ${game.board}") {
                             runBlocking {
-                                val turn = with(game.currentPlayer as Bot) {
-                                    makeTurnAsync(game.board, game.order.map { it.playerId }).await()
-                                }
-                                if (game.currentPlayer is MaximizerBot)
-                                    print("trying turn $turn on ${game.board}")
                                 val transitions = botTurnAsync().await()
                                 Unit
                             }

@@ -43,12 +43,15 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         _boardPresenter.value = get<BoardPresenter> { parametersOf(board) }
     }
 
-    private fun playerItemsOf(board: Board): List<PlayerItem> =
-        board.players()
+    private fun playerItemsOf(board: Board): List<PlayerItem> {
+        val items = board.players()
             .map { PlayerItem(it, PlayerTactic.Bot.RandomPicker, participate = true) }
+        if (items.isNotEmpty())
+            items.first().tactic = PlayerTactic.Human
+        return items
+    }
 
     override fun hidePlayer(playerId: PlayerId) {
-        Log.i(TAG, "hidePlayer($playerId)")
         board = SimpleBoard(board).apply {
             for (pos in possOf(playerId))
                 posMap[pos] = null
@@ -71,7 +74,6 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     }
 
     override fun highlighPlayer(playerId: PlayerId) {
-        Log.i(TAG, "highlighPlayer($playerId)")
         boardPresenter.value?.highlight(board.possOf(playerId))
         boardViewInvalidating.send {
             invalidateBoardView()
