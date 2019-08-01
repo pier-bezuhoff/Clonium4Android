@@ -8,6 +8,8 @@ import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.BoardPresenter
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.utils.Connection
+import com.pierbezuhoff.clonium.utils.Ring
+import com.pierbezuhoff.clonium.utils.ringOf
 import org.koin.core.get
 import org.koin.core.parameter.parametersOf
 
@@ -32,15 +34,25 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         setBoard(getLastBoard())
     }
 
-    private fun getLastBoard(): Board {
-        return BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
+    fun nextBoard() {
+        setBoard(BOARDS.next())
     }
+
+    fun previousBoard() {
+        setBoard(BOARDS.previous())
+    }
+
+    private fun getLastBoard(): Board =
+        BOARDS.focus
 
     fun setBoard(board: Board) {
         this.initialBoard = board
         this.board = board
         playerItems = playerItemsOf(board).toMutableList()
         _boardPresenter.value = get<BoardPresenter> { parametersOf(board) }
+        boardViewInvalidating.send {
+            invalidateBoardView()
+        }
     }
 
     private fun playerItemsOf(board: Board): List<PlayerItem> {
@@ -89,5 +101,16 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
 
     companion object {
         private const val TAG = "NewGameViewModel"
+        private val BOARDS = with(BoardFactory) {
+            ringOf(
+                spawn4players(EmptyBoardFactory.TOWER),
+                spawn4players(EmptyBoardFactory.SMALL_TOWER),
+                DEFAULT_1,
+                DEFAULT_2,
+                DEFAULT_3,
+                DEFAULT_4,
+                DEFAULT_5
+            )
+        }
     }
 }

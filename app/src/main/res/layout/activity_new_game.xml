@@ -27,6 +27,28 @@
                 app:layout_constraintDimensionRatio="w,1:1"
                 app:viewModel="@{viewModel}"
         />
+        <ImageButton
+                android:id="@+id/previous_board"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@+id/board_view"
+                app:layout_constraintBottom_toBottomOf="@+id/board_view"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/board_view"
+                app:srcCompat="@drawable/arrow_left"
+                android:contentDescription="@string/previous_board"
+        />
+        <ImageButton
+                android:id="@+id/next_board"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@+id/board_view"
+                app:layout_constraintBottom_toBottomOf="@+id/board_view"
+                app:layout_constraintStart_toEndOf="@+id/board_view"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:srcCompat="@drawable/arrow_right"
+                android:contentDescription="@string/next_board"
+        />
         <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/players_recycler_view"
                 android:layout_width="wrap_content"

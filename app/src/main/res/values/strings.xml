@@ -8,4 +8,6 @@
     <string name="chip_count_maximizer">Chip count maximizer %d</string>
     <string name="player_tactics_prompt">Choose type of player</string>
     <string name="use_random_order">Random order</string>
+    <string name="previous_board">Previous board</string>
+    <string name="next_board">Next board</string>
 </resources>

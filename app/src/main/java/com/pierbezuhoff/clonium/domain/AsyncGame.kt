@@ -4,66 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import java.io.IOException
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-import java.io.Serializable
 
-interface Game {
-    /** Initial [Game] parameters, [Game] can be constructed from it */
-    data class State(
-        val board: SimpleBoard,
-        /** All the rest of [board]'s [Player]s are [HumanPlayer]s */
-        val bots: Map<PlayerId, PlayerTactic.Bot>,
-        /** `null` means shuffle before starting game */
-        val order: List<PlayerId>? = null
-    ) : Serializable
-
-    val board: Board
-    val players: Map<PlayerId, Player>
-    val order: List<Player>
-    val lives: Map<Player, Boolean>
-    val currentPlayer: Player
-
-    fun isAlive(player: Player): Boolean =
-        lives.getValue(player)
-
-    /** <= 1 alive player */
-    fun isEnd(): Boolean =
-        lives.values.filter { it }.size <= 1
-
-
-    /** Possible turns ([Pos]s) of [currentPlayer] */
-    fun possibleTurns(): Set<Pos> =
-        board.possOf(currentPlayer.playerId)
-
-    fun nextPlayer(): Player {
-        val ix = order.indexOf(currentPlayer)
-        return (order.drop(ix + 1) + order).first { isAlive(it) }
-    }
-
-    /** (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    private fun statOf(player: Player): Pair<Int, Int>? {
-        return if (!isAlive(player))
-            null
-        else {
-            val ownedChips = board.asPosMap().values
-                .filterNotNull()
-                .filter { it.playerId == player.playerId }
-            Pair(ownedChips.size, ownedChips.sumBy { it.level.ordinal })
-        }
-    }
-
-    /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    fun stat(): Map<Player, Pair<Int, Int>?> =
-        order.associateWith { statOf(it) }
-
-    fun humanTurn(pos: Pos): Sequence<Transition>
-
-    fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>>
-}
-
-class SimpleGame(
+class AsyncGame(
     override val board: EvolvingBoard,
     bots: Set<Bot>,
     initialOrder: List<PlayerId>? = null
@@ -123,20 +65,14 @@ class SimpleGame(
             return@async makeTurn(turn)
         }
     }
-
-    companion object {
-        fun example(): SimpleGame {
-            val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
-            val bots: Set<Bot> =
-                setOf(
-                    RandomPickerBot(PlayerId(0)),
-                    RandomPickerBot(PlayerId(1)),
-                    RandomPickerBot(PlayerId(2)),
-                    RandomPickerBot(PlayerId(3))
-//                LevelMaximizerBot(PlayerId(2), depth = 1),
-//                ChipCountMaximizerBot(PlayerId(3), depth = 1)
-                )
-            return SimpleGame(PrimitiveBoard(board), bots)
-        }
-    }
 }
+
+private class TurnSequence
+
+sealed class FutureTurn {
+    class Determined(turn: Pos) : FutureTurn()
+    class OneOf(turns: Set<Pos>) : FutureTurn()
+    object Computing : FutureTurn()
+}
+
+private class HumanTurn

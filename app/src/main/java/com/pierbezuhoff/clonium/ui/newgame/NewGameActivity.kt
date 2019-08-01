@@ -40,6 +40,12 @@ class NewGameActivity : AppCompatActivity() {
             val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
             ItemTouchHelper(callback).attachToRecyclerView(players_recycler_view)
         })
+        previous_board.setOnClickListener {
+            newGameViewModel.previousBoard()
+        }
+        next_board.setOnClickListener {
+            newGameViewModel.nextBoard()
+        }
         cancel_button.setOnClickListener {
             onBackPressed()
         }
