@@ -32,6 +32,10 @@ sealed class PlayerTactic : Serializable {
             override fun toPlayer(playerId: PlayerId) =
                 ChipCountMaximizerBot(playerId, depth)
         }
+        class LevelMinimizer(val depth: Int) : Bot() {
+            override fun toPlayer(playerId: PlayerId) =
+                LevelMinimizerBot(playerId, depth)
+        }
     }
 
     abstract fun toPlayer(playerId: PlayerId): Player
@@ -40,7 +44,8 @@ sealed class PlayerTactic : Serializable {
 val PLAYER_TACTICS = listOf(
     PlayerTactic.Human,
     PlayerTactic.Bot.RandomPicker,
-    PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: thinks up to 9s on tower board
-    PlayerTactic.Bot.ChipCountMaximizer(1)
+    PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: up to 5s on tower board
+    PlayerTactic.Bot.ChipCountMaximizer(1),
+    PlayerTactic.Bot.LevelMinimizer(1)
 )
 

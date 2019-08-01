@@ -79,7 +79,7 @@ class SimpleGame(
             require(board.players() == initialOrder.toSet()) { "order is incomplete: $initialOrder instead of ${board.players()}" }
         }
         val playerIds = initialOrder ?: board.players().shuffled().toList()
-        require(bots.map { it.playerId }.all { it in playerIds }) { "Not all bot ids are on the board" }
+        require(bots.map { it.playerId }.all { it in playerIds }) { "Not all bot ids are on the board: external bots ${bots.filter { it.playerId !in playerIds }}" }
         val botIds = bots.map { it.playerId }
         val botMap = bots.associateBy { it.playerId }
         val humanMap = (playerIds - botIds).associateWith { HumanPlayer(it) }

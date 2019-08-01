@@ -58,7 +58,7 @@ class NewGameActivity : AppCompatActivity() {
         val intent = Intent(this, GameActivity::class.java)
         val board = SimpleBoard(newGameViewModel.board)
         val bots = newGameViewModel.playerItems
-            .filter { it.tactic is PlayerTactic.Bot }
+            .filter { it.tactic is PlayerTactic.Bot && it.participate }
             .associate { it.playerId to (it.tactic as PlayerTactic.Bot) }
         val order =
             if (newGameViewModel.useRandomOrder.value!!) null

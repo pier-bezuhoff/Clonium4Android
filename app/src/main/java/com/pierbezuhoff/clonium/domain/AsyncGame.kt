@@ -70,8 +70,8 @@ class AsyncGame(
 private class TurnSequence
 
 sealed class FutureTurn {
-    class Determined(turn: Pos) : FutureTurn()
-    class OneOf(turns: Set<Pos>) : FutureTurn()
+    data class Determined(val turn: Pos) : FutureTurn()
+    data class OneOf(val turns: Set<Pos>) : FutureTurn()
     object Computing : FutureTurn()
 }
 

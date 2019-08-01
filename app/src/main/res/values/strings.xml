@@ -10,4 +10,5 @@
     <string name="use_random_order">Random order</string>
     <string name="previous_board">Previous board</string>
     <string name="next_board">Next board</string>
+    <string name="level_minimizer">Level minimizer %d</string>
 </resources>

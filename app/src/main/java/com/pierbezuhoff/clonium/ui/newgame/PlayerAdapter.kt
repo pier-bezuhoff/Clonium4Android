@@ -178,4 +178,5 @@ fun Context.tacticDescription(tactic: PlayerTactic): String =
         PlayerTactic.Bot.RandomPicker -> getString(R.string.random_picker)
         is PlayerTactic.Bot.LevelMaximizer -> getString(R.string.level_maximizer, tactic.depth)
         is PlayerTactic.Bot.ChipCountMaximizer -> getString(R.string.chip_count_maximizer, tactic.depth)
+        is PlayerTactic.Bot.LevelMinimizer -> getString(R.string.level_minimizer, tactic.depth)
     }

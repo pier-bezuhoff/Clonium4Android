@@ -151,3 +151,20 @@ class ChipCountMaximizerBot(
     override val difficultyName: String = "Chip count maximizer $depth"
     override val tactic = PlayerTactic.Bot.ChipCountMaximizer(depth)
 }
+
+class LevelMinimizerBot(
+    playerId: PlayerId,
+    depth: Int
+) : MaximizerBot(
+    playerId,
+    estimate = { board -> board.asPosMap()
+        .values
+        .filterNotNull()
+        .filter { it.playerId != playerId }
+        .sumBy { -it.level.ordinal }
+    },
+    depth = depth
+) {
+    override val difficultyName: String = "Enemy level minimizer $depth"
+    override val tactic = PlayerTactic.Bot.LevelMinimizer(depth)
+}
