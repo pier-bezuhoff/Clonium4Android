@@ -19,7 +19,7 @@ sealed class PlayerTactic : Serializable {
             HumanPlayer(playerId)
     }
     sealed class Bot : PlayerTactic() {
-        abstract override fun toPlayer(playerId: PlayerId): com.pierbezuhoff.clonium.domain.Bot
+        abstract override fun toPlayer(playerId: PlayerId): com.pierbezuhoff.clonium.domain.BotPlayer
         object RandomPicker : Bot() {
             override fun toPlayer(playerId: PlayerId) =
                 RandomPickerBot(playerId)
@@ -36,6 +36,10 @@ sealed class PlayerTactic : Serializable {
             override fun toPlayer(playerId: PlayerId) =
                 LevelMinimizerBot(playerId, depth)
         }
+        class LevelBalancer(val depth: Int, val ratio: Float) : Bot() {
+            override fun toPlayer(playerId: PlayerId) =
+                LevelBalancerBot(playerId, depth, ratio)
+        }
     }
 
     abstract fun toPlayer(playerId: PlayerId): Player
@@ -46,6 +50,7 @@ val PLAYER_TACTICS = listOf(
     PlayerTactic.Bot.RandomPicker,
     PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: up to 5s on tower board
     PlayerTactic.Bot.ChipCountMaximizer(1),
-    PlayerTactic.Bot.LevelMinimizer(1)
+    PlayerTactic.Bot.LevelMinimizer(1),
+    PlayerTactic.Bot.LevelBalancer(1, 2f)
 )
 

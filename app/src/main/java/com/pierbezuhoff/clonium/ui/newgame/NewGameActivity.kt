@@ -3,20 +3,17 @@ package com.pierbezuhoff.clonium.ui.newgame
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.edit
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
-import com.pierbezuhoff.clonium.domain.Bot
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.PlayerTactic
 import com.pierbezuhoff.clonium.domain.SimpleBoard
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import kotlinx.android.synthetic.main.activity_new_game.*
-import org.jetbrains.anko.defaultSharedPreferences
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 

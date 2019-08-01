@@ -4,9 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import java.io.IOException
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
 import java.io.Serializable
 
 interface Game {
@@ -65,7 +62,7 @@ interface Game {
 
 class SimpleGame(
     override val board: EvolvingBoard,
-    bots: Set<Bot>,
+    bots: Set<BotPlayer>,
     initialOrder: List<PlayerId>? = null
 ) : Game {
     override val players: Map<PlayerId, Player>
@@ -114,10 +111,10 @@ class SimpleGame(
     }
 
     override fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>> {
-        require(currentPlayer is Bot)
+        require(currentPlayer is BotPlayer)
         return async(Dispatchers.Default) {
             val turn =
-                with(currentPlayer as Bot) {
+                with(currentPlayer as BotPlayer) {
                     makeTurnAsync(board, order.map { it.playerId })
                 }.await()
             return@async makeTurn(turn)
@@ -127,7 +124,7 @@ class SimpleGame(
     companion object {
         fun example(): SimpleGame {
             val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
-            val bots: Set<Bot> =
+            val bots: Set<BotPlayer> =
                 setOf(
                     RandomPickerBot(PlayerId(0)),
                     RandomPickerBot(PlayerId(1)),

@@ -3,7 +3,7 @@ package com.pierbezuhoff.clonium.domain
 import android.util.Log
 import kotlinx.coroutines.*
 
-interface Bot : Player {
+interface BotPlayer : Player {
     val difficultyName: String
 
     fun CoroutineScope.makeTurnAsync(
@@ -12,7 +12,7 @@ interface Bot : Player {
     ): Deferred<Pos>
 }
 
-class RandomPickerBot(override val playerId: PlayerId) : Bot {
+class RandomPickerBot(override val playerId: PlayerId) : BotPlayer {
     override val difficultyName = "Random picker"
     override val tactic = PlayerTactic.Bot.RandomPicker
 
@@ -97,7 +97,7 @@ abstract class MaximizerBot(
     override val playerId: PlayerId,
     private val estimate: (Board) -> Int,
     private val depth: Int
-): Bot {
+): BotPlayer {
 
     override fun CoroutineScope.makeTurnAsync(
         board: Board, order: List<PlayerId>
@@ -167,4 +167,28 @@ class LevelMinimizerBot(
 ) {
     override val difficultyName: String = "Enemy level minimizer $depth"
     override val tactic = PlayerTactic.Bot.LevelMinimizer(depth)
+}
+
+class LevelBalancerBot(
+    playerId: PlayerId,
+    depth: Int,
+    /** Priority of own chips over enemies' */
+    private val ratio: Float
+) : MaximizerBot(
+    playerId,
+    estimate = { board ->
+        (board.asPosMap()
+            .values
+            .filterNotNull()
+            .filter { it.playerId != playerId }
+            .sumBy { -it.level.ordinal }
+                +
+                ratio * board.possOf(playerId)
+            .sumBy { board.levelAt(it)!!.ordinal })
+            .toInt()
+    },
+    depth = depth
+) {
+    override val difficultyName: String = "Level balancer $depth ($ratio:1)"
+    override val tactic = PlayerTactic.Bot.LevelBalancer(depth, ratio)
 }

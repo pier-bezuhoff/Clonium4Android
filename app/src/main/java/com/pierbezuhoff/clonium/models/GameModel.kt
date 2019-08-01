@@ -3,7 +3,7 @@ package com.pierbezuhoff.clonium.models
 import android.graphics.Canvas
 import android.graphics.PointF
 import android.util.Log
-import com.pierbezuhoff.clonium.domain.Bot
+import com.pierbezuhoff.clonium.domain.BotPlayer
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.HumanPlayer
 import com.pierbezuhoff.clonium.ui.game.DrawThread
@@ -66,7 +66,7 @@ class GameModel(
                 Log.i(TAG, "game ended")
                 // show overall stat
             }
-            game.currentPlayer is Bot -> coroutineScope.launch {
+            game.currentPlayer is BotPlayer -> coroutineScope.launch {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
                 delay(config.botMinTime)
                 gamePresenter.freezeBoard()
