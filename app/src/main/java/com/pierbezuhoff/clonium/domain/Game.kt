@@ -126,7 +126,7 @@ class SimpleGame(
             val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
             val bots: Set<BotPlayer> =
                 setOf(
-                    RandomPickerBot(PlayerId(0)),
+//                    RandomPickerBot(PlayerId(0)),
                     RandomPickerBot(PlayerId(1)),
                     RandomPickerBot(PlayerId(2)),
                     RandomPickerBot(PlayerId(3))
