@@ -117,9 +117,10 @@ abstract class MaximizerBot(
                     )
                 }!!
             val elapsedTime = System.currentTimeMillis() - startTime
-            withContext(Dispatchers.Main) {
-                Log.i(difficultyName, "thought $elapsedTime ms")
-            }
+            // NOTE: Dispatchers.Main is android-unique
+//            withContext(Dispatchers.Main) {
+//                Log.i(difficultyName, "thought $elapsedTime ms")
+//            }
             return@async bestTurn
         }
     }

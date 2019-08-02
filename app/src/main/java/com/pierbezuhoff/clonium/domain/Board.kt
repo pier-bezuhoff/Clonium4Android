@@ -3,6 +3,8 @@ package com.pierbezuhoff.clonium.domain
 import androidx.annotation.IntRange
 import java.io.Serializable
 
+// TODO: SimpleEvolvingBoard
+
 /** [Pos]ition on [Board]:
  * [x] = `0..(board.width - 1)` -- column
  * [y] = `0..(board.height - 1)` -- row */
@@ -236,8 +238,7 @@ interface Board : EmptyBoard {
     fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
         if (order.isEmpty())
             return order
-        val playerId = order.first()
-        val filteredOrder = order.filter { isAlive(playerId) }
+        val filteredOrder = order.filter { isAlive(it) }
         return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
     }
 

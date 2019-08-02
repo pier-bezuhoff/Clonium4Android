@@ -2,6 +2,7 @@ package com.pierbezuhoff.clonium.domain
 
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import kotlinx.coroutines.*
+import kotlin.math.min
 
 class AsyncGame(
     override val board: EvolvingBoard,
@@ -65,7 +66,22 @@ class AsyncGame(
     }
 }
 
-class G(val game: Game = SimpleGame.example()) {
+class G(
+    val game: Game = run {
+        val board = BoardFactory.spawn4players(EmptyBoardFactory.SMALL_TOWER)
+        val bots: Set<BotPlayer> =
+            setOf(
+//                RandomPickerBot(PlayerId0),
+                LevelMaximizerBot(PlayerId0, depth = 1),
+                RandomPickerBot(PlayerId1),
+//                RandomPickerBot(PlayerId2),
+//                ChipCountMaximizerBot(PlayerId2, depth = 1),
+                RandomPickerBot(PlayerId3)
+            )
+        val order = listOf(PlayerId0, PlayerId1, PlayerId2, PlayerId3)
+        SimpleGame(PrimitiveBoard(board), bots, order)
+    }
+) {
     private val linkedTurns = LinkedTurns(
         PrimitiveBoard(game.board),
         game.order.map { it.playerId },
@@ -73,17 +89,10 @@ class G(val game: Game = SimpleGame.example()) {
         GlobalScope
     )
 
+    val f get() = println(linkedTurns.focus)
     val w: Int get() = linkedTurns.computeWidth()
     val c get() = println(linkedTurns.computing)
     val sc get() = println(linkedTurns.scheduledComputings)
-
-    init {
-        print(game.board)
-    }
-
-    fun f() {
-        println(linkedTurns.focus)
-    }
 
     fun g(turn: Pos) {
         linkedTurns.givenHumanTurn(turn)
@@ -141,8 +150,9 @@ private class LinkedTurns(
             if (depth == 0 || computeWidth() < STOP_WIDTH) // depth == 0 => launched from init
                 scheduleTurnsAfterHuman(board, link)
         } else {
-            link = scheduleComputation(player as BotPlayer, board, order, depth = depth + 1)
+            link = scheduleComputation(player as BotPlayer, board, order, depth = depth)
         }
+        println("scheduleTurnOf -> \n$link\n")
         return link
     }
 
@@ -151,7 +161,7 @@ private class LinkedTurns(
         val (chained, free) =
             root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
         for ((_, next) in free) {
-            next.link = rescheduleUnknownFutureTurn(next)
+            rescheduleUnknownFutureTurn(next)
         }
         val turns = chained.map { it.key }
         val chains = rootBoard.chains().toList()
@@ -168,9 +178,11 @@ private class LinkedTurns(
 
     private fun rescheduleUnknownFutureTurn(next: Next): Link {
         val link = next.link
-        return if (link is Link.Unknown)
+        val nextLink = if (link is Link.Unknown)
             scheduleTurnOf(next.trans.board, next.trans.order, link.depth)
         else link
+        next.link = nextLink
+        return nextLink
     }
 
     private fun scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int): Link.FutureTurn.Bot {
@@ -206,9 +218,8 @@ private class LinkedTurns(
                 next.link = computed
             computing = null
         }
-        println("computed = $computed\n")
-        runNext()
         rescheduleUnknownFutureTurn(computed.next)
+        runNext()
     }
 
     private fun runNext() {
@@ -236,6 +247,7 @@ private class LinkedTurns(
         }
 
     internal fun discoverUnknowns() {
+        println("discoverUnknowns()\n")
         when (val focus = focus) {
             is Link.Unknown -> impossibleCaseOf(focus)
             is Link.FutureTurn.Bot.Computed -> discoverUnknowns(focus.next)
@@ -297,28 +309,32 @@ private class LinkedTurns(
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
         require(focus is Link.FutureTurn.Bot)
         return when (val focus = focus as Link.FutureTurn.Bot) {
-            is Link.FutureTurn.Bot.Computed -> return coroutineScope.async { focus.pos to focus.next.trans }
+            is Link.FutureTurn.Bot.Computed -> {
+                this.focus = focus.next.link
+                return coroutineScope.async { focus.pos to focus.next.trans }
+            }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
                 val computed = focus.deferred.await()
+                this@LinkedTurns.focus = computed.next.link
                 return@async computed.pos to computed.next.trans
             }
             else -> impossibleCaseOf(focus)
         }
     }
 
-//    /** Depth of [link] + [depth], `null` means infinite: all possibilities are computed */
-//    private fun computeDepth(link: Link = focus, depth: Int = 0): Int? =
-//        when (link) {
-//            is Link.End -> null
-//            is Link.TemporalTerminal -> depth
-//            is Link.FutureTurn.Bot.Computed -> computeDepth(link.next.link, depth + 1)
-//            is Link.FutureTurn.Human.OneOf -> link.nexts.values
-//                .map { next -> computeDepth(next.link, depth + 1) }
-//                .fold(null) { d0: Int?, d1: Int? ->
-//                    if (d0 == null) d1 else if (d1 == null) d0 else min(d0, d1)
-//                }
-//            else -> impossibleCaseOf(link)
-//        }
+    /** Depth of [link] + [depth], `null` means infinite: all possibilities are computed */
+    internal fun computeDepth(link: Link = focus, depth: Int = 0): Int? =
+        when (link) {
+            is Link.End -> null
+            is Link.TemporalTerminal -> depth
+            is Link.FutureTurn.Bot.Computed -> computeDepth(link.next.link, depth + 1)
+            is Link.FutureTurn.Human.OneOf -> link.nexts.values
+                .map { next -> computeDepth(next.link, depth + 1) }
+                .fold(null as Int?) { d0: Int?, d1: Int? ->
+                    if (d0 == null) d1 else if (d1 == null) d0 else min(d0, d1)
+                }
+            else -> impossibleCaseOf(link)
+        }
 
     internal fun computeWidth(root: Link = focus): Int =
         when (root) {
@@ -434,7 +450,11 @@ private data class Computation(
         crossinline andThen: (Link.FutureTurn.Bot.Computed) -> Unit = {}
     ): Deferred<Link.FutureTurn.Bot.Computed> =
         async {
+            print("(...")
+            val startTime = System.currentTimeMillis()
             val turn = with(bot) { makeTurnAsync(board, order).await() }
+            val elapsed = System.currentTimeMillis() - startTime
+            print("$elapsed ms)")
             val endBoard = board.copy()
             val transitions = endBoard.incAnimated(turn)
             val endOrder = endBoard.shiftOrder(order)
