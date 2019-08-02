@@ -215,12 +215,14 @@ interface Board : EmptyBoard {
         return chains
     }
 
+    /** Transitive [Level3] neighbors of [pos] if [pos] has at least [Level3] else `null` */
     fun chainOf(pos: Pos): Set<Pos>? =
         if (levelAt(pos)?.let { it < Level3 } ?: true)
             null
         else
             chains().firstOrNull { pos in it }
 
+    /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
     fun distinctTurns(playerId: PlayerId): Set<Pos> {
         val chains = chains()
         fun chainIdOf(pos: Pos): Int =
@@ -228,6 +230,15 @@ interface Board : EmptyBoard {
         val poss = possOf(playerId)
         val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
         return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
+    }
+
+    /** Cyclically shift [order] removing dead players */
+    fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
+        if (order.isEmpty())
+            return order
+        val playerId = order.first()
+        val filteredOrder = order.filter { isAlive(playerId) }
+        return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
     }
 
     override fun pos2str(pos: Pos): String =
