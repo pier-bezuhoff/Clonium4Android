@@ -120,7 +120,7 @@ private class LinkedTurns(
     }
 
     private fun scheduleTurnOf(board: EvolvingBoard, order: List<PlayerId>, depth: Int): Link {
-        println("scheduleTurnOf($board, $order, depth = $depth)")
+        println("scheduleTurnOf($board, $order, depth = $depth)\n")
         val playerId = order.first()
         val player = players.getValue(playerId)
         val link: Link.FutureTurn
@@ -138,7 +138,7 @@ private class LinkedTurns(
                     return@associateWith Next(Trans(nextBoard, nextOrder, transitions), nextLink)
                 }
             )
-            if (computeWidth() < STOP_WIDTH)
+            if (depth == 0 || computeWidth() < STOP_WIDTH) // depth == 0 => launched from init
                 scheduleTurnsAfterHuman(board, link)
         } else {
             link = scheduleComputation(player as BotPlayer, board, order, depth = depth + 1)
@@ -147,7 +147,7 @@ private class LinkedTurns(
     }
 
     private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf) {
-        println("scheduleTurnsAfterHuman($rootBoard,\n$root\n)")
+        println("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
         val (chained, free) =
             root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
         for ((_, next) in free) {
@@ -174,7 +174,7 @@ private class LinkedTurns(
     }
 
     private fun scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int): Link.FutureTurn.Bot {
-        println("scheduleComputation($bot, $board,\n$order, depth = $depth)")
+        println("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
         val computation = Computation(bot, board, order, depth)
         synchronized(ComputingLock) {
             return if (computing == null) {
@@ -195,7 +195,7 @@ private class LinkedTurns(
         with(computation) { coroutineScope.runAsync { runNext(it) } }
 
     private fun runNext(computed: Link.FutureTurn.Bot.Computed) {
-        println("runNext(\n$computed\n)")
+        println("runNext(\n$computed\n)\n")
         synchronized(ComputingLock) {
             require(computing != null)
             val (next, foundComputing) = findComputing()!!
@@ -206,6 +206,7 @@ private class LinkedTurns(
                 next.link = computed
             computing = null
         }
+        println("computed = $computed\n")
         runNext()
         rescheduleUnknownFutureTurn(computed.next)
     }
@@ -219,6 +220,7 @@ private class LinkedTurns(
                     scheduled.playerId, scheduled.depth, scheduled.computation,
                     runComputationAsync(scheduled.computation)
                 )
+                println("new computing = $newComputing\n")
                 computing = newComputing
             } ?: discoverUnknowns()
         }
@@ -233,7 +235,7 @@ private class LinkedTurns(
             else -> impossibleCaseOf(root)
         }
 
-    fun discoverUnknowns() {
+    internal fun discoverUnknowns() {
         when (val focus = focus) {
             is Link.Unknown -> impossibleCaseOf(focus)
             is Link.FutureTurn.Bot.Computed -> discoverUnknowns(focus.next)
@@ -318,7 +320,7 @@ private class LinkedTurns(
 //            else -> impossibleCaseOf(link)
 //        }
 
-    fun computeWidth(root: Link = focus): Int =
+    internal fun computeWidth(root: Link = focus): Int =
         when (root) {
             is Link.FutureTurn.Bot.Computed -> computeWidth(root.next.link)
             is Link.FutureTurn.Human.OneOf -> root.nexts.values.sumBy { computeWidth(it.link) }
@@ -363,9 +365,9 @@ private sealed class Link {
                 override fun toString(indent: Int) =
                     indentOf(indent) + "Link.FutureTurn.Human.OneOf($playerId):" + nexts.entries.joinToString(
                         prefix = "\n${indentOf(indent + 1)}[\n",
-                        separator = ",\n${indentOf(indent + 1)}",
+                        separator = ",\n",
                         postfix = "\n${indentOf(indent + 1)}]"
-                    ) { (pos, next) -> "$pos -> ${next.toString(indent + 2)}" }
+                    ) { (pos, next) -> indentOf(indent + 1) + "$pos ->\n${next.toString(indent + 2)}" }
             }
         }
 
