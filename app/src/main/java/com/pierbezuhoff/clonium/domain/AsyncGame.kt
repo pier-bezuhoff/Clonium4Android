@@ -107,8 +107,8 @@ class G(
     val w: Int get() = linkedTurns.computeWidth()
     val d: Int? get() = linkedTurns.computeDepth()
     val c get() = println(linkedTurns.computing)
-    val sc get() = println(linkedTurns.scheduledComputings.joinToString(prefix = "[\n", separator = ",\n", postfix = "\n]"))
-    val u get() = println(linkedTurns.unknowns.joinToString(prefix = "[\n", separator = ",\n", postfix = "\n]"))
+    val sc get() = println(linkedTurns.scheduledComputings.toPrettyString())
+    val u get() = println(linkedTurns.unknowns.toPrettyString())
 
     fun h(turn: Pos) {
         linkedTurns.givenHumanTurn(turn)
@@ -217,6 +217,8 @@ private class LinkedTurns(
 
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
         logV("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
+        // BUG: random picker reports no possible turns
+        require(board.possOf(bot.playerId).isNotEmpty())
         val computation = Computation(bot, board, order, depth)
         synchronized(ComputingLock) {
             if (computing == null) {
@@ -236,15 +238,16 @@ private class LinkedTurns(
         with(computation) { coroutineScope.runAsync { runNext(it) } }
 
     private fun runNext(computed: Link.FutureTurn.Bot.Computed) {
-        logV("runNext(\n$computed\n)\n")
+        logV("runNext(\n$computed\n)")
         synchronized(ComputingLock) {
             require(computing != null)
             computing!!.next.link = computed
+            logI("runNext(computed) =>\ncomputing = $computing")
             computing = null
         }
         // add external unknown (from Computation.runAsync)
         unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-        logI("runNext(computed) =>\nfocus = $focus\n")
+        logI("runNext(computed) =>\nfocus = $focus")
         runNext()
     }
 
@@ -266,7 +269,6 @@ private class LinkedTurns(
 
     internal fun discoverUnknowns() {
         logI("discoverUnknowns()\n")
-        // BUG: when HumanPlayer has more than SOFT_MAX_WIDTH possible turns it prevents from discovering unknowns
         while (unknowns.isNotEmpty() && computeWidth() < SOFT_MAX_WIDTH) {
             val nextAs = unknowns.remove()
             nextAs.next.scheduleTurn(nextAs.link.depth)
@@ -276,27 +278,53 @@ private class LinkedTurns(
     }
 
     fun givenHumanTurn(turn: Pos): Trans {
+        logI("givenHumanTurn($turn):")
+        logI("focus = $focus")
+        logI("computing = $computing")
+        logI("scheduledComputings = ${scheduledComputings.toPrettyString()}")
+        logI("unknowns = ${unknowns.toPrettyString()}")
         require(focus is Link.FutureTurn.Human.OneOf) { logE("focus = $focus") }
         val focus = focus as Link.FutureTurn.Human.OneOf
         require(turn in focus.nexts.keys)
-        logI(focus)
         val (trans, nextFocus) = focus.nexts.getValue(turn)
         start.next.link = nextFocus
         nOfTraversedTurns ++
         collapseComputations(focus, turn)
-        discoverUnknowns()
         return trans
     }
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
         logI("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
         synchronized(ComputingLock) {
-            for ((turn, next) in root.nexts)
-                if (turn != actualTurn)
+            for ((turn, next) in root.nexts) {
+                if (turn != actualTurn) {
                     next.stopComputations()
-            if (computing == null) // when t'was stopped
+                } else { // actual turn branch
+                    // rewrap next in saved NextAs (unknowns, scheduledComputings, computing) as child of start
+                    when (val link = next.link) {
+                        is Link.Unknown -> {
+                            val nextAs = NextAs(next, link)
+                            require(nextAs in unknowns)
+                            unknowns.remove(nextAs)
+                            unknowns.add(NextAs(start.next, link)) // shall be scheduled later
+                        }
+                        is Link.FutureTurn.Bot.ScheduledComputing -> {
+                            val nextAs = NextAs(next, link)
+                            require(nextAs in scheduledComputings)
+                            scheduledComputings.remove(nextAs)
+                            scheduledComputings.add(NextAs(start.next, link))
+                        }
+                        is Link.FutureTurn.Bot.Computing -> {
+                            require(link == computing!!.link)
+                            computing = NextAs(start.next, link)
+                        }
+                    }
+                }
+            }
+            if (computing == null && scheduledComputings.isNotEmpty()) // when t'was stopped
                 runNext()
         }
+        logI("unknowns = ${unknowns.toPrettyString()}")
         discoverUnknowns()
     }
 
@@ -326,9 +354,7 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        // BUG: focus is Unknown while SOFT_MAX_WIDTH = 5 and human has 6 possible turns (unknowns are not computed)
-        //  when # of possible turns >= SOFT_MAX_WIDTH it occurs
-        require(focus is Link.FutureTurn.Bot)
+        require(focus is Link.FutureTurn.Bot) { logE("focus = $focus") }
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
                 start.next.link = focus.next.link
@@ -528,4 +554,7 @@ private data class Computation(
             computed
         }
 }
+
+private fun <E> Iterable<E>.toPrettyString(): String =
+    joinToString(prefix = "[\n", separator = ",\n", postfix = "\n]")
 
