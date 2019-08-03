@@ -24,15 +24,15 @@ class GameModel(
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
-    , Logger by AndroidLogger
+    , Logger by AndroidLogger("GameModel")
     , KoinComponent
 {
     private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game)
     private var continueGameOnce by Once(true)
 
     init {
-        log(TAG, "order = ${game.order.map { it.playerId }.joinToString()}")
-        log(TAG, game.board.asString())
+        logV("order = ${game.order.map { it.playerId }.joinToString()}")
+        logV(game.board.asString())
     }
 
     fun userTap(point: PointF) {
@@ -65,7 +65,7 @@ class GameModel(
     private fun continueGame() {
         when {
             game.isEnd() -> {
-                log(TAG, "game ended")
+                logI("game ended")
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> coroutineScope.launch {
@@ -83,9 +83,5 @@ class GameModel(
                 gamePresenter.highlight(game.possibleTurns())
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "GameModel"
     }
 }

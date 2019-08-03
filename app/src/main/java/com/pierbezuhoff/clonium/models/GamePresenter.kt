@@ -61,8 +61,8 @@ private class SimpleSpatialBoard(private val board: Board) : SpatialBoard {
     override val chipCellRatio: Float = 0.9f
     override val zZoom: Double = 0.2 // 20% per [cellSize]
     override val jumpHeight: Float = 1f // in [cellSize]s
-    override val falloutVerticalSpeed: Float = 2f
-    override val falloutAngleSpeed: Float = 2f * 360
+    override val falloutVerticalSpeed: Float = 3f
+    override val falloutAngleSpeed: Float = 4f * 360
 
     override fun setSize(width: Int, height: Int) {
         viewWidth = width

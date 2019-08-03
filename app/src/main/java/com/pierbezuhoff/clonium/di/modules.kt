@@ -26,7 +26,7 @@ val gameModule = module {
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
 
-    factory<Game.Builder> { SimpleGame.Builder }
+    factory<Game.Builder> { AsyncGame.Builder }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
     factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get()) }

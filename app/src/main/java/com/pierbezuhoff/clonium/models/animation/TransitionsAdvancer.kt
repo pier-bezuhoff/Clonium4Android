@@ -67,7 +67,7 @@ object TransitionsAdvancer {
         const val EXPLOSIONS: Milliseconds = 1_000L
         const val SWIFT_ROTATION: Milliseconds = 300L
         const val IDLE: Milliseconds = 500L
-        const val FALLOUTS: Milliseconds = 8_000L
+        const val FALLOUTS: Milliseconds = 7_000L
     }
 }
 
