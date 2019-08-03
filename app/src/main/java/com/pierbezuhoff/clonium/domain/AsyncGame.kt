@@ -2,6 +2,9 @@ package com.pierbezuhoff.clonium.domain
 
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import kotlinx.coroutines.*
+import java.util.*
+import java.util.concurrent.PriorityBlockingQueue
+import kotlin.Comparator
 import kotlin.math.min
 
 class AsyncGame(
@@ -118,6 +121,9 @@ private class LinkedTurns(
     internal var focus: Link
     internal var computing: Link.FutureTurn.Bot.Computing? = null
     internal val scheduledComputings: MutableSet<Link.FutureTurn.Bot.ScheduledComputing> = mutableSetOf()
+    // MAYBE: use PriorityBlockingQueue
+    internal val unknowns: PriorityQueue<Link.Unknown> =
+        PriorityQueue(10, Comparator { a, b -> a.depth.compareTo(b.depth) })
 
     init {
         require(order.isNotEmpty())
@@ -147,8 +153,8 @@ private class LinkedTurns(
                     return@associateWith Next(Trans(nextBoard, nextOrder, transitions), nextLink)
                 }
             )
-            if (depth == 0 || computeWidth() < STOP_WIDTH) // depth == 0 => launched from init
-                scheduleTurnsAfterHuman(board, link)
+//            if (depth == 0 || computeWidth() < STOP_WIDTH) // depth == 0 => launched from init
+//                scheduleTurnsAfterHuman(board, link)
         } else {
             link = scheduleComputation(player as BotPlayer, board, order, depth = depth)
         }
@@ -177,6 +183,7 @@ private class LinkedTurns(
     }
 
     private fun rescheduleUnknownFutureTurn(next: Next): Link {
+        println("rescheduleUnknownFutureTurn(\n$next\n)\n")
         val link = next.link
         val nextLink = if (link is Link.Unknown)
             scheduleTurnOf(next.trans.board, next.trans.order, link.depth)
@@ -277,7 +284,7 @@ private class LinkedTurns(
     }
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
-        println("collapseComputations(\n$root,\n$actualTurn = actualTurn)")
+        println("collapseComputations(\n$root,\nactualTurn = $actualTurn)")
         for ((turn, next) in root.nexts)
             if (turn != actualTurn)
                 stopComputations(next)
@@ -432,6 +439,9 @@ private data class Next(
 ) {
     fun toString(indent: Int): String =
         link.toString(indent)
+
+    override fun toString(): String =
+        toString(0)
 }
 
 private data class Trans(
