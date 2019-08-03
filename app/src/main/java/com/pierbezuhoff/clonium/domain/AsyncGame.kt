@@ -95,7 +95,8 @@ class G(
     val w: Int get() = linkedTurns.computeWidth()
     val d: Int? get() = linkedTurns.computeDepth()
     val c get() = println(linkedTurns.computing)
-    val sc get() = println(linkedTurns.scheduledComputings)
+    val sc get() = println(linkedTurns.scheduledComputings.joinToString(prefix = "[\n", separator = ",\n", postfix = "\n]"))
+    val u get() = println(linkedTurns.unknowns.joinToString(prefix = "[\n", separator = ",\n", postfix = "\n]"))
 
     fun h(turn: Pos) {
         linkedTurns.givenHumanTurn(turn)
@@ -134,12 +135,14 @@ private class LinkedTurns(
         if (order.size == 1)
             start.next.link = Link.End
         else
-            start.next.scheduleTurnOf(board, order, depth = 0)
+            discoverUnknowns()
     }
 
-    private fun Next.scheduleTurnOf(board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
+    private fun Next.scheduleTurn(depth: Int) {
+        val board = trans.board
+        val order = trans.order
         require(order.isNotEmpty())
-        println("scheduleTurnOf($board, $order, depth = $depth)\n")
+        println("${this}\n.scheduleTurn(depth = $depth)\n")
         val playerId = order.first()
         when (val player = players.getValue(playerId)) {
             is HumanPlayer -> {
@@ -163,7 +166,7 @@ private class LinkedTurns(
                 scheduleComputation(player, board, order, depth = depth)
             else -> impossibleCaseOf(player)
         }
-        println("scheduleTurnOf -> \n$link\n")
+        println("scheduleTurn -> \n$link\n")
     }
 
     private fun nextUnknown(trans: Trans, depth: Int): Next {
@@ -173,31 +176,27 @@ private class LinkedTurns(
         return nextAs.next
     }
 
-    private fun Next.linkUnknown(depth: Int) {
-        val unknown = Link.Unknown(depth)
-        val nextAs = NextAs(this, unknown)
-        unknowns.add(nextAs)
+/*
+    private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf) {
+        println("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
+        val (chained, free) =
+            root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
+        for ((_, next) in free) {
+            rescheduleUnknownFutureTurn(next)
+        }
+        val turns = chained.map { it.key }
+        val chains = rootBoard.chains().toList()
+        val chainIds = turns.associateWith { turn -> chains.indexOfFirst { turn in it } }
+        val chainedLinks: Map<Int, Link> = chains
+            .mapIndexed { id, chain ->
+                id to rescheduleUnknownFutureTurn(root.nexts.getValue(chain.first()))
+            }.toMap()
+        for ((turn, next) in chained) {
+            // turns in the same chain have common next.link
+            next.link = chainedLinks.getValue(chainIds.getValue(turn))
+        }
     }
-
-//    private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf) {
-//        println("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
-//        val (chained, free) =
-//            root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
-//        for ((_, next) in free) {
-//            rescheduleUnknownFutureTurn(next)
-//        }
-//        val turns = chained.map { it.key }
-//        val chains = rootBoard.chains().toList()
-//        val chainIds = turns.associateWith { turn -> chains.indexOfFirst { turn in it } }
-//        val chainedLinks: Map<Int, Link> = chains
-//            .mapIndexed { id, chain ->
-//                id to rescheduleUnknownFutureTurn(root.nexts.getValue(chain.first()))
-//            }.toMap()
-//        for ((turn, next) in chained) {
-//            // turns in the same chain have common next.link
-//            next.link = chainedLinks.getValue(chainIds.getValue(turn))
-//        }
-//    }
+*/
 
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
         println("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
@@ -228,6 +227,7 @@ private class LinkedTurns(
         }
         // add external unknown (from Computation.runAsync)
         unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
+        println("runNext(computed) => focus =\n$focus\n")
         runNext()
     }
 
@@ -249,7 +249,13 @@ private class LinkedTurns(
 
     internal fun discoverUnknowns() {
         println("discoverUnknowns()\n")
-        for (nextAs in Arrays.sort(unknowns.toArray()))
+        unknowns
+            .asSequence()
+            .takeWhile { computeWidth() < STOP_WIDTH }
+            .forEach { nextAs: NextAs<Link.Unknown> ->
+                unknowns.remove(nextAs)
+                nextAs.next.scheduleTurn(nextAs.link.depth)
+            }
     }
 
     fun givenHumanTurn(turn: Pos): Trans {
@@ -259,8 +265,7 @@ private class LinkedTurns(
         val (trans, nextFocus) = focus.nexts.getValue(turn)
         start.next.link = nextFocus
         collapseComputations(focus, turn)
-        if (computeWidth() < STOP_WIDTH)
-            discoverUnknowns()
+        discoverUnknowns()
         return trans
     }
 
@@ -342,7 +347,7 @@ private class LinkedTurns(
             o1.link.depth.compareTo(o2.link.depth)
     }
     companion object {
-        private const val STOP_WIDTH = 100 // soft max width
+        private const val STOP_WIDTH = 10 //0 // soft max width
     }
 }
 
