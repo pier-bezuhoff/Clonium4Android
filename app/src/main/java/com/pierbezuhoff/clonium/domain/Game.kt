@@ -1,9 +1,6 @@
 package com.pierbezuhoff.clonium.domain
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import java.io.Serializable
 
 interface Game {
@@ -14,13 +11,31 @@ interface Game {
         val bots: Map<PlayerId, PlayerTactic.Bot>,
         /** `null` means shuffle before starting game */
         val order: List<PlayerId>? = null
-    ) : Serializable
+    ) : Serializable {
+        companion object {
+            val example = run {
+                val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
+                val bots: Map<PlayerId, PlayerTactic.Bot> =
+                    mapOf(
+                        PlayerId1 to PlayerTactic.Bot.RandomPicker,
+                        PlayerId2 to PlayerTactic.Bot.RandomPicker,
+                        PlayerId3 to PlayerTactic.Bot.RandomPicker
+//                LevelMaximizerBot(PlayerId(2), depth = 1),
+//                ChipCountMaximizerBot(PlayerId(3), depth = 1)
+                    )
+                val order: List<PlayerId>? = null
+                State(board, bots, order)
+            }
+        }
+    }
 
     val board: Board
     val players: Map<PlayerId, Player>
     val order: List<Player>
     val lives: Map<Player, Boolean>
     val currentPlayer: Player
+
+    val coroutineScope: CoroutineScope
 
     fun isAlive(player: Player): Boolean =
         lives.getValue(player)
@@ -57,13 +72,18 @@ interface Game {
 
     fun humanTurn(pos: Pos): Sequence<Transition>
 
-    fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>>
+    fun botTurnAsync(): Deferred<Sequence<Transition>>
+
+    interface Builder {
+        fun of(gameState: State, coroutineScope: CoroutineScope): Game
+    }
 }
 
 class SimpleGame(
     override val board: EvolvingBoard,
     bots: Set<BotPlayer>,
-    initialOrder: List<PlayerId>? = null
+    initialOrder: List<PlayerId>? = null,
+    override val coroutineScope: CoroutineScope
 ) : Game {
     override val players: Map<PlayerId, Player>
     override val order: List<Player>
@@ -88,12 +108,13 @@ class SimpleGame(
         currentPlayer = order.first { isAlive(it) }
     }
 
-    constructor(gameState: Game.State) : this(
+    constructor(gameState: Game.State, coroutineScope: CoroutineScope) : this(
         PrimitiveBoard(gameState.board),
         gameState.bots
             .map { (playerId, tactic) -> tactic.toPlayer(playerId) }
             .toSet(),
-        gameState.order
+        gameState.order,
+        coroutineScope
     )
 
     private fun makeTurn(turn: Pos): Sequence<Transition> {
@@ -110,9 +131,9 @@ class SimpleGame(
         return makeTurn(pos)
     }
 
-    override fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>> {
+    override fun botTurnAsync(): Deferred<Sequence<Transition>> {
         require(currentPlayer is BotPlayer)
-        return async(Dispatchers.Default) {
+        return coroutineScope.async(Dispatchers.Default) {
             val turn =
                 with(currentPlayer as BotPlayer) {
                     makeTurnAsync(board, order.map { it.playerId })
@@ -121,19 +142,8 @@ class SimpleGame(
         }
     }
 
-    companion object {
-        fun example(): SimpleGame {
-            val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
-            val bots: Set<BotPlayer> =
-                setOf(
-//                    RandomPickerBot(PlayerId(0)),
-                    RandomPickerBot(PlayerId(1)),
-                    RandomPickerBot(PlayerId(2)),
-                    RandomPickerBot(PlayerId(3))
-//                LevelMaximizerBot(PlayerId(2), depth = 1),
-//                ChipCountMaximizerBot(PlayerId(3), depth = 1)
-                )
-            return SimpleGame(PrimitiveBoard(board), bots)
-        }
+    object Builder : Game.Builder {
+        override fun of(gameState: Game.State, coroutineScope: CoroutineScope): Game =
+            SimpleGame(gameState, coroutineScope)
     }
 }

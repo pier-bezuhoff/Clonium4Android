@@ -279,4 +279,11 @@ class PrimitiveBoard private constructor(
         private const val NO_CELL = -2
         private const val NO_CHIP = -1
     }
+
+    object Builder : Board.Builder, EvolvingBoard.Builder {
+        override fun of(emptyBoard: EmptyBoard): Board =
+            PrimitiveBoard(SimpleBoard(emptyBoard))
+        override fun of(board: Board): EvolvingBoard =
+            PrimitiveBoard(board)
+    }
 }

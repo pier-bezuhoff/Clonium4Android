@@ -49,7 +49,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         this.initialBoard = board
         this.board = board
         playerItems = playerItemsOf(board).toMutableList()
-        _boardPresenter.value = get<BoardPresenter> { parametersOf(board) }
+        _boardPresenter.value = get<BoardPresenter.Builder>().of(board)
         boardViewInvalidating.send {
             invalidateBoardView()
         }
@@ -100,7 +100,6 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     }
 
     companion object {
-        private const val TAG = "NewGameViewModel"
         private val BOARDS = with(BoardFactory) {
             ringOf(
                 spawn4players(EmptyBoardFactory.TOWER),

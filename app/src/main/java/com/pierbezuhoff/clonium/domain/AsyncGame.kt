@@ -1,5 +1,7 @@
 package com.pierbezuhoff.clonium.domain
 
+import com.pierbezuhoff.clonium.utils.Logger
+import com.pierbezuhoff.clonium.utils.StandardLogger
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import kotlinx.coroutines.*
 import java.util.*
@@ -9,13 +11,15 @@ import kotlin.math.min
 class AsyncGame(
     override val board: EvolvingBoard,
     bots: Set<BotPlayer>,
-    initialOrder: List<PlayerId>? = null
+    initialOrder: List<PlayerId>? = null,
+    override val coroutineScope: CoroutineScope
 ) : Game {
     override val players: Map<PlayerId, Player>
     override val order: List<Player>
     override val lives: MutableMap<Player, Boolean>
     @Suppress("RedundantModalityModifier") // or else "error: property must be initialized or be abstract"
     final override var currentPlayer: Player
+    private val linkedTurns: LinkedTurns
 
     init {
         initialOrder?.let {
@@ -28,43 +32,51 @@ class AsyncGame(
         val humanMap = (playerIds - botIds).associateWith { HumanPlayer(it) }
         players = botMap + humanMap
         order = playerIds.map { players.getValue(it) }
-        require(order.isNotEmpty()) { "SimpleGame should have players" }
+        require(order.isNotEmpty()) { "AsyncGame should have players" }
         lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }.toMutableMap()
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
+        linkedTurns = LinkedTurns(board, order.map { it.playerId }, players, coroutineScope)
     }
 
-    constructor(gameState: Game.State) : this(
+    constructor(gameState: Game.State, coroutineScope: CoroutineScope) : this(
         PrimitiveBoard(gameState.board),
         gameState.bots
             .map { (playerId, tactic) -> tactic.toPlayer(playerId) }
             .toSet(),
-        gameState.order
+        gameState.order,
+        coroutineScope
     )
 
-    private fun makeTurn(turn: Pos): Sequence<Transition> {
+    private fun makeTurn(turn: Pos, trans: Trans): Sequence<Transition> {
         require(turn in possibleTurns())
         val transitions = board.incAnimated(turn)
+        require(board == trans.board)
+        require(transitions == trans.transitions)
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
+        require(currentPlayer.playerId == trans.order.first())
         return transitions
     }
 
     override fun humanTurn(pos: Pos): Sequence<Transition> {
         require(currentPlayer is HumanPlayer)
-        return makeTurn(pos)
+        val trans = linkedTurns.givenHumanTurn(pos)
+        return makeTurn(pos, trans)
     }
 
-    override fun CoroutineScope.botTurnAsync(): Deferred<Sequence<Transition>> {
+    override fun botTurnAsync(): Deferred<Sequence<Transition>> {
         require(currentPlayer is BotPlayer)
-        return async(Dispatchers.Default) {
-            val turn =
-                with(currentPlayer as BotPlayer) {
-                    makeTurnAsync(board, order.map { it.playerId })
-                }.await()
-            return@async makeTurn(turn)
+        return coroutineScope.async(Dispatchers.Default) {
+            val (pos, trans) = linkedTurns.requestBotTurnAsync().await()
+            return@async makeTurn(pos, trans)
         }
+    }
+
+    object Builder : Game.Builder {
+        override fun of(gameState: Game.State, coroutineScope: CoroutineScope): Game =
+            AsyncGame(gameState, coroutineScope)
     }
 }
 
@@ -81,7 +93,7 @@ class G(
                 RandomPickerBot(PlayerId3)
             )
         val order = listOf(PlayerId0, PlayerId1, PlayerId2, PlayerId3)
-        SimpleGame(PrimitiveBoard(board), bots, order)
+        SimpleGame(PrimitiveBoard(board), bots, order, GlobalScope)
     }
 ) {
     private val linkedTurns = LinkedTurns(
@@ -120,29 +132,32 @@ private class LinkedTurns(
     order: List<PlayerId>,
     private val players: Map<PlayerId, Player>,
     private val coroutineScope: CoroutineScope
-) {
+) : Logger by StandardLogger {
     internal var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
     // MAYBE: use PriorityBlockingQueue
     internal val scheduledComputings: PriorityQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
         PriorityQueue(1, NextAsDepthComparator())
-    internal val unknowns: TreeSet<NextAs<Link.Unknown>> =
-        TreeSet(NextAsDepthComparator())
+    internal val unknowns: PriorityQueue<NextAs<Link.Unknown>> =
+        PriorityQueue(10, NextAsDepthComparator())
     private val start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
     internal val focus: Link get() = start.next.link
+    private var nOfTraversedTurns = 0
 
     init {
         require(order.isNotEmpty())
-        if (order.size == 1)
+        if (order.size == 1) {
+            unknowns.clear()
             start.next.link = Link.End
-        else
+        } else {
             discoverUnknowns()
+        }
     }
 
     private fun Next.scheduleTurn(depth: Int) {
         val board = trans.board
         val order = trans.order
         require(order.isNotEmpty())
-        println("${this}\n.scheduleTurn(depth = $depth)\n")
+        log("${this}\n.scheduleTurn(depth = $depth)\n")
         val playerId = order.first()
         when (val player = players.getValue(playerId)) {
             is HumanPlayer -> {
@@ -166,7 +181,7 @@ private class LinkedTurns(
                 scheduleComputation(player, board, order, depth = depth)
             else -> impossibleCaseOf(player)
         }
-        println("scheduleTurn -> \n$link\n")
+        log("scheduleTurn -> \n$link\n")
     }
 
     private fun nextUnknown(trans: Trans, depth: Int): Next {
@@ -178,7 +193,7 @@ private class LinkedTurns(
 
 /*
     private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf) {
-        println("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
+        log("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
         val (chained, free) =
             root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
         for ((_, next) in free) {
@@ -199,7 +214,7 @@ private class LinkedTurns(
 */
 
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
-        println("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
+        log("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
         val computation = Computation(bot, board, order, depth)
         synchronized(ComputingLock) {
             if (computing == null) {
@@ -219,7 +234,7 @@ private class LinkedTurns(
         with(computation) { coroutineScope.runAsync { runNext(it) } }
 
     private fun runNext(computed: Link.FutureTurn.Bot.Computed) {
-        println("runNext(\n$computed\n)\n")
+        log("runNext(\n$computed\n)\n")
         synchronized(ComputingLock) {
             require(computing != null)
             computing!!.next.link = computed
@@ -227,7 +242,7 @@ private class LinkedTurns(
         }
         // add external unknown (from Computation.runAsync)
         unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-        println("runNext(computed) => focus =\n$focus\n")
+        log("runNext(computed) =>\nfocus = $focus\n")
         runNext()
     }
 
@@ -241,21 +256,20 @@ private class LinkedTurns(
                         runComputationAsync(computation)
                     )
                 }
-                println("new computing =\n$newComputing\n")
+                log("new computing =\n$newComputing\n")
                 computing = NextAs(scheduledNextAs.next, newLink = newComputing)
             } ?: discoverUnknowns()
         }
     }
 
     internal fun discoverUnknowns() {
-        println("discoverUnknowns()\n")
-        unknowns
-            .asSequence()
-            .takeWhile { computeWidth() < STOP_WIDTH }
-            .forEach { nextAs: NextAs<Link.Unknown> ->
-                unknowns.remove(nextAs)
-                nextAs.next.scheduleTurn(nextAs.link.depth)
-            }
+        log("discoverUnknowns()\n")
+        while (unknowns.isNotEmpty() && computeWidth() < SOFT_MAX_WIDTH) {
+            val nextAs = unknowns.remove()
+            nextAs.next.scheduleTurn(nextAs.link.depth)
+        }
+        if (computeWidth() >= SOFT_MAX_WIDTH)
+            log("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
     }
 
     fun givenHumanTurn(turn: Pos): Trans {
@@ -264,13 +278,14 @@ private class LinkedTurns(
         require(turn in focus.nexts.keys)
         val (trans, nextFocus) = focus.nexts.getValue(turn)
         start.next.link = nextFocus
+        nOfTraversedTurns ++
         collapseComputations(focus, turn)
         discoverUnknowns()
         return trans
     }
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
-        println("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
+        log("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
         for ((turn, next) in root.nexts)
             if (turn != actualTurn)
                 next.stopComputations()
@@ -308,11 +323,13 @@ private class LinkedTurns(
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
                 start.next.link = focus.next.link
+                nOfTraversedTurns ++
                 return coroutineScope.async { focus.pos to focus.next.trans }
             }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
                 val computed = focus.deferred.await()
                 start.next.link = computed.next.link
+                nOfTraversedTurns ++
                 return@async computed.pos to computed.next.trans
             }
             else -> impossibleCaseOf(focus)
@@ -320,7 +337,7 @@ private class LinkedTurns(
     }
 
     /** Depth of [link] + [depth], `null` means infinite: all possibilities are computed */
-    internal fun computeDepth(link: Link = focus, depth: Int = 0): Int? =
+    internal fun computeDepth(link: Link = focus, depth: Int = nOfTraversedTurns): Int? =
         when (link) {
             is Link.End -> null
             is Link.TemporalTerminal -> depth
@@ -347,12 +364,12 @@ private class LinkedTurns(
             o1.link.depth.compareTo(o2.link.depth)
     }
     companion object {
-        private const val STOP_WIDTH = 10 //0 // soft max width
+        private const val SOFT_MAX_WIDTH = 20
     }
 }
 
 private sealed class Link {
-    interface Transient
+    interface Transient // has next or nexts
     interface Terminal
     interface TemporalTerminal : Terminal
     interface WithDepth { val depth: Int }
@@ -361,19 +378,19 @@ private sealed class Link {
         val next: Next
     ) : Link(), Transient {
         override fun toString(indent: Int) =
-            indentOf(indent) + "Link.Start:\n" + next.toString(indent + 1)
+            indentOf(indent) + "Start:\n" + next.toString(indent + 1)
     }
 
     object End : Link(), Terminal {
         override fun toString() =
-            "Link.End"
+            "End"
     }
 
     class Unknown(
         override val depth: Int
     ) : Link(), TemporalTerminal, WithDepth {
         override fun toString() =
-            "Link.Unknown(depth = $depth)"
+            "Unknown(depth = $depth)"
     }
 
     sealed class FutureTurn(
@@ -388,7 +405,7 @@ private sealed class Link {
                 val nexts: Map<Pos, Next>
             ) : Human(playerId), Transient {
                 override fun toString(indent: Int) =
-                    indentOf(indent) + "Link.FutureTurn.Human.OneOf($playerId):" + nexts.entries.joinToString(
+                    indentOf(indent) + "Human.OneOf($playerId):" + nexts.entries.joinToString(
                         prefix = "\n${indentOf(indent + 1)}[\n",
                         separator = ",\n",
                         postfix = "\n${indentOf(indent + 1)}]"
@@ -405,7 +422,7 @@ private sealed class Link {
                 val next: Next
             ) : Bot(playerId), Transient {
                 override fun toString(indent: Int) =
-                    indentOf(indent) + "Link.FutureTurn.Bot.Computed($playerId, $pos):\n" + next.toString(indent + 1)
+                    indentOf(indent) + "Bot.Computed($playerId, $pos):\n" + next.toString(indent + 1)
             }
             class Computing(
                 playerId: PlayerId,
@@ -414,7 +431,7 @@ private sealed class Link {
                 val deferred: Deferred<Computed>
             ) : Bot(playerId), TemporalTerminal, WithDepth {
                 override fun toString(): String =
-                    "Link.FutureTurn.Bot.Computing($playerId, depth = $depth, $computation)"
+                    "Bot.Computing($playerId, depth = $depth, $computation)"
             }
             class ScheduledComputing(
                 playerId: PlayerId,
@@ -422,7 +439,7 @@ private sealed class Link {
                 val computation: Computation
             ) : Bot(playerId), TemporalTerminal, WithDepth {
                 override fun toString(): String =
-                    "Link.FutureTurn.Bot.ScheduledComputing($playerId, depth = $depth, $computation)"
+                    "Bot.ScheduledComputing($playerId, depth = $depth, $computation)"
             }
         }
     }

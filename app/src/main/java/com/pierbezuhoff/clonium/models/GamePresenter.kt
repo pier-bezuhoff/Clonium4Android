@@ -83,6 +83,10 @@ interface BoardPresenter : SpatialBoard {
     /** Unhighlight all previously [highlight]ed poss */
     fun unhighlight() =
         highlight(emptySet())
+
+    interface Builder {
+        fun of(board: Board): BoardPresenter
+    }
 }
 
 class SimpleBoardPresenter(
@@ -152,6 +156,13 @@ class SimpleBoardPresenter(
     companion object {
         private const val BACKGROUND_COLOR: Int = Color.BLACK
     }
+
+    class Builder(
+        private val bitmapLoader: GameBitmapLoader
+    ) : BoardPresenter.Builder {
+        override fun of(board: Board): BoardPresenter =
+            SimpleBoardPresenter(board, bitmapLoader)
+    }
 }
 
 
@@ -167,6 +178,10 @@ interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     fun startTransitions(transitions: Sequence<Transition>)
     /** Draw current [game] state with animations */
     override fun draw(canvas: Canvas)
+
+    interface Builder {
+        fun of(game: Game): GamePresenter
+    }
 }
 
 // MAYBE: rotate rectangular board along with view
@@ -213,5 +228,14 @@ class SimpleGamePresenter(
                 bitmapLoader = bitmapLoader
             )
         )
+    }
+
+    class Builder(
+        private val bitmapLoader: GameBitmapLoader,
+        private val symmetry: ChipSymmetry,
+        private val transitionsHost: TransitionAnimationsHost
+    ) : GamePresenter.Builder {
+        override fun of(game: Game): GamePresenter =
+            SimpleGamePresenter(game, bitmapLoader, symmetry, transitionsHost)
     }
 }

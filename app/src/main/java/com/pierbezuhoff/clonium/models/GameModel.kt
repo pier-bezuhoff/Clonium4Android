@@ -7,6 +7,8 @@ import com.pierbezuhoff.clonium.domain.BotPlayer
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.HumanPlayer
 import com.pierbezuhoff.clonium.ui.game.DrawThread
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -16,21 +18,21 @@ import org.koin.core.get
 import org.koin.core.parameter.parametersOf
 
 // MAYBE: non-significant explosions are non-blocking
-// TODO: calc maximizers turns ahead while animation or waiting player
 class GameModel(
     val game: Game,
     private val config: GameConfig,
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
+    , Logger by AndroidLogger
     , KoinComponent
 {
-    private val gamePresenter: GamePresenter = get { parametersOf(game) }
+    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game)
     private var continueGameOnce by Once(true)
 
     init {
-        Log.i(TAG, "order = ${game.order.map { it.playerId }.joinToString()}")
-        Log.i(TAG, game.board.asString())
+        log(TAG, "order = ${game.order.map { it.playerId }.joinToString()}")
+        log(TAG, game.board.asString())
     }
 
     fun userTap(point: PointF) {
@@ -63,13 +65,13 @@ class GameModel(
     private fun continueGame() {
         when {
             game.isEnd() -> {
-                Log.i(TAG, "game ended")
+                log(TAG, "game ended")
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> coroutineScope.launch {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
-                delay(config.botMinTime)
                 gamePresenter.freezeBoard()
+                delay(config.botMinTime)
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
                 gamePresenter.startTransitions(transitions)

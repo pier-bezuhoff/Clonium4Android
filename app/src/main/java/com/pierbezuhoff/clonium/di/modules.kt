@@ -8,6 +8,8 @@ import com.pierbezuhoff.clonium.ui.game.GameGestures
 import com.pierbezuhoff.clonium.ui.game.GameViewModel
 import com.pierbezuhoff.clonium.ui.newgame.NewGameBoardGestures
 import com.pierbezuhoff.clonium.ui.newgame.NewGameViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.viewmodel.dsl.viewModel
 import org.koin.core.parameter.parametersOf
@@ -17,19 +19,18 @@ import org.koin.dsl.module
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
     single<ChipSymmetry> { ChipSymmetry.None }
-    factory<Board> { (emptyBoard: EmptyBoard) -> SimpleBoard(emptyBoard) }
-    factory<EvolvingBoard> { (board: Board) -> PrimitiveBoard(board) }
+    factory<Board.Builder> { SimpleBoard.Builder }
+    factory<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
 
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
 
-    factory<Game> { (gameState: Game.State) -> SimpleGame(gameState) }
-    factory<Game>(named(NAMES.EXAMPLE)) { SimpleGame.example() }
+    factory<Game.Builder> { SimpleGame.Builder }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<BoardPresenter> { (board: Board) -> SimpleBoardPresenter(board, get()) }
-    factory<GamePresenter> { (game: Game) -> SimpleGamePresenter(game, get(), get(), get()) }
+    factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get()) }
+    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
     viewModel<NewGameViewModel> { NewGameViewModel(get()) }
@@ -41,7 +42,5 @@ val gameModule = module {
 object NAMES {
     const val GREEN = "green"
     const val STANDARD = "standard"
-    const val WITH_ORDER = "withOrder"
-    const val EXAMPLE = "example"
 }
 

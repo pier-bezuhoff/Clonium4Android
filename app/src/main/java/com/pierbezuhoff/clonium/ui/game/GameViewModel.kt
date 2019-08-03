@@ -33,7 +33,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     fun newGame(gameState: Game.State) {
         if (firstNewGame) {
             newGame(
-                get<Game> { parametersOf(gameState) },
+                get<Game.Builder>().of(gameState, viewModelScope),
                 GameConfig()//botMinTime = 100L, gameSpeed = 5f)
             )
         }
@@ -42,7 +42,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     fun newGame() {
         if (firstNewGame) {
             newGame(
-                get<Game>(named(NAMES.EXAMPLE)),
+                get<Game.Builder>().of(Game.State.example, viewModelScope),
                 GameConfig()
             )
         }

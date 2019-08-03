@@ -260,6 +260,10 @@ interface Board : EmptyBoard {
 
     override fun copy(): Board =
         SimpleBoard(width, height, asPosMap().toMutableMap())
+
+    interface Builder {
+        fun of(emptyBoard: EmptyBoard): Board
+    }
 }
 
 class SimpleBoard(
@@ -304,6 +308,11 @@ class SimpleBoard(
         for ((pos, maybeChip) in pairs)
             board.posMap[pos] = maybeChip
         return board
+    }
+
+    object Builder : Board.Builder {
+        override fun of(emptyBoard: EmptyBoard) =
+            SimpleBoard(emptyBoard)
     }
 }
 
@@ -366,6 +375,10 @@ interface EvolvingBoard : Board {
     @Throws(InvalidTurn::class)
     /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s while recording [Transition]s */
     fun incAnimated(pos: Pos): Sequence<Transition>
+
+    interface Builder {
+        fun of(board: Board): EvolvingBoard
+    }
 }
 // TODO: SimpleEvolvingBoard
 
