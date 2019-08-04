@@ -257,12 +257,10 @@ private class LinkedTurns(
         setFocus(next)
         coroutineScope.launch(Dispatchers.Default) {
             logIMilestoneScope("givenHumanTurn") {
-                //            logIElapsedTime("on collapsing computations:") {
                 collapseComputations(focus, turn)
-                milestonEndOf("collapseComputations")
-//            }
+                milestoneEndOf("collapseComputations")
                 discoverUnknowns()
-                milestonEndOf("discoverUnknowns")
+                milestoneEndOf("discoverUnknowns")
             }
         }
         return next.trans

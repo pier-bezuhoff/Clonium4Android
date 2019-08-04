@@ -23,7 +23,7 @@ interface Logger {
     }
     interface MilestoneScope {
         fun milestone(name: String)
-        fun milestonEndOf(name: String)
+        fun milestoneEndOf(name: String)
     }
 
     fun logV(message: String)
@@ -72,26 +72,31 @@ abstract class AbstractLogger(
     override fun logW(message: String) = log(Logger.Importance.WARNING, message)
     override fun logE(message: String) = log(Logger.Importance.ERROR, message)
 
-    override fun <R> logIElapsedTime(
+    private inline fun <R> logElapsedTime(
+        importance: Logger.Importance,
         prefix: String, postfix: String,
         depthMarker: String, startMarker: String, endMarker: String,
         block: () -> R
     ): R {
-        logI(depthMarker.repeat(measuredCounter) + startMarker)
+        log(importance, depthMarker.repeat(measuredCounter) + startMarker)
         measuredCounter ++
         val (elapsedPretty, result) = measureElapsedTimePretty(block)
         measuredCounter --
-        logI(depthMarker.repeat(measuredCounter) + endMarker + " $prefix $elapsedPretty $postfix")
+        log(importance, depthMarker.repeat(measuredCounter) + endMarker + " $prefix $elapsedPretty $postfix")
         return result
     }
 
-    override fun <R> logIMilestoneScope(
+    override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, startMarker: String, endMarker: String, block: () -> R): R =
+        logElapsedTime(Logger.Importance.INFO, prefix, postfix, depthMarker, startMarker, endMarker, block)
+
+    private inline fun <R> logMilestoneScope(
+        importance: Logger.Importance,
         scopeName: String,
         milestonePrefix: String,
         startMarker: String, endMarker: String,
         block: Logger.MilestoneScope.() -> R
     ): R {
-        logI("$startMarker $scopeName")
+        log(importance, "$startMarker $scopeName")
         val milestoneScope = object : Logger.MilestoneScope {
             var startTime = System.currentTimeMillis()
             var previousMilestoneName = startMarker
@@ -99,22 +104,24 @@ abstract class AbstractLogger(
             override fun milestone(name: String) {
                 val elapsedTime = ElapsedTime(System.currentTimeMillis() - startTime, Unit)
                 startTime = System.currentTimeMillis()
-                logI("$milestonePrefix ($previousMilestoneName >> $name): ${elapsedTime.prettyTime()}")
+                log(importance, "$milestonePrefix ($previousMilestoneName >> $name): ${elapsedTime.prettyTime()}")
                 previousMilestoneName = name
             }
 
-            override fun milestonEndOf(name: String) {
+            override fun milestoneEndOf(name: String) {
                 val elapsedTime = ElapsedTime(System.currentTimeMillis() - startTime, Unit)
                 startTime = System.currentTimeMillis()
-                logI("$milestonePrefix $name: ${elapsedTime.prettyTime()}")
+                log(importance, "$milestonePrefix $name: ${elapsedTime.prettyTime()}")
                 previousMilestoneName = name
             }
         }
         val (elapsedPretty, result) = measureElapsedTimePretty { milestoneScope.block() }
-        logI("$endMarker $scopeName: $elapsedPretty")
+        log(importance, "$endMarker $scopeName: $elapsedPretty")
         return result
     }
 
+    override fun <R> logIMilestoneScope(scopeName: String, milestonePrefix: String, startMarker: String, endMarker: String, block: Logger.MilestoneScope.() -> R): R =
+        logMilestoneScope(Logger.Importance.INFO, scopeName, milestonePrefix, startMarker, endMarker, block)
 
     private suspend fun sLog(importance: Logger.Importance, message: String) {
         if (importance >= minLogImportance)
@@ -143,7 +150,7 @@ class StandardLogger(
     }
 }
 
-object NoLogger : AbstractLogger("NoLogger", Logger.Importance.VERBOSE) {
+object NoLogger : AbstractLogger("NoLogger", Logger.Importance.INF) {
     override fun _log(importance: Logger.Importance, message: String) { }
 }
 
