@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models.animation
 
 import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.utils.Milliseconds
 
 typealias ExplosionsStep = TransitionStep.Stateful.Explosions
 typealias SwiftRotationsStep = TransitionStep.Stateful.SwiftRotations

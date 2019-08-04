@@ -14,7 +14,7 @@ interface Game {
     ) : Serializable {
         companion object {
             val example = run {
-                val board = BoardFactory.spawn4players(EmptyBoardFactory.TOWER)
+                val board = BoardFactory.spawn4players(EmptyBoardFactory.SMALL_TOWER)
                 val bots: Map<PlayerId, PlayerTactic.Bot> =
                     mapOf(
                         PlayerId1 to PlayerTactic.Bot.RandomPicker,
@@ -23,7 +23,12 @@ interface Game {
 //                LevelMaximizerBot(PlayerId(2), depth = 1),
 //                ChipCountMaximizerBot(PlayerId(3), depth = 1)
                     )
-                val order: List<PlayerId>? = null
+                val order: List<PlayerId>? = listOf(
+                    PlayerId0,
+                    PlayerId1,
+                    PlayerId2,
+                    PlayerId3
+                )
                 State(board, bots, order)
             }
         }

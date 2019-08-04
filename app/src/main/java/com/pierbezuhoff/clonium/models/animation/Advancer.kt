@@ -1,8 +1,8 @@
 package com.pierbezuhoff.clonium.models.animation
 
+import com.pierbezuhoff.clonium.utils.Milliseconds
 import kotlin.math.*
 
-typealias Milliseconds = Long
 typealias Progress = Double
 
 interface Advanceable<out T> {

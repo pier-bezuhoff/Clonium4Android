@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models.animation
 
 import android.graphics.Canvas
+import com.pierbezuhoff.clonium.utils.Milliseconds
 
 interface AnimatedStep {
     val blocking: Boolean

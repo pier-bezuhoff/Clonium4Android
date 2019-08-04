@@ -1,13 +1,15 @@
 package com.pierbezuhoff.clonium.domain
 
-import android.util.Log
-import com.pierbezuhoff.clonium.utils.*
-import kotlinx.coroutines.*
-import org.koin.core.time.measureDuration
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.Logger
+import com.pierbezuhoff.clonium.utils.impossibleCaseOf
+import com.pierbezuhoff.clonium.utils.measureTimeMillisWithResult
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import java.util.*
-import kotlin.Comparator
 import kotlin.math.min
-import kotlin.system.measureTimeMillis
 
 class AsyncGame(
     override val board: EvolvingBoard,
@@ -50,7 +52,7 @@ class AsyncGame(
     )
 
     private fun makeTurn(turn: Pos, trans: Trans): Sequence<Transition> {
-        require(turn in possibleTurns())
+        require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
         val transitions = board.incAnimated(turn)
         require(board == trans.board)
         lives.clear()
@@ -80,52 +82,6 @@ class AsyncGame(
     }
 }
 
-class G(
-    val game: Game = run {
-        val board = BoardFactory.spawn4players(EmptyBoardFactory.SMALL_TOWER)
-        val bots: Set<BotPlayer> =
-            setOf(
-//                RandomPickerBot(PlayerId0),
-                LevelMaximizerBot(PlayerId0, depth = 1),
-                RandomPickerBot(PlayerId1),
-//                RandomPickerBot(PlayerId2),
-//                ChipCountMaximizerBot(PlayerId2, depth = 1),
-                RandomPickerBot(PlayerId3)
-            )
-        val order = listOf(PlayerId0, PlayerId1, PlayerId2, PlayerId3)
-        SimpleGame(PrimitiveBoard(board), bots, order, GlobalScope)
-    }
-) {
-    private val linkedTurns = LinkedTurns(
-        PrimitiveBoard(game.board),
-        game.order.map { it.playerId },
-        game.players,
-        GlobalScope
-    )
-
-    val f get() = println(linkedTurns.focus)
-    val w: Int get() = linkedTurns.computeWidth()
-    val d: Int? get() = linkedTurns.computeDepth()
-    val c get() = println(linkedTurns.computing)
-    val sc get() = println(linkedTurns.scheduledComputings.toPrettyString())
-    val u get() = println(linkedTurns.unknowns.toPrettyString())
-
-    fun h(turn: Pos) {
-        linkedTurns.givenHumanTurn(turn)
-        println(linkedTurns.focus)
-    }
-
-    fun r() {
-        linkedTurns.requestBotTurnAsync()
-        println(linkedTurns.focus)
-    }
-
-    fun d() {
-        linkedTurns.discoverUnknowns()
-        println(linkedTurns.focus)
-    }
-}
-
 @Suppress("unused")
 private class LinkedTurns(
     board: EvolvingBoard,
@@ -135,14 +91,14 @@ private class LinkedTurns(
 ) : Any()
     , Logger by AndroidLogger("LinkedTurns", Logger.Importance.INFO)
 {
-    internal var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
+    private var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
     // MAYBE: use PriorityBlockingQueue
-    internal val scheduledComputings: PriorityQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
+    private val scheduledComputings: PriorityQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
         PriorityQueue(1, NextAsDepthComparator())
-    internal val unknowns: PriorityQueue<NextAs<Link.Unknown>> =
+    private val unknowns: PriorityQueue<NextAs<Link.Unknown>> =
         PriorityQueue(10, NextAsDepthComparator())
-    private val start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
-    internal val focus: Link get() = start.next.link
+    private var start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
+    private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
 
     init {
@@ -195,7 +151,7 @@ private class LinkedTurns(
 
 /*
     private fun scheduleTurnsAfterHuman(rootBoard: EvolvingBoard, root: Link.FutureTurn.Human.OneOf) {
-        logI("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
+        logV("scheduleTurnsAfterHuman($rootBoard,\n$root\n)\n")
         val (chained, free) =
             root.nexts.entries.partition { rootBoard.levelAt(it.key) == Level3 }
         for ((_, next) in free) {
@@ -242,12 +198,12 @@ private class LinkedTurns(
         synchronized(ComputingLock) {
             require(computing != null)
             computing!!.next.link = computed
-            logI("runNext(computed) =>\ncomputing = $computing")
+            logV("runNext(computed) =>\ncomputing = $computing")
             computing = null
         }
         // add external unknown (from Computation.runAsync)
         unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-        logI("runNext(computed) =>\nfocus = $focus")
+        logV("runNext(computed) =>\nfocus = $focus")
         runNext()
     }
 
@@ -267,9 +223,9 @@ private class LinkedTurns(
         }
     }
 
-    internal fun discoverUnknowns() {
+    private fun discoverUnknowns() {
         logI("discoverUnknowns()\n")
-        while (unknowns.isNotEmpty() && computeWidth() < SOFT_MAX_WIDTH) {
+        while (unknowns.isNotEmpty() && (/*computeDepth(depth = 0)!! <= 5 ||*/ computeWidth() < SOFT_MAX_WIDTH)) {
             val nextAs = unknowns.remove()
             nextAs.next.scheduleTurn(nextAs.link.depth)
         }
@@ -277,24 +233,33 @@ private class LinkedTurns(
             logI("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
     }
 
+    private fun setFocus(next: Next) {
+        logV("move focus = $focus\nto new focus = ${next.link}")
+        start = Link.Start(next)
+        nOfTraversedTurns ++
+    }
+
     fun givenHumanTurn(turn: Pos): Trans {
-        logI("givenHumanTurn($turn):")
-        logI("focus = $focus")
-        logI("computing = $computing")
-        logI("scheduledComputings = ${scheduledComputings.toPrettyString()}")
-        logI("unknowns = ${unknowns.toPrettyString()}")
-        require(focus is Link.FutureTurn.Human.OneOf) { logE("focus = $focus") }
+        // TODO: return BEFORE running some expensive collapse, etc.
+        logV("givenHumanTurn($turn):")
+        logV("focus = $focus")
+        logV("computing = $computing")
+        logV("scheduledComputings = ${scheduledComputings.toPrettyString()}")
+        logV("unknowns = ${unknowns.toPrettyString()}")
+        require(focus is Link.FutureTurn.Human.OneOf) { "focus = $focus" }
         val focus = focus as Link.FutureTurn.Human.OneOf
         require(turn in focus.nexts.keys)
-        val (trans, nextFocus) = focus.nexts.getValue(turn)
-        start.next.link = nextFocus
-        nOfTraversedTurns ++
+        val next = focus.nexts.getValue(turn)
+        setFocus(next)
         collapseComputations(focus, turn)
-        return trans
+        // if nextFocus is Unknown => start.next.trans.order does not contain valid order
+        discoverUnknowns()
+        logV("after human focus = ${this.focus}")
+        return next.trans
     }
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
-        logI("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
+        logV("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
         synchronized(ComputingLock) {
             for ((turn, next) in root.nexts) {
                 if (turn != actualTurn) {
@@ -324,8 +289,7 @@ private class LinkedTurns(
             if (computing == null && scheduledComputings.isNotEmpty()) // when t'was stopped
                 runNext()
         }
-        logI("unknowns = ${unknowns.toPrettyString()}")
-        discoverUnknowns()
+        logV("unknowns = ${unknowns.toPrettyString()}")
     }
 
     private fun Next.stopComputations() {
@@ -354,20 +318,20 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        require(focus is Link.FutureTurn.Bot) { logE("focus = $focus") }
+        require(focus is Link.FutureTurn.Bot) { "focus = $focus" }
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
-                start.next.link = focus.next.link
-                nOfTraversedTurns ++
+                logV("computed to focus")
+                setFocus(focus.next)
                 return coroutineScope.async { focus.pos to focus.next.trans }
             }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
-                val startTime = System.currentTimeMillis()
-                val computed = focus.deferred.await()
-                val elapsed = System.currentTimeMillis() - startTime
-                logW("Slow bot ${computed.playerId}: $elapsed ms\n")
-                start.next.link = computed.next.link
-                nOfTraversedTurns ++
+                val (elapsed, computed) = measureTimeMillisWithResult {
+                    focus.deferred.await()
+                }
+                logW("Slow bot ${players.getValue(computed.playerId)}: $elapsed ms\n")
+                logV("computing to focus")
+                setFocus(computed.next)
                 return@async computed.pos to computed.next.trans
             }
             else -> impossibleCaseOf(focus)
@@ -375,7 +339,7 @@ private class LinkedTurns(
     }
 
     /** Depth of [link] + [depth], `null` means infinite: all possibilities are computed */
-    internal fun computeDepth(link: Link = focus, depth: Int = nOfTraversedTurns): Int? =
+    private fun computeDepth(link: Link = focus, depth: Int = nOfTraversedTurns): Int? =
         when (link) {
             is Link.End -> null
             is Link.TemporalTerminal -> depth
@@ -388,7 +352,7 @@ private class LinkedTurns(
             else -> impossibleCaseOf(link)
         }
 
-    internal fun computeWidth(root: Link = focus): Int =
+    private fun computeWidth(root: Link = focus): Int =
         when (root) {
             is Link.FutureTurn.Bot.Computed -> computeWidth(root.next.link)
             is Link.FutureTurn.Human.OneOf -> root.nexts.values.sumBy { computeWidth(it.link) }
@@ -403,6 +367,7 @@ private class LinkedTurns(
     }
     companion object {
         private const val SOFT_MAX_WIDTH = 5
+        private const val SOFT_MIN_DEPTH = 5
     }
 }
 
