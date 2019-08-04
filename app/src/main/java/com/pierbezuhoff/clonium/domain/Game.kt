@@ -40,6 +40,8 @@ interface Game {
     val lives: Map<Player, Boolean>
     val currentPlayer: Player
 
+    val lastTurn: Pos?
+
     val coroutineScope: CoroutineScope
 
     fun isAlive(player: Player): Boolean =
@@ -95,6 +97,8 @@ class SimpleGame(
     override val lives: MutableMap<Player, Boolean>
     @Suppress("RedundantModalityModifier") // or else "error: property must be initialized or be abstract"
     final override var currentPlayer: Player
+    override var lastTurn: Pos? = null
+        private set
 
     init {
         initialOrder?.let {
@@ -124,6 +128,7 @@ class SimpleGame(
 
     private fun makeTurn(turn: Pos): Sequence<Transition> {
         require(turn in possibleTurns())
+        lastTurn = turn
         val transitions = board.incAnimated(turn)
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }

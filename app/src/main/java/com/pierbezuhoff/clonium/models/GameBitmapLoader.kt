@@ -14,6 +14,8 @@ interface AssetBitmapLoader {
 interface GameBitmapLoader : AssetBitmapLoader {
     fun loadCell(): Bitmap
     fun loadHighlight(weak: Boolean = false): Bitmap
+    fun loadLastTurnHighlight(): Bitmap
+    fun loadNextTurnOutline(): Bitmap
     fun loadChip(chip: Chip): Bitmap
     fun loadBottomOfChip(chip: Chip): Bitmap
 }
@@ -39,6 +41,12 @@ abstract class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAsset
         val opacity = if (weak) 15 else 25
         return loadAssetBitmap("highlight-$opacity.png")
     }
+
+    override fun loadLastTurnHighlight(): Bitmap =
+        loadAssetBitmap("last-turn.png")
+
+    override fun loadNextTurnOutline(): Bitmap =
+        loadAssetBitmap("next-turn.png")
 }
 
 class StandardGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader(assetManager)

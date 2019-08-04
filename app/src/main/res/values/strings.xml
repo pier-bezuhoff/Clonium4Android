@@ -12,4 +12,5 @@
     <string name="next_board">Next board</string>
     <string name="level_minimizer">Level minimizer %d</string>
     <string name="level_balancer">Level balancer %d</string>
+    <string name="drag_handle">Drag handle</string>
 </resources>

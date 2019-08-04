@@ -18,6 +18,9 @@ import org.koin.core.get
 import org.koin.core.parameter.parametersOf
 
 // MAYBE: non-significant explosions are non-blocking
+// MAYBE: new type: board with highlights
+// TODO: show all last turns in the round if no intersection (with decreasing visibility?)
+// TODO: issue pre-turn (BoardPresenter.showNextTurn)
 class GameModel(
     val game: Game,
     private val config: GameConfig,
@@ -43,6 +46,7 @@ class GameModel(
                 gamePresenter.unhighlight()
                 gamePresenter.freezeBoard()
                 val transitions = game.humanTurn(pos)
+                gamePresenter.highlightLastTurn(game.lastTurn!!)
                 gamePresenter.startTransitions(transitions)
                 gamePresenter.unfreezeBoard()
                 continueGameOnce = true
@@ -65,7 +69,7 @@ class GameModel(
     private fun continueGame() {
         when {
             game.isEnd() -> {
-                logI("game ended")
+                logI("game ended: ${game.currentPlayer} won")
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> coroutineScope.launch {
@@ -74,6 +78,7 @@ class GameModel(
                 delay(config.botMinTime)
                 val transitions = with(game) { botTurnAsync() }.await()
                 gamePresenter.unhighlight()
+                gamePresenter.highlightLastTurn(game.lastTurn!!)
                 gamePresenter.startTransitions(transitions)
                 gamePresenter.unfreezeBoard()
                 continueGameOnce = true

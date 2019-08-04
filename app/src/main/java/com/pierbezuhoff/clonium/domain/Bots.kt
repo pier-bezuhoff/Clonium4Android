@@ -1,6 +1,9 @@
 package com.pierbezuhoff.clonium.domain
 
-import android.util.Log
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.Logger
+import com.pierbezuhoff.clonium.utils.measureElapsedTime
+import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.*
 
 interface BotPlayer : Player {
@@ -55,7 +58,7 @@ object MaximizingStrategy {
                 allVariations(
                     nTurns - 1,
                     nextPlayerId, order,
-                    board.copy().apply { inc(turn) } // FIX: cause InvalidTurn
+                    board.copy().apply { inc(turn) }
                 )
             }
     }
@@ -97,7 +100,10 @@ abstract class MaximizerBot(
     override val playerId: PlayerId,
     private val estimate: (Board) -> Int,
     private val depth: Int
-): BotPlayer {
+): Any()
+    , BotPlayer
+    , Logger by AndroidLogger("MaximizerBot")
+{
 
     override fun CoroutineScope.makeTurnAsync(
         board: Board, order: List<PlayerId>
@@ -108,19 +114,16 @@ abstract class MaximizerBot(
             if (possibleTurns.size == 1)
                 return@async possibleTurns.first()
             val evolvingBoard = PrimitiveBoard(board)
-            val startTime = System.currentTimeMillis()
-            val bestTurn = possibleTurns
-                .maxBy { turn ->
-                    MaximizingStrategy.estimateTurn(
-                        turn, depth, estimate,
-                        playerId, order, evolvingBoard
-                    )
-                }!!
-            val elapsedTime = System.currentTimeMillis() - startTime
-            // NOTE: Dispatchers.Main is android-unique
-//            withContext(Dispatchers.Main) {
-//                Log.i(difficultyName, "thought $elapsedTime ms")
-//            }
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                possibleTurns
+                    .maxBy { turn ->
+                        MaximizingStrategy.estimateTurn(
+                            turn, depth, estimate,
+                            playerId, order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
             return@async bestTurn
         }
     }

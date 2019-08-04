@@ -380,7 +380,6 @@ interface EvolvingBoard : Board {
         fun of(board: Board): EvolvingBoard
     }
 }
-// TODO: SimpleEvolvingBoard
 
 
 object EmptyBoardFactory {

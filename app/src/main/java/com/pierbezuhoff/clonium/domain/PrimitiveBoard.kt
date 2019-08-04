@@ -179,7 +179,7 @@ class PrimitiveBoard private constructor(
     ): Set<Int> =
         suspiciousIxs.filter { hasUnstableLevel(it) }.toSet()
 
-    // TODO: detect chains pAndP explode whole chains
+    // TODO: detect chains and explode whole chains
     private tailrec fun evolve(unstable: Set<Int>) {
         if (unstable.isNotEmpty()) {
             val changed = explode(unstable)

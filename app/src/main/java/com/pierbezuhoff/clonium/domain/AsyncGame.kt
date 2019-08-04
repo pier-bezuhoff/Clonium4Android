@@ -1,16 +1,11 @@
 package com.pierbezuhoff.clonium.domain
 
-import com.pierbezuhoff.clonium.utils.AndroidLogger
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.impossibleCaseOf
-import com.pierbezuhoff.clonium.utils.measureTimeMillisWithResult
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import com.pierbezuhoff.clonium.utils.*
+import kotlinx.coroutines.*
 import java.util.*
 import kotlin.math.min
 
+// TODO: do not store transitions in Trans: useless
 class AsyncGame(
     override val board: EvolvingBoard,
     bots: Set<BotPlayer>,
@@ -23,6 +18,8 @@ class AsyncGame(
     @Suppress("RedundantModalityModifier") // or else "error: property must be initialized or be abstract"
     final override var currentPlayer: Player
     private val linkedTurns: LinkedTurns
+    override var lastTurn: Pos? = null
+        private set
 
     init {
         initialOrder?.let {
@@ -53,6 +50,7 @@ class AsyncGame(
 
     private fun makeTurn(turn: Pos, trans: Trans): Sequence<Transition> {
         require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
+        lastTurn = turn
         val transitions = board.incAnimated(turn)
         require(board == trans.board)
         lives.clear()
@@ -82,7 +80,6 @@ class AsyncGame(
     }
 }
 
-@Suppress("unused")
 private class LinkedTurns(
     board: EvolvingBoard,
     order: List<PlayerId>,
@@ -173,7 +170,7 @@ private class LinkedTurns(
 
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
         logV("scheduleComputation($bot, $board,\n$order, depth = $depth)\n")
-        // BUG: random picker reports no possible turns
+        // MAYBE: random picker reports no possible turns (reproducible?)
         require(board.possOf(bot.playerId).isNotEmpty())
         val computation = Computation(bot, board, order, depth)
         synchronized(ComputingLock) {
@@ -224,8 +221,8 @@ private class LinkedTurns(
     }
 
     private fun discoverUnknowns() {
-        logI("discoverUnknowns()\n")
-        while (unknowns.isNotEmpty() && (/*computeDepth(depth = 0)!! <= 5 ||*/ computeWidth() < SOFT_MAX_WIDTH)) {
+        logV("discoverUnknowns()\n")
+        while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
             val nextAs = unknowns.remove()
             nextAs.next.scheduleTurn(nextAs.link.depth)
         }
@@ -234,13 +231,13 @@ private class LinkedTurns(
     }
 
     private fun setFocus(next: Next) {
+        logV("focus = $focus")
         logV("move focus = $focus\nto new focus = ${next.link}")
         start = Link.Start(next)
         nOfTraversedTurns ++
     }
 
     fun givenHumanTurn(turn: Pos): Trans {
-        // TODO: return BEFORE running some expensive collapse, etc.
         logV("givenHumanTurn($turn):")
         logV("focus = $focus")
         logV("computing = $computing")
@@ -251,10 +248,11 @@ private class LinkedTurns(
         require(turn in focus.nexts.keys)
         val next = focus.nexts.getValue(turn)
         setFocus(next)
-        collapseComputations(focus, turn)
-        // if nextFocus is Unknown => start.next.trans.order does not contain valid order
-        discoverUnknowns()
-        logV("after human focus = ${this.focus}")
+        coroutineScope.launch {
+            collapseComputations(focus, turn)
+            // if nextFocus is Unknown => start.next.trans.order does not contain valid order
+            discoverUnknowns()
+        }
         return next.trans
     }
 
@@ -326,10 +324,10 @@ private class LinkedTurns(
                 return coroutineScope.async { focus.pos to focus.next.trans }
             }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
-                val (elapsed, computed) = measureTimeMillisWithResult {
+                val (elapsedPretty, computed) = measureElapsedTimePretty {
                     focus.deferred.await()
                 }
-                logW("Slow bot ${players.getValue(computed.playerId)}: $elapsed ms\n")
+                logW("Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n")
                 logV("computing to focus")
                 setFocus(computed.next)
                 return@async computed.pos to computed.next.trans
@@ -366,15 +364,15 @@ private class LinkedTurns(
             o1.link.depth.compareTo(o2.link.depth)
     }
     companion object {
-        private const val SOFT_MAX_WIDTH = 5
+        private const val SOFT_MAX_WIDTH = 20
         private const val SOFT_MIN_DEPTH = 5
     }
 }
 
 private sealed class Link {
     interface Transient // has next or nexts
-    interface Terminal
-    interface TemporalTerminal : Terminal
+    interface Terminal // has no next
+    interface TemporalTerminal : Terminal // may become Transient in future
     interface WithDepth { val depth: Int }
 
     class Start(

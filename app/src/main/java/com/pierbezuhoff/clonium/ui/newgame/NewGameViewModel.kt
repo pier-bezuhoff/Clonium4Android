@@ -1,18 +1,19 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.BoardPresenter
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.utils.Connection
-import com.pierbezuhoff.clonium.utils.Ring
 import com.pierbezuhoff.clonium.utils.ringOf
 import org.koin.core.get
-import org.koin.core.parameter.parametersOf
 
+// TODO: choose color of chip
+// TODO: tap to move handle
+// TODO: preserve players and order on next/previous
+// BUG: after next/previous dragging does not work
 class NewGameViewModel(application: Application) : CloniumAndroidViewModel(application)
     , PlayerAdapter.BoardPlayerHider
     , PlayerAdapter.BoardPlayerHighlighter
@@ -45,7 +46,8 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     private fun getLastBoard(): Board =
         BOARDS.focus
 
-    fun setBoard(board: Board) {
+    fun setBoard(newBoard: Board) {
+        val board = shufflePlayerIds(newBoard)
         this.initialBoard = board
         this.board = board
         playerItems = playerItemsOf(board).toMutableList()
@@ -53,6 +55,18 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         boardViewInvalidating.send {
             invalidateBoardView()
         }
+    }
+
+    private fun shufflePlayerIds(board: Board): Board {
+        val shuffling = board.players()
+            .zip((0..5).shuffled().map { PlayerId(it) })
+            .toMap()
+        val simpleBoard = SimpleBoard(board)
+        for ((pos, maybeChip) in simpleBoard.posMap)
+            maybeChip?.let { (playerId, level) ->
+                simpleBoard.posMap[pos] = Chip(shuffling.getValue(playerId), level)
+            }
+        return simpleBoard
     }
 
     private fun playerItemsOf(board: Board): List<PlayerItem> {

@@ -1,7 +1,6 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.*
-import android.util.Log
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
@@ -84,6 +83,9 @@ interface BoardPresenter : SpatialBoard {
     /** Unhighlight all previously [highlight]ed poss */
     fun unhighlight() =
         highlight(emptySet())
+    fun highlightLastTurn(turn: Pos)
+    fun showNextTurn(turn: Pos)
+    fun hideNextTurn()
 
     interface Builder {
         fun of(board: Board): BoardPresenter
@@ -102,6 +104,8 @@ class SimpleBoardPresenter(
     )
     private var weakHighlight: Boolean = false
     private var highlighted: Set<Pos> = emptySet()
+    private var lastTurn: Pos? = null
+    private var nextTurn: Pos? = null
 
     override fun Canvas.drawBoard(board: Board) {
         drawColor(BACKGROUND_COLOR)
@@ -109,6 +113,8 @@ class SimpleBoardPresenter(
             drawCell(pos)
         for (pos in highlighted)
             drawHighlight(pos)
+        drawLastTurn()
+        drawNextTurn()
         for ((pos, maybeChip) in board.asPosMap())
             maybeChip?.let {
                 drawChip(pos, it)
@@ -126,8 +132,7 @@ class SimpleBoardPresenter(
         )
     }
 
-    private fun Canvas.drawHighlight(pos: Pos) {
-        val bitmap = bitmapLoader.loadHighlight(weak = weakHighlight)
+    private fun Canvas.drawBitmapAt(bitmap: Bitmap, pos: Pos) {
         val rescaleMatrix = rescaleMatrix(bitmap)
         val translateMatrix = pos2translationMatrix(pos)
         drawBitmap(
@@ -135,6 +140,21 @@ class SimpleBoardPresenter(
             translateMatrix * rescaleMatrix,
             bitmapPaint
         )
+    }
+
+    private fun Canvas.drawHighlight(pos: Pos) =
+        drawBitmapAt(bitmapLoader.loadHighlight(weak = weakHighlight), pos)
+
+    private fun Canvas.drawLastTurn() {
+        lastTurn?.let {
+            drawBitmapAt(bitmapLoader.loadLastTurnHighlight(), it)
+        }
+    }
+
+    private fun Canvas.drawNextTurn() {
+        nextTurn?.let {
+            drawBitmapAt(bitmapLoader.loadNextTurnOutline(), it)
+        }
     }
 
     private fun Canvas.drawChip(pos: Pos, chip: Chip) {
@@ -152,6 +172,18 @@ class SimpleBoardPresenter(
     override fun highlight(poss: Set<Pos>, weak: Boolean) {
         highlighted = poss
         weakHighlight = weak
+    }
+
+    override fun highlightLastTurn(turn: Pos) {
+        lastTurn = turn
+    }
+
+    override fun showNextTurn(turn: Pos) {
+        nextTurn = turn
+    }
+
+    override fun hideNextTurn() {
+        nextTurn = null
     }
 
     companion object {

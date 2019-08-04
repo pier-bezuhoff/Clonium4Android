@@ -20,10 +20,7 @@ data class PlayerItem(
     val playerId: PlayerId,
     var tactic: PlayerTactic,
     var participate: Boolean
-) {
-    fun toPlayer(): Player =
-        tactic.toPlayer(playerId)
-}
+)
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
     override fun isLongPressDragEnabled(): Boolean =
