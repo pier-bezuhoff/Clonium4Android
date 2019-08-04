@@ -147,7 +147,7 @@ class SimpleBoardPresenter(
 
     private fun Canvas.drawLastTurn() {
         lastTurn?.let {
-            drawBitmapAt(bitmapLoader.loadLastTurnHighlight(), it)
+            drawBitmapAt(bitmapLoader.loadMainLastTurnHighlight(), it)
         }
     }
 

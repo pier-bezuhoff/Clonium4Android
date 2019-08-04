@@ -258,7 +258,7 @@ private class LinkedTurns(
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
         logV("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
-        synchronized(ComputingLock) {
+        synchronized(ComputingLock) { // FIX: blocks bots' turns
             for ((turn, next) in root.nexts) {
                 if (turn != actualTurn) {
                     next.stopComputations()

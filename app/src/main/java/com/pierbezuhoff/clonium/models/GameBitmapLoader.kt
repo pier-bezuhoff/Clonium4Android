@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
 import com.pierbezuhoff.clonium.domain.Chip
+import com.pierbezuhoff.clonium.domain.Highlighting
 import java.io.IOException
 
 interface AssetBitmapLoader {
@@ -13,11 +14,9 @@ interface AssetBitmapLoader {
 
 interface GameBitmapLoader : AssetBitmapLoader {
     fun loadCell(): Bitmap
-    fun loadHighlight(weak: Boolean = false): Bitmap
-    fun loadLastTurnHighlight(): Bitmap
-    fun loadNextTurnOutline(): Bitmap
     fun loadChip(chip: Chip): Bitmap
     fun loadBottomOfChip(chip: Chip): Bitmap
+    fun loadHighlighting(highlighting: Highlighting): Bitmap
 }
 
 open class CachingAssetBitmapLoader(private val assetManager: AssetManager) : AssetBitmapLoader {
@@ -37,16 +36,16 @@ abstract class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAsset
     override fun loadCell(): Bitmap =
         loadAssetBitmap("cells/blue.png")
 
-    override fun loadHighlight(weak: Boolean): Bitmap {
-        val opacity = if (weak) 15 else 25
-        return loadAssetBitmap("highlight-$opacity.png")
-    }
-
-    override fun loadLastTurnHighlight(): Bitmap =
-        loadAssetBitmap("last-turn.png")
-
-    override fun loadNextTurnOutline(): Bitmap =
-        loadAssetBitmap("next-turn.png")
+    override fun loadHighlighting(highlighting: Highlighting): Bitmap =
+        loadAssetBitmap(
+            when (highlighting) {
+                Highlighting.PossibleTurn.Human -> "highlights/highlight-strong.png"
+                Highlighting.PossibleTurn.Bot -> "highlights/highlight-weak.png"
+                Highlighting.LastTurn.Main -> "highlights/last-turn-main.png"
+                Highlighting.LastTurn.Minor -> "highlights/last-turn-minor.png"
+                Highlighting.NextTurn -> "highlights/next-turn.png"
+            }
+        )
 }
 
 class StandardGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader(assetManager)
