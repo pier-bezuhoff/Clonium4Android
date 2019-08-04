@@ -21,62 +21,101 @@ interface Logger {
         object InfImportanceException : IllegalArgumentException("Importance.INF cannot be log-ged")
     }
 
-    val logTag: String
-    val minLogImportance: Importance
+    fun logV(message: String)
+    fun logD(message: String)
+    fun logI(message: String)
+    fun logW(message: String)
+    fun logE(message: String)
 
-    fun log(importance: Importance, message: String)
-    fun logV(message: String) = log(Importance.VERBOSE, message)
-    fun logD(message: String) = log(Importance.DEBUG, message)
-    fun logI(message: String) = log(Importance.INFO, message)
-    fun logW(message: String) = log(Importance.WARNING, message)
-    fun logE(message: String) = log(Importance.ERROR, message)
+    fun <R> logIElapsedTime(
+        prefix: String = "elapsed:",
+        postfix: String = "",
+        depthMarker: String = "-",
+        block: () -> R
+    ): R
 
-    suspend fun sLog(importance: Importance, message: String)
-    suspend fun sLogV(message: String) = sLog(Importance.VERBOSE, message)
-    suspend fun sLogD(message: String) = sLog(Importance.DEBUG, message)
-    suspend fun sLogI(message: String) = sLog(Importance.INFO, message)
-    suspend fun sLogW(message: String) = sLog(Importance.WARNING, message)
-    suspend fun sLogE(message: String) = sLog(Importance.ERROR, message)
+    suspend fun sLogV(message: String)
+    suspend fun sLogD(message: String)
+    suspend fun sLogI(message: String)
+    suspend fun sLogW(message: String)
+    suspend fun sLogE(message: String)
+}
+
+abstract class AbstractLogger(
+    protected val logTag: String,
+    protected val minLogImportance: Logger.Importance
+) : Logger {
+    private var measuredCounter = 0
+
+    private fun log(importance: Logger.Importance, message: String) {
+        if (importance >= minLogImportance)
+            _log(importance, message)
+    }
+
+    override fun logV(message: String) = log(Logger.Importance.VERBOSE, message)
+    override fun logD(message: String) = log(Logger.Importance.DEBUG, message)
+    override fun logI(message: String) = log(Logger.Importance.INFO, message)
+    override fun logW(message: String) = log(Logger.Importance.WARNING, message)
+    override fun logE(message: String) = log(Logger.Importance.ERROR, message)
+
+    override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, block: () -> R): R {
+        logI(depthMarker.repeat(measuredCounter) + "[")
+        measuredCounter ++
+        val (elapsedPretty, result) = measureElapsedTimePretty(block)
+        measuredCounter --
+        logI(depthMarker.repeat(measuredCounter) + "] $prefix $elapsedPretty $postfix")
+        return result
+    }
+
+    private suspend fun sLog(importance: Logger.Importance, message: String) {
+        if (importance >= minLogImportance)
+            _sLog(importance, message)
+    }
+
+    override suspend fun sLogV(message: String) = sLog(Logger.Importance.VERBOSE, message)
+    override suspend fun sLogD(message: String) = sLog(Logger.Importance.DEBUG, message)
+    override suspend fun sLogI(message: String) = sLog(Logger.Importance.INFO, message)
+    override suspend fun sLogW(message: String) = sLog(Logger.Importance.WARNING, message)
+    override suspend fun sLogE(message: String) = sLog(Logger.Importance.ERROR, message)
+
+    abstract fun _log(importance: Logger.Importance, message: String)
+
+    open suspend fun _sLog(importance: Logger.Importance, message: String) {
+        _log(importance, message)
+    }
 }
 
 class StandardLogger(
-    override val logTag: String = "StandardLogger",
-    override val minLogImportance: Logger.Importance = Logger.Importance.VERBOSE
-) : Logger {
-    override fun log(importance: Logger.Importance, message: String) {
-        if (importance >= minLogImportance)
-            println("${importance.shorten()}/$logTag: ${message.trimEnd('\n')}\n")
+    logTag: String = "StandardLogger",
+    minLogImportance: Logger.Importance = Logger.Importance.VERBOSE
+) : AbstractLogger(logTag, minLogImportance) {
+    override fun _log(importance: Logger.Importance, message: String) {
+        println("${importance.shorten()}/$logTag: ${message.trimEnd('\n')}\n")
     }
-    override suspend fun sLog(importance: Logger.Importance, message: String) =
-        this@StandardLogger.log(importance, message)
 }
 
-object NoLogger : Logger {
-    override val logTag: String = "NoLogger"
-    override val minLogImportance: Logger.Importance = Logger.Importance.INF
-    override fun log(importance: Logger.Importance, message: String) { }
-    override suspend fun sLog(importance: Logger.Importance, message: String) { }
+object NoLogger : AbstractLogger("NoLogger", Logger.Importance.VERBOSE) {
+    override fun _log(importance: Logger.Importance, message: String) { }
 }
 
 class AndroidLogger(
-    override val logTag: String = "AndroidLogger",
-    override val minLogImportance: Logger.Importance = Logger.Importance.VERBOSE
-) : Logger {
-    override fun log(importance: Logger.Importance, message: String) {
-        if (importance >= minLogImportance)
-            when (importance) {
-                Logger.Importance.VERBOSE -> Log.v(logTag, message)
-                Logger.Importance.DEBUG -> Log.d(logTag, message)
-                Logger.Importance.INFO -> Log.i(logTag, message)
-                Logger.Importance.WARNING -> Log.w(logTag, message)
-                Logger.Importance.ERROR -> Log.e(logTag, message)
-                Logger.Importance.INF -> throw Logger.Importance.InfImportanceException
-            }
+    logTag: String = "AndroidLogger",
+    minLogImportance: Logger.Importance = Logger.Importance.VERBOSE
+) : AbstractLogger(logTag, minLogImportance) {
+    override fun _log(importance: Logger.Importance, message: String) {
+        when (importance) {
+            Logger.Importance.VERBOSE -> Log.v(logTag, message)
+            Logger.Importance.DEBUG -> Log.d(logTag, message)
+            Logger.Importance.INFO -> Log.i(logTag, message)
+            Logger.Importance.WARNING -> Log.w(logTag, message)
+            Logger.Importance.ERROR -> Log.e(logTag, message)
+            Logger.Importance.INF -> throw Logger.Importance.InfImportanceException
+        }
     }
 
-    override suspend fun sLog(importance: Logger.Importance, message: String) {
+    override suspend fun _sLog(importance: Logger.Importance, message: String) {
         withContext(Dispatchers.Main) {
-            this@AndroidLogger.log(importance, message)
+            this@AndroidLogger._log(importance, message)
         }
     }
 }

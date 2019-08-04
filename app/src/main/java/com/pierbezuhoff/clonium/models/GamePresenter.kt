@@ -84,8 +84,6 @@ interface BoardPresenter : SpatialBoard {
     fun unhighlight() =
         highlight(emptySet())
     fun highlightLastTurn(turn: Pos)
-    fun showNextTurn(turn: Pos)
-    fun hideNextTurn()
 
     interface Builder {
         fun of(board: Board): BoardPresenter
@@ -105,7 +103,6 @@ class SimpleBoardPresenter(
     private var weakHighlight: Boolean = false
     private var highlighted: Set<Pos> = emptySet()
     private var lastTurn: Pos? = null
-    private var nextTurn: Pos? = null
 
     override fun Canvas.drawBoard(board: Board) {
         drawColor(BACKGROUND_COLOR)
@@ -113,8 +110,6 @@ class SimpleBoardPresenter(
             drawCell(pos)
         for (pos in highlighted)
             drawHighlight(pos)
-        drawLastTurn()
-        drawNextTurn()
         for ((pos, maybeChip) in board.asPosMap())
             maybeChip?.let {
                 drawChip(pos, it)
@@ -143,19 +138,13 @@ class SimpleBoardPresenter(
     }
 
     private fun Canvas.drawHighlight(pos: Pos) =
-        drawBitmapAt(bitmapLoader.loadHighlight(weak = weakHighlight), pos)
-
-    private fun Canvas.drawLastTurn() {
-        lastTurn?.let {
-            drawBitmapAt(bitmapLoader.loadMainLastTurnHighlight(), it)
-        }
-    }
-
-    private fun Canvas.drawNextTurn() {
-        nextTurn?.let {
-            drawBitmapAt(bitmapLoader.loadNextTurnOutline(), it)
-        }
-    }
+        drawBitmapAt(
+            bitmapLoader.loadHighlighting(
+                if (weakHighlight) Highlighting.PossibleTurn.Bot
+                else Highlighting.PossibleTurn.Human
+            ),
+            pos
+        )
 
     private fun Canvas.drawChip(pos: Pos, chip: Chip) {
         val bitmap = bitmapLoader.loadChip(chip)
@@ -176,14 +165,6 @@ class SimpleBoardPresenter(
 
     override fun highlightLastTurn(turn: Pos) {
         lastTurn = turn
-    }
-
-    override fun showNextTurn(turn: Pos) {
-        nextTurn = turn
-    }
-
-    override fun hideNextTurn() {
-        nextTurn = null
     }
 
     companion object {

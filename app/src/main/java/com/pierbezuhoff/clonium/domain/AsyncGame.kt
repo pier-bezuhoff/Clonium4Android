@@ -3,6 +3,7 @@ package com.pierbezuhoff.clonium.domain
 import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.*
 import java.util.*
+import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.min
 
 // TODO: do not store transitions in Trans: useless
@@ -11,7 +12,10 @@ class AsyncGame(
     bots: Set<BotPlayer>,
     initialOrder: List<PlayerId>? = null,
     override val coroutineScope: CoroutineScope
-) : Game {
+) : Any()
+    , Game
+    , Logger by AndroidLogger("AsyncGame")
+{
     override val players: Map<PlayerId, Player>
     override val order: List<Player>
     override val lives: MutableMap<Player, Boolean>
@@ -50,6 +54,7 @@ class AsyncGame(
 
     private fun makeTurn(turn: Pos, trans: Trans): Sequence<Transition> {
         require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
+        logI("makeTurn($turn, trans)")
         lastTurn = turn
         val transitions = board.incAnimated(turn)
         require(board == trans.board)
@@ -89,11 +94,10 @@ private class LinkedTurns(
     , Logger by AndroidLogger("LinkedTurns", Logger.Importance.INFO)
 {
     private var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
-    // MAYBE: use PriorityBlockingQueue
-    private val scheduledComputings: PriorityQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
-        PriorityQueue(1, NextAsDepthComparator())
-    private val unknowns: PriorityQueue<NextAs<Link.Unknown>> =
-        PriorityQueue(10, NextAsDepthComparator())
+    private val scheduledComputings: PriorityBlockingQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
+        PriorityBlockingQueue(1, NextAsDepthComparator())
+    private val unknowns: PriorityBlockingQueue<NextAs<Link.Unknown>> =
+        PriorityBlockingQueue(10, NextAsDepthComparator())
     private var start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
     private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
@@ -108,6 +112,7 @@ private class LinkedTurns(
         }
     }
 
+    // parent must wrap it in synchronized(UnknownsLock)
     private fun Next.scheduleTurn(depth: Int) {
         val board = trans.board
         val order = trans.order
@@ -139,6 +144,7 @@ private class LinkedTurns(
         logV("scheduleTurn -> \n$link\n")
     }
 
+    // parent must wrap it in synchronized(UnknownsLock)
     private fun nextUnknown(trans: Trans, depth: Int): Next {
         val unknown = Link.Unknown(depth)
         val nextAs = NextAs(trans, unknown)
@@ -197,34 +203,35 @@ private class LinkedTurns(
             computing!!.next.link = computed
             logV("runNext(computed) =>\ncomputing = $computing")
             computing = null
+            // add external unknown (from Computation.runAsync)
+            unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
+            logV("runNext(computed) =>\nfocus = $focus")
+            runNext()
         }
-        // add external unknown (from Computation.runAsync)
-        unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-        logV("runNext(computed) =>\nfocus = $focus")
-        runNext()
     }
 
+    // parent must wrap it in synchronized(ComputingLock)
     private fun runNext() {
-        synchronized(ComputingLock) {
-            require(computing == null)
-            scheduledComputings.poll()?.let { scheduledNextAs ->
-                val newComputing = with(scheduledNextAs.link) {
-                    Link.FutureTurn.Bot.Computing(
-                        playerId, depth, computation,
-                        runComputationAsync(computation)
-                    )
-                }
-                logV("new computing =\n$newComputing\n")
-                computing = NextAs(scheduledNextAs.next, newLink = newComputing)
-            } ?: discoverUnknowns()
-        }
+        require(computing == null)
+        scheduledComputings.poll()?.let { scheduledNextAs ->
+            val newComputing = with(scheduledNextAs.link) {
+                Link.FutureTurn.Bot.Computing(
+                    playerId, depth, computation,
+                    runComputationAsync(computation)
+                )
+            }
+            logV("new computing =\n$newComputing\n")
+            computing = NextAs(scheduledNextAs.next, newLink = newComputing)
+        } ?: discoverUnknowns()
     }
 
     private fun discoverUnknowns() {
         logV("discoverUnknowns()\n")
-        while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
-            val nextAs = unknowns.remove()
-            nextAs.next.scheduleTurn(nextAs.link.depth)
+        synchronized(UnknownsLock) {
+            while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
+                val nextAs = unknowns.remove()
+                nextAs.next.scheduleTurn(nextAs.link.depth)
+            }
         }
         if (computeWidth() >= SOFT_MAX_WIDTH)
             logI("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
@@ -248,9 +255,12 @@ private class LinkedTurns(
         require(turn in focus.nexts.keys)
         val next = focus.nexts.getValue(turn)
         setFocus(next)
-        coroutineScope.launch {
-            collapseComputations(focus, turn)
-            // if nextFocus is Unknown => start.next.trans.order does not contain valid order
+        coroutineScope.launch(Dispatchers.Default) {
+            logIElapsedTime("on collapsing computations:") {
+                synchronized(CollapseComputingsLock) {
+                    collapseComputations(focus, turn)
+                }
+            }
             discoverUnknowns()
         }
         return next.trans
@@ -258,28 +268,30 @@ private class LinkedTurns(
 
     private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
         logV("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
-        synchronized(ComputingLock) { // FIX: blocks bots' turns
-            for ((turn, next) in root.nexts) {
-                if (turn != actualTurn) {
-                    next.stopComputations()
-                } else { // actual turn branch
-                    // rewrap next in saved NextAs (unknowns, scheduledComputings, computing) as child of start
-                    when (val link = next.link) {
-                        is Link.Unknown -> {
-                            val nextAs = NextAs(next, link)
-                            require(nextAs in unknowns)
-                            unknowns.remove(nextAs)
-                            unknowns.add(NextAs(start.next, link)) // shall be scheduled later
-                        }
-                        is Link.FutureTurn.Bot.ScheduledComputing -> {
-                            val nextAs = NextAs(next, link)
-                            require(nextAs in scheduledComputings)
-                            scheduledComputings.remove(nextAs)
-                            scheduledComputings.add(NextAs(start.next, link))
-                        }
-                        is Link.FutureTurn.Bot.Computing -> {
-                            require(link == computing!!.link)
-                            computing = NextAs(start.next, link)
+        synchronized(ComputingLock) {
+            synchronized(UnknownsLock) {
+                for ((turn, next) in root.nexts) {
+                    if (turn != actualTurn) {
+                        next.stopComputations()
+                    } else { // actual turn branch
+                        // rewrap next in saved NextAs (unknowns, scheduledComputings, computing) as child of start
+                        when (val link = next.link) {
+                            is Link.Unknown -> {
+                                val nextAs = NextAs(next, link)
+                                require(nextAs in unknowns)
+                                unknowns.remove(nextAs)
+                                unknowns.add(NextAs(start.next, link)) // shall be scheduled later
+                            }
+                            is Link.FutureTurn.Bot.ScheduledComputing -> {
+                                val nextAs = NextAs(next, link)
+                                require(nextAs in scheduledComputings)
+                                scheduledComputings.remove(nextAs)
+                                scheduledComputings.add(NextAs(start.next, link))
+                            }
+                            is Link.FutureTurn.Bot.Computing -> {
+                                require(link == computing!!.link)
+                                computing = NextAs(start.next, link)
+                            }
                         }
                     }
                 }
@@ -294,17 +306,17 @@ private class LinkedTurns(
         val nextAs = NextAs(this, link)
         when (val root = nextAs.link) {
             is Link.FutureTurn.Bot.ScheduledComputing -> {
-                scheduledComputings.remove(nextAs)
+                scheduledComputings.remove(nextAs) // synchronized(ComputingLock) from collapseComputations
                 link = Link.Unknown(root.depth) // do not add to unknowns, obsolete branch
             }
             is Link.FutureTurn.Bot.Computing -> {
                 require(computing == nextAs)
-                computing = null
+                computing = null // synchronized(ComputingLock) from collapseComputations
                 root.deferred.cancel()
                 link = Link.Unknown(root.depth)
             }
             is Link.Unknown -> {
-                require(nextAs in unknowns)
+                require(nextAs in unknowns) { "focus = $focus,\nunknowns = ${unknowns.toPrettyString()}" }
                 unknowns.remove(nextAs)
             }
             is Link.FutureTurn.Human.OneOf ->
@@ -317,11 +329,12 @@ private class LinkedTurns(
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
         require(focus is Link.FutureTurn.Bot) { "focus = $focus" }
+        logI("requestBotTurnAsync:")
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
                 logV("computed to focus")
                 setFocus(focus.next)
-                return coroutineScope.async { focus.pos to focus.next.trans }
+                return coroutineScope.async { sLogI("-> ${focus.pos}"); focus.pos to focus.next.trans }
             }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
                 val (elapsedPretty, computed) = measureElapsedTimePretty {
@@ -359,12 +372,16 @@ private class LinkedTurns(
         }
 
     private object ComputingLock
+    private object UnknownsLock
+    private object CollapseComputingsLock
+
     private class NextAsDepthComparator<L> : Comparator<NextAs<L>> where L : Link.WithDepth, L : Link {
         override fun compare(o1: NextAs<L>, o2: NextAs<L>): Int =
             o1.link.depth.compareTo(o2.link.depth)
     }
+
     companion object {
-        private const val SOFT_MAX_WIDTH = 20
+        private const val SOFT_MAX_WIDTH = 100
         private const val SOFT_MIN_DEPTH = 5
     }
 }

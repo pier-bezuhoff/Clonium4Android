@@ -33,7 +33,7 @@ class TransitionAnimationsPool : Any()
 
     override fun drawAnimations(canvas: Canvas) {
         val (blocking, nonBlocking) =
-            pool.flatMap { advancer -> advancer.lastOutput
+            pool.flatMap { advancer -> advancer.lastOutput // BUG: [rare] lastOutput has not been initialized
                 .map { step -> advancer to step }
             }.partition { (_, step) -> step.blocking }
         // heterogeneous list => type of [step] is lost

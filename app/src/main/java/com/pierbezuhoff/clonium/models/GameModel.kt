@@ -10,6 +10,7 @@ import com.pierbezuhoff.clonium.ui.game.DrawThread
 import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.Once
+import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,8 +40,8 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        game.isEnd()
-        if (!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
+        logI("userTap($point)")
+        if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
             val pos = gamePresenter.pointf2pos(point)
             if (pos in game.possibleTurns()) {
                 gamePresenter.unhighlight()
@@ -67,21 +68,25 @@ class GameModel(
     }
 
     private fun continueGame() {
+        logI("continueGame()")
         when {
             game.isEnd() -> {
                 logI("game ended: ${game.currentPlayer} won")
                 // show overall stat
             }
-            game.currentPlayer is BotPlayer -> coroutineScope.launch {
+            game.currentPlayer is BotPlayer -> {
                 gamePresenter.highlight(game.possibleTurns(), weak = true)
                 gamePresenter.freezeBoard()
-                delay(config.botMinTime)
-                val transitions = with(game) { botTurnAsync() }.await()
-                gamePresenter.unhighlight()
-                gamePresenter.highlightLastTurn(game.lastTurn!!)
-                gamePresenter.startTransitions(transitions)
-                gamePresenter.unfreezeBoard()
-                continueGameOnce = true
+                coroutineScope.launch {
+                    delay(config.botMinTime)
+                    val transitions = with(game) { botTurnAsync() }.await()
+                    logI("continueGame: bot's turn done")
+                    gamePresenter.unhighlight()
+                    gamePresenter.highlightLastTurn(game.lastTurn!!)
+                    gamePresenter.startTransitions(transitions)
+                    gamePresenter.unfreezeBoard()
+                    continueGameOnce = true
+                }
             }
             else -> {
                 // before human's turn:
