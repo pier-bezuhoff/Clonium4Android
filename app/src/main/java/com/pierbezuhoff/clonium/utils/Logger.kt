@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.utils
 
 import android.util.Log
+import androidx.appcompat.widget.MenuItemHoverListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -20,6 +21,10 @@ interface Logger {
             }
         object InfImportanceException : IllegalArgumentException("Importance.INF cannot be log-ged")
     }
+    interface MilestoneScope {
+        fun milestone(name: String)
+        fun milestonEndOf(name: String)
+    }
 
     fun logV(message: String)
     fun logD(message: String)
@@ -31,7 +36,16 @@ interface Logger {
         prefix: String = "elapsed:",
         postfix: String = "",
         depthMarker: String = "-",
+        startMarker: String = "[",
+        endMarker: String = "]",
         block: () -> R
+    ): R
+    fun <R> logIMilestoneScope(
+        scopeName: String = "MilestoneScope",
+        milestonePrefix: String = "*",
+        startMarker: String = "{",
+        endMarker: String = "}",
+        block: MilestoneScope.() -> R
     ): R
 
     suspend fun sLogV(message: String)
@@ -58,14 +72,49 @@ abstract class AbstractLogger(
     override fun logW(message: String) = log(Logger.Importance.WARNING, message)
     override fun logE(message: String) = log(Logger.Importance.ERROR, message)
 
-    override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, block: () -> R): R {
-        logI(depthMarker.repeat(measuredCounter) + "[")
+    override fun <R> logIElapsedTime(
+        prefix: String, postfix: String,
+        depthMarker: String, startMarker: String, endMarker: String,
+        block: () -> R
+    ): R {
+        logI(depthMarker.repeat(measuredCounter) + startMarker)
         measuredCounter ++
         val (elapsedPretty, result) = measureElapsedTimePretty(block)
         measuredCounter --
-        logI(depthMarker.repeat(measuredCounter) + "] $prefix $elapsedPretty $postfix")
+        logI(depthMarker.repeat(measuredCounter) + endMarker + " $prefix $elapsedPretty $postfix")
         return result
     }
+
+    override fun <R> logIMilestoneScope(
+        scopeName: String,
+        milestonePrefix: String,
+        startMarker: String, endMarker: String,
+        block: Logger.MilestoneScope.() -> R
+    ): R {
+        logI("$startMarker $scopeName")
+        val milestoneScope = object : Logger.MilestoneScope {
+            var startTime = System.currentTimeMillis()
+            var previousMilestoneName = startMarker
+
+            override fun milestone(name: String) {
+                val elapsedTime = ElapsedTime(System.currentTimeMillis() - startTime, Unit)
+                startTime = System.currentTimeMillis()
+                logI("$milestonePrefix ($previousMilestoneName >> $name): ${elapsedTime.prettyTime()}")
+                previousMilestoneName = name
+            }
+
+            override fun milestonEndOf(name: String) {
+                val elapsedTime = ElapsedTime(System.currentTimeMillis() - startTime, Unit)
+                startTime = System.currentTimeMillis()
+                logI("$milestonePrefix $name: ${elapsedTime.prettyTime()}")
+                previousMilestoneName = name
+            }
+        }
+        val (elapsedPretty, result) = measureElapsedTimePretty { milestoneScope.block() }
+        logI("$endMarker $scopeName: $elapsedPretty")
+        return result
+    }
+
 
     private suspend fun sLog(importance: Logger.Importance, message: String) {
         if (importance >= minLogImportance)
