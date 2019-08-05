@@ -285,78 +285,25 @@ private class LinkedTurns(
         }
     }
 
-    private fun _collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
-        var computingHasBeenStopped = false
-        synchronized(DiscoverUnknownsLock) {
-            synchronized(RunNextLock) {
-                logV("collapseComputations(\n$root,\nactualTurn = $actualTurn)\n")
-                for ((turn, next) in root.nexts) {
-                    if (turn != actualTurn) {
-                        next.stopComputations()
-                    } else { // actual turn branch
-                        // rewrap next in saved NextAs (unknowns, scheduledComputings, computing) as child of start
-                        next.rewrapToFocus()
-                    }
+    private tailrec fun Next?._reschedule(nexts: Sequence<Next> = emptySequence()) {
+        if (this == null) {
+            nexts.firstOrNull()?._reschedule(nexts.drop(1))
+        } else {
+            when (val link = link) {
+                is Link.Unknown -> {
+                    unknowns.add(NextAs(this, link))
+                    null._reschedule(nexts)
                 }
-                if (computing == null && scheduledComputings.isNotEmpty()) // when t'was stopped
-                    computingHasBeenStopped = true
-            }
-        }
-        if (computingHasBeenStopped)
-            runNext()
-        logV("unknowns = ${unknowns.toPrettyString()}")
-    }
-
-    private fun Next.stopComputations() {
-        val nextAs = NextAs(this, link)
-        logIMilestoneScope("stopComputations") {
-            when (val root = nextAs.link) {
                 is Link.FutureTurn.Bot.ScheduledComputing -> {
-                    + "scheduled"
-                    scheduledComputings.remove(nextAs) // synchronized(ComputingLock) from collapseComputations
-                    link = Link.Unknown(root.depth) // do not add to unknowns, obsolete branch
-                    - "scheduled"
+                    scheduledComputings.add(NextAs(this, link))
+                    null._reschedule(nexts)
                 }
                 is Link.FutureTurn.Bot.Computing -> {
-                    + "computing"
-                    require(computing == nextAs)
-                    computing = null // synchronized(ComputingLock) from collapseComputations
-                    root.deferred.cancel()
-                    link = Link.Unknown(root.depth)
-                    - "computing"
+                    computing = NextAs(this, link)
+                    null._reschedule(nexts)
                 }
-                is Link.Unknown -> {
-                    + "unknown"
-                    require(nextAs in unknowns) { "focus = $focus,\nunknowns = ${unknowns.toPrettyString()}" }
-                    unknowns.remove(nextAs)
-                    - "unknown"
-                }
-                is Link.FutureTurn.Human.OneOf ->
-                    for ((_, next) in root.nexts)
-                        next.stopComputations()
-                is Link.FutureTurn.Bot.Computed ->
-                    root.next.stopComputations()
-            }
-        }
-    }
-
-    private fun Next.rewrapToFocus() {
-        when (val link = link) {
-            is Link.Unknown -> {
-                val nextAs = NextAs(this, link)
-                require(nextAs in unknowns)
-                unknowns.remove(nextAs)
-                unknowns.add(NextAs(start.next, link)) // shall be scheduled later
-            }
-            is Link.FutureTurn.Bot.ScheduledComputing -> {
-                val nextAs = NextAs(this, link)
-                require(nextAs in scheduledComputings)
-                scheduledComputings.remove(nextAs)
-                scheduledComputings.add(NextAs(start.next, link))
-            }
-            is Link.FutureTurn.Bot.Computing -> {
-                require(link == computing!!.link)
-                computing = NextAs(start.next, link)
+                is Link.FutureTurn.Bot.Computed -> null._reschedule(nexts + link.next)
+                is Link.FutureTurn.Human.OneOf -> null._reschedule(nexts + link.nexts.values)
             }
         }
     }
