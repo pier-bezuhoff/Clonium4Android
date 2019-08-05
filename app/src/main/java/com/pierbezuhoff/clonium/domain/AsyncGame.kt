@@ -93,17 +93,20 @@ class AsyncGame(
  * |                                                                                                                                                                             |
  * |                                                                                                                                                                             |
  * |                           .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~> (async) |
- * |                           | (async)                                                                                                                                         |
+ * |                           ^ (async)                                                                                                                                         |
  * |                           |                                   (check scheduledComputings is empty)  (computing = null; add unknown after computed)                          |
- * |                           .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- runNext(Computed) <~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+ * | (always single branch)    .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- runNext(Computed) <~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
  * .<-------------------------------------------------------------------- *   (lock computing & scheduledComputings)      (lock computing & unknowns)
- * ^
- * |
- * .<----------------------------------------------------------------------------------------------.
- *                                                                                                 |
- *  givenHumanTurn -> setFocus -> collapseComputations ---> stopComputations -> discoverUnknowns --.
- *                                                     \--> ...             /
- *                                                      \-> ...            /
+ * ^                                                                                               ^.<---.
+ * | (secondary branch => synchronize)                                                                    \--------------.
+ * .<---------------------------------------------------------------------------------------------------.                |
+ *                                                                                                      |                | ( secondary branch => synchronize)
+ *                                                        (structural recursion)                        |                |
+ *  givenHumanTurn -> setFocus -> collapseComputations \---> stopComputations =====> discoverUnknowns --.                |
+ *                                                      \--> ...             /       * (if computing has been stopped) ->.
+ *                                                       \-> ...            /
+ *                             (lock computing, scheduledComputings, unknowns)
+ *
  *        (focus is Computed | Computing)
  *  requestBotTurnAsync => * setFocus -> return
  *                         * ~~~~~~> wait bot -> setFocus -> return
