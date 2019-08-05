@@ -40,14 +40,14 @@ interface Logger {
         prefix: String = "elapsed:",
         postfix: String = "",
         depthMarker: String = "-",
-        startMarker: String = "[",
-        endMarker: String = "]",
+        startMarker: String? = "[",
+        endMarker: String? = if (startMarker != null) "]" else null,
         block: () -> R
     ): R
     fun logIMilestoneScope(
         scopeName: String = "MilestoneScope",
         milestonePrefix: String = "*",
-        startMarker: String? = null, endMarker: String? = null,
+        startMarker: String? = "(", endMarker: String? = if (startMarker != null) ")" else null,
         measureScope: Boolean = false,
         block: MilestoneScope.() -> Unit
     ) = logIMilestoneScopeWithResult(scopeName, milestonePrefix, startMarker, endMarker, measureScope, block)
@@ -87,18 +87,20 @@ abstract class AbstractLogger(
     private inline fun <R> logElapsedTime(
         level: Logger.Level,
         prefix: String, postfix: String,
-        depthMarker: String, startMarker: String, endMarker: String,
+        depthMarker: String, startMarker: String?, endMarker: String?,
         block: () -> R
     ): R {
-        log(level, depthMarker.repeat(measuredCounter) + startMarker)
+        startMarker?.let {
+            log(level, depthMarker.repeat(measuredCounter) + startMarker)
+        }
         measuredCounter ++
         val (elapsedPretty, result) = measureElapsedTimePretty(block)
         measuredCounter --
-        log(level, depthMarker.repeat(measuredCounter) + endMarker + " $prefix $elapsedPretty $postfix")
+        log(level, depthMarker.repeat(measuredCounter) + (endMarker ?: "") + " $prefix $elapsedPretty $postfix")
         return result
     }
 
-    final override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, startMarker: String, endMarker: String, block: () -> R): R =
+    final override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, startMarker: String?, endMarker: String?, block: () -> R): R =
         logElapsedTime(Logger.Level.INFO, prefix, postfix, depthMarker, startMarker, endMarker, block)
 
     private inline fun <R> logMilestoneScopeWithResult(

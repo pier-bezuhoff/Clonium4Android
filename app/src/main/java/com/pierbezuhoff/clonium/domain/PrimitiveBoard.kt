@@ -270,7 +270,7 @@ class PrimitiveBoard private constructor(
         asString()
 
     override fun equals(other: Any?): Boolean =
-        other is EvolvingBoard && other.asString() == asString()
+        other is Board && other.asString() == asString()
 
     override fun hashCode(): Int =
         asString().hashCode()

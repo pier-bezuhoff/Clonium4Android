@@ -40,12 +40,15 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        logIElapsedTime("userTap($point):") {
+        // FIX: userTap MAY hang (when: LinkedTurns.onComputed: id mismatch)
+        //  Ex: 1:1 vs level balancer on tower board
+        //  probable cause: bot's makeTurnAsync is NOT CANCELLABLE!
+        logIElapsedTime("on userTap", startMarker = null) {
             if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
-                val pos = gamePresenter.pointf2pos(point)
-                if (pos in game.possibleTurns()) {
-                    gamePresenter.unhighlight()
-                    gamePresenter.freezeBoard()
+            val pos = gamePresenter.pointf2pos(point)
+            if (pos in game.possibleTurns()) {
+                gamePresenter.unhighlight()
+                gamePresenter.freezeBoard()
                     val transitions = game.humanTurn(pos)
                     gamePresenter.highlightLastTurn(game.lastTurn!!)
                     gamePresenter.startTransitions(transitions)
