@@ -14,9 +14,9 @@ interface Logger {
                 INFO -> "I"
                 WARNING -> "W"
                 ERROR -> "E"
-                INF -> throw InfImportanceException
+                INF -> throw InfLevelException
             }
-        object InfImportanceException : IllegalArgumentException("Level.INF cannot be log-ged")
+        object InfLevelException : IllegalArgumentException("Level.INF cannot be log-ged")
     }
     @DslMarker
     annotation class MilestoneScopeMarker
@@ -78,11 +78,11 @@ abstract class AbstractLogger(
             _log(level, message)
     }
 
-    override fun logV(message: String) = log(Logger.Level.VERBOSE, message)
-    override fun logD(message: String) = log(Logger.Level.DEBUG, message)
-    override fun logI(message: String) = log(Logger.Level.INFO, message)
-    override fun logW(message: String) = log(Logger.Level.WARNING, message)
-    override fun logE(message: String) = log(Logger.Level.ERROR, message)
+    final override fun logV(message: String) = log(Logger.Level.VERBOSE, message)
+    final override fun logD(message: String) = log(Logger.Level.DEBUG, message)
+    final override fun logI(message: String) = log(Logger.Level.INFO, message)
+    final override fun logW(message: String) = log(Logger.Level.WARNING, message)
+    final override fun logE(message: String) = log(Logger.Level.ERROR, message)
 
     private inline fun <R> logElapsedTime(
         level: Logger.Level,
@@ -98,7 +98,7 @@ abstract class AbstractLogger(
         return result
     }
 
-    override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, startMarker: String, endMarker: String, block: () -> R): R =
+    final override fun <R> logIElapsedTime(prefix: String, postfix: String, depthMarker: String, startMarker: String, endMarker: String, block: () -> R): R =
         logElapsedTime(Logger.Level.INFO, prefix, postfix, depthMarker, startMarker, endMarker, block)
 
     private inline fun <R> logMilestoneScopeWithResult(
@@ -135,7 +135,7 @@ abstract class AbstractLogger(
         return result
     }
 
-    override fun <R> logIMilestoneScopeWithResult(scopeName: String, milestonePrefix: String, startMarker: String?, endMarker: String?, block: Logger.MilestoneScope.() -> R): R =
+    final override fun <R> logIMilestoneScopeWithResult(scopeName: String, milestonePrefix: String, startMarker: String?, endMarker: String?, block: Logger.MilestoneScope.() -> R): R =
         logMilestoneScopeWithResult(Logger.Level.INFO, scopeName, milestonePrefix, startMarker, endMarker, block)
 
     private suspend fun sLog(level: Logger.Level, message: String) {
@@ -143,11 +143,11 @@ abstract class AbstractLogger(
             _sLog(level, message)
     }
 
-    override suspend fun sLogV(message: String) = sLog(Logger.Level.VERBOSE, message)
-    override suspend fun sLogD(message: String) = sLog(Logger.Level.DEBUG, message)
-    override suspend fun sLogI(message: String) = sLog(Logger.Level.INFO, message)
-    override suspend fun sLogW(message: String) = sLog(Logger.Level.WARNING, message)
-    override suspend fun sLogE(message: String) = sLog(Logger.Level.ERROR, message)
+    final override suspend fun sLogV(message: String) = sLog(Logger.Level.VERBOSE, message)
+    final override suspend fun sLogD(message: String) = sLog(Logger.Level.DEBUG, message)
+    final override suspend fun sLogI(message: String) = sLog(Logger.Level.INFO, message)
+    final override suspend fun sLogW(message: String) = sLog(Logger.Level.WARNING, message)
+    final override suspend fun sLogE(message: String) = sLog(Logger.Level.ERROR, message)
 
     abstract fun _log(level: Logger.Level, message: String)
 
@@ -183,7 +183,7 @@ class AndroidLogger(
             Logger.Level.INFO -> Log.i(logTag, message)
             Logger.Level.WARNING -> Log.w(logTag, message)
             Logger.Level.ERROR -> Log.e(logTag, message)
-            Logger.Level.INF -> throw Logger.Level.InfImportanceException
+            Logger.Level.INF -> throw Logger.Level.InfLevelException
         }
     }
 
