@@ -34,7 +34,7 @@ abstract class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAsset
     , GameBitmapLoader
 {
     override fun loadCell(): Bitmap =
-        loadAssetBitmap("cells/blue.png")
+        loadAssetBitmap("cells/dark-blue.png")
 
     override fun loadHighlighting(highlighting: Highlighting): Bitmap =
         loadAssetBitmap(

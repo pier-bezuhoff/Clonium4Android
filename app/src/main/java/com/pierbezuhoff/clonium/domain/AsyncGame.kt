@@ -85,19 +85,43 @@ class AsyncGame(
     }
 }
 
+/**
+ *                                            (check next.trans.order.first())
+ * discoverUnknowns ---> Next(Unknown).scheduleTurn => * Next(Unknown -> OneOf(Unknown...)) ->|                          (check computing is null)
+ * (lock unknowns)  \--> ...                           * ------------------------------------> Next(Unknown).scheduledComputation => * Next(Unknown) to scheduledComputings ->|
+ * ^                 \-> ...                                                                 (lock computing & scheduledComputings)  * Next(Unknown) to computing ----------->|:~.
+ * |                                                                                                                                                                             |
+ * |                                                                                                                                                                             |
+ * |                           .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~> (async) |
+ * |                           | (async)                                                                                                                                         |
+ * |                           |                                   (check scheduledComputings is empty)  (computing = null; add unknown after computed)                          |
+ * |                           .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- runNext(Computed) <~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+ * .<-------------------------------------------------------------------- *   (lock computing & scheduledComputings)      (lock computing & unknowns)
+ * ^
+ * |
+ * .<----------------------------------------------------------------------------------------------.
+ *                                                                                                 |
+ *  givenHumanTurn -> setFocus -> collapseComputations ---> stopComputations -> discoverUnknowns --.
+ *                                                     \--> ...             /
+ *                                                      \-> ...            /
+ *        (focus is Computed | Computing)
+ *  requestBotTurnAsync => * setFocus -> return
+ *                         * ~~~~~~> wait bot -> setFocus -> return
+ *                           (async)
+ */
 private class LinkedTurns(
     board: EvolvingBoard,
     order: List<PlayerId>,
     private val players: Map<PlayerId, Player>,
     private val coroutineScope: CoroutineScope
 ) : Any()
-    , Logger by AndroidLogger("LinkedTurns", Logger.Importance.INFO)
+    , Logger by AndroidLogger("LinkedTurns", Logger.Level.INFO)
 {
     private var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
-    private val scheduledComputings: PriorityBlockingQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
+    private val scheduledComputings: AbstractQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
         PriorityBlockingQueue(1, NextAsDepthComparator())
-    private val unknowns: PriorityBlockingQueue<NextAs<Link.Unknown>> =
-        PriorityBlockingQueue(10, NextAsDepthComparator())
+    private val unknowns: AbstractQueue<NextAs<Link.Unknown>> =
+        PriorityQueue(10, NextAsDepthComparator())
     private var start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
     private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
@@ -141,7 +165,6 @@ private class LinkedTurns(
                 scheduleComputation(player, board, order, depth = depth)
             else -> impossibleCaseOf(player)
         }
-        logV("scheduleTurn -> \n$link\n")
     }
 
     // parent must wrap it in synchronized(UnknownsLock)
@@ -302,26 +325,34 @@ private class LinkedTurns(
 
     private fun Next.stopComputations() {
         val nextAs = NextAs(this, link)
-        when (val root = nextAs.link) {
-            is Link.FutureTurn.Bot.ScheduledComputing -> {
-                scheduledComputings.remove(nextAs) // synchronized(ComputingLock) from collapseComputations
-                link = Link.Unknown(root.depth) // do not add to unknowns, obsolete branch
+        logIMilestoneScope("stopComputations") {
+            when (val root = nextAs.link) {
+                is Link.FutureTurn.Bot.ScheduledComputing -> {
+                    + "scheduled"
+                    scheduledComputings.remove(nextAs) // synchronized(ComputingLock) from collapseComputations
+                    link = Link.Unknown(root.depth) // do not add to unknowns, obsolete branch
+                    - "scheduled"
+                }
+                is Link.FutureTurn.Bot.Computing -> {
+                    + "computing"
+                    require(computing == nextAs)
+                    computing = null // synchronized(ComputingLock) from collapseComputations
+                    root.deferred.cancel()
+                    link = Link.Unknown(root.depth)
+                    - "computing"
+                }
+                is Link.Unknown -> {
+                    + "unknown"
+                    require(nextAs in unknowns) { "focus = $focus,\nunknowns = ${unknowns.toPrettyString()}" }
+                    unknowns.remove(nextAs)
+                    - "unknown"
+                }
+                is Link.FutureTurn.Human.OneOf ->
+                    for ((_, next) in root.nexts)
+                        next.stopComputations()
+                is Link.FutureTurn.Bot.Computed ->
+                    root.next.stopComputations()
             }
-            is Link.FutureTurn.Bot.Computing -> {
-                require(computing == nextAs)
-                computing = null // synchronized(ComputingLock) from collapseComputations
-                root.deferred.cancel()
-                link = Link.Unknown(root.depth)
-            }
-            is Link.Unknown -> {
-                require(nextAs in unknowns) { "focus = $focus,\nunknowns = ${unknowns.toPrettyString()}" }
-                unknowns.remove(nextAs)
-            }
-            is Link.FutureTurn.Human.OneOf ->
-                for ((_, next) in root.nexts)
-                    next.stopComputations()
-            is Link.FutureTurn.Bot.Computed ->
-                root.next.stopComputations()
         }
     }
 

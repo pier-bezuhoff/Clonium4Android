@@ -1,17 +1,21 @@
 package com.pierbezuhoff.clonium.ui
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityMainBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.Logger
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity()
+    , Logger by AndroidLogger("MainActivity")
+{
     interface Callbacks {
         fun onTutorial(view: View)
         fun onNewGame(view: View)
@@ -19,14 +23,14 @@ class MainActivity : AppCompatActivity() {
     }
     private val callbacks = object : Callbacks {
         override fun onTutorial(view: View) {
-            Log.i(TAG, "onTutorial")
+            logI("onTutorial")
         }
         override fun onNewGame(view: View) {
-            Log.i(TAG, "onNewGame")
+            logI("onNewGame")
             navigateToNewGameActivity()
         }
         override fun onBoardEditor(view: View) {
-            Log.i(TAG, "onBoardEditor")
+            logI("onBoardEditor")
         }
     }
 
@@ -50,13 +54,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (resultCode) {
-            NEW_GAME_REQUEST_CODE -> Log.i(TAG, "from GameActivity")
+            NEW_GAME_REQUEST_CODE -> logI("from GameActivity")
         }
         super.onActivityResult(requestCode, resultCode, data)
     }
 
     companion object {
-        private const val TAG = "MainActivity"
         private const val NEW_GAME_REQUEST_CODE = 1
     }
 }
