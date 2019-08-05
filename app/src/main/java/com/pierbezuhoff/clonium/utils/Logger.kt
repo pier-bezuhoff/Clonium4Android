@@ -47,16 +47,16 @@ interface Logger {
     fun logIMilestoneScope(
         scopeName: String = "MilestoneScope",
         milestonePrefix: String = "*",
-        startMarker: String? = null,
-        endMarker: String? = null,
+        startMarker: String? = null, endMarker: String? = null,
+        measureScope: Boolean = false,
         block: MilestoneScope.() -> Unit
-    ) = logIMilestoneScopeWithResult(scopeName, milestonePrefix, startMarker, endMarker, block)
+    ) = logIMilestoneScopeWithResult(scopeName, milestonePrefix, startMarker, endMarker, measureScope, block)
 
     fun <R> logIMilestoneScopeWithResult(
         scopeName: String = "MilestoneScope",
         milestonePrefix: String = "*",
-        startMarker: String? = null,
-        endMarker: String? = null,
+        startMarker: String? = null, endMarker: String? = null,
+        measureScope: Boolean = false,
         block: MilestoneScope.() -> R
     ): R
 
@@ -106,9 +106,10 @@ abstract class AbstractLogger(
         scopeName: String,
         milestonePrefix: String,
         startMarker: String?, endMarker: String?,
+        measureScope: Boolean,
         block: Logger.MilestoneScope.() -> R
     ): R {
-        startMarker?.let {
+        startMarker?.takeIf { measureScope }?.let {
             log(level, "$startMarker $scopeName")
         }
         val milestoneScope = object : Logger.MilestoneScope {
@@ -118,25 +119,28 @@ abstract class AbstractLogger(
 
             override fun milestoneStartOf(name: String) {
                 startTimes[name] = System.currentTimeMillis()
+                startMarker?.let {
+                    log(level, "$milestonePrefix$startMarker")
+                }
             }
 
             override fun milestoneEndOf(name: String) {
                 val elapsed = System.currentTimeMillis() - (startTimes.remove(name) ?: startTime)
                 val elapsedTime = ElapsedTime(elapsed, Unit)
                 startTime = System.currentTimeMillis()
-                log(level, "$milestonePrefix $name: ${elapsedTime.prettyTime()}")
+                log(level, "$milestonePrefix${endMarker ?: ""} $name: ${elapsedTime.prettyTime()}")
                 previousMilestoneName = name
             }
         }
         val (elapsedPretty, result) = measureElapsedTimePretty { milestoneScope.block() }
-        endMarker?.let {
+        endMarker?.takeIf { measureScope }?.let {
             log(level, "$endMarker $scopeName: $elapsedPretty")
         }
         return result
     }
 
-    final override fun <R> logIMilestoneScopeWithResult(scopeName: String, milestonePrefix: String, startMarker: String?, endMarker: String?, block: Logger.MilestoneScope.() -> R): R =
-        logMilestoneScopeWithResult(Logger.Level.INFO, scopeName, milestonePrefix, startMarker, endMarker, block)
+    final override fun <R> logIMilestoneScopeWithResult(scopeName: String, milestonePrefix: String, startMarker: String?, endMarker: String?, measureScope: Boolean, block: Logger.MilestoneScope.() -> R): R =
+        logMilestoneScopeWithResult(Logger.Level.INFO, scopeName, milestonePrefix, startMarker, endMarker, measureScope, block)
 
     private suspend fun sLog(level: Logger.Level, message: String) {
         if (level >= minLogLevel)

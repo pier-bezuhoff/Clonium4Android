@@ -40,17 +40,18 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        logI("userTap($point)")
-        if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
-            val pos = gamePresenter.pointf2pos(point)
-            if (pos in game.possibleTurns()) {
-                gamePresenter.unhighlight()
-                gamePresenter.freezeBoard()
-                val transitions = game.humanTurn(pos)
-                gamePresenter.highlightLastTurn(game.lastTurn!!)
-                gamePresenter.startTransitions(transitions)
-                gamePresenter.unfreezeBoard()
-                continueGameOnce = true
+        logIElapsedTime("userTap($point):") {
+            if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
+                val pos = gamePresenter.pointf2pos(point)
+                if (pos in game.possibleTurns()) {
+                    gamePresenter.unhighlight()
+                    gamePresenter.freezeBoard()
+                    val transitions = game.humanTurn(pos)
+                    gamePresenter.highlightLastTurn(game.lastTurn!!)
+                    gamePresenter.startTransitions(transitions)
+                    gamePresenter.unfreezeBoard()
+                    continueGameOnce = true
+                }
             }
         }
     }
@@ -75,17 +76,19 @@ class GameModel(
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> {
-                gamePresenter.highlight(game.possibleTurns(), weak = true)
-                gamePresenter.freezeBoard()
-                coroutineScope.launch {
-                    delay(config.botMinTime)
-                    val transitions = with(game) { botTurnAsync() }.await()
-                    logI("continueGame: bot's turn done")
-                    gamePresenter.unhighlight()
-                    gamePresenter.highlightLastTurn(game.lastTurn!!)
-                    gamePresenter.startTransitions(transitions)
-                    gamePresenter.unfreezeBoard()
-                    continueGameOnce = true
+                logIMilestoneScope {
+                    gamePresenter.highlight(game.possibleTurns(), weak = true)
+                    gamePresenter.freezeBoard()
+                    coroutineScope.launch {
+                        delay(config.botMinTime)
+                        val transitions = with(game) { botTurnAsync() }.await()
+                        - "continueGame: waiting for bot turn"
+                        gamePresenter.unhighlight()
+                        gamePresenter.highlightLastTurn(game.lastTurn!!)
+                        gamePresenter.startTransitions(transitions)
+                        gamePresenter.unfreezeBoard()
+                        continueGameOnce = true
+                    }
                 }
             }
             else -> {

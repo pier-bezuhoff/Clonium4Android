@@ -57,7 +57,7 @@ class AsyncGame(
         logI("makeTurn($turn, trans)")
         lastTurn = turn
         val transitions = board.incAnimated(turn)
-        require(board == trans.board)
+        require(board == trans.board) { "game board = $board,\ntrans board = $board" }
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
@@ -257,60 +257,35 @@ private class LinkedTurns(
         val next = focus.nexts.getValue(turn)
         setFocus(next)
         coroutineScope.launch(Dispatchers.Default) {
-            logIMilestoneScope("givenHumanTurn") {
-                collapseComputations(focus, turn)
-                - "collapseComputations"
+                rescheduleAll()
                 discoverUnknowns()
-                - "discoverUnknowns"
-            }
         }
         return next.trans
     }
 
-    private fun _collapseComputations(oldFocus: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
-        // lock all
-        computing = null
-        scheduledComputings.clear()
-        unknowns.clear()
-        _rescheduleAll()
+    private fun rescheduleAll() {
+        synchronized(RunNextLock) {
+            synchronized(DiscoverUnknownsLock) {
+                computing = null
+                scheduledComputings.clear()
+                unknowns.clear()
+                start.next.reschedule()
+            }
+        }
     }
 
-    private fun Next._reschedule() {
+    // MAYBE: make tailrec (iterator as param)
+    private fun Next.reschedule() {
         when (val link = link) {
             is Link.Unknown -> unknowns.add(NextAs(this, link))
             is Link.FutureTurn.Bot.ScheduledComputing -> scheduledComputings.add(NextAs(this, link))
             is Link.FutureTurn.Bot.Computing -> computing = NextAs(this, link)
-            is Link.FutureTurn.Bot.Computed -> link.next._reschedule()
-            is Link.FutureTurn.Human.OneOf -> for ((_, next) in link.nexts) next._reschedule()
+            is Link.FutureTurn.Bot.Computed -> link.next.reschedule()
+            is Link.FutureTurn.Human.OneOf -> for ((_, next) in link.nexts) next.reschedule()
         }
     }
 
-    private fun _rescheduleAll() {
-        start.next._reschedule()
-    }
-
-    private fun Next.rewrapToFocus() {
-        when (val link = link) {
-            is Link.Unknown -> {
-                val nextAs = NextAs(this, link)
-                require(nextAs in unknowns)
-                unknowns.remove(nextAs)
-                unknowns.add(NextAs(start.next, link)) // shall be scheduled later
-            }
-            is Link.FutureTurn.Bot.ScheduledComputing -> {
-                val nextAs = NextAs(this, link)
-                require(nextAs in scheduledComputings)
-                scheduledComputings.remove(nextAs)
-                scheduledComputings.add(NextAs(start.next, link))
-            }
-            is Link.FutureTurn.Bot.Computing -> {
-                require(link == computing!!.link)
-                computing = NextAs(start.next, link)
-            }
-        }
-    }
-
-    private fun collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
+    private fun _collapseComputations(root: Link.FutureTurn.Human.OneOf, actualTurn: Pos) {
         var computingHasBeenStopped = false
         synchronized(DiscoverUnknownsLock) {
             synchronized(RunNextLock) {
@@ -361,6 +336,27 @@ private class LinkedTurns(
                         next.stopComputations()
                 is Link.FutureTurn.Bot.Computed ->
                     root.next.stopComputations()
+            }
+        }
+    }
+
+    private fun Next.rewrapToFocus() {
+        when (val link = link) {
+            is Link.Unknown -> {
+                val nextAs = NextAs(this, link)
+                require(nextAs in unknowns)
+                unknowns.remove(nextAs)
+                unknowns.add(NextAs(start.next, link)) // shall be scheduled later
+            }
+            is Link.FutureTurn.Bot.ScheduledComputing -> {
+                val nextAs = NextAs(this, link)
+                require(nextAs in scheduledComputings)
+                scheduledComputings.remove(nextAs)
+                scheduledComputings.add(NextAs(start.next, link))
+            }
+            is Link.FutureTurn.Bot.Computing -> {
+                require(link == computing!!.link)
+                computing = NextAs(start.next, link)
             }
         }
     }
