@@ -88,24 +88,24 @@ class AsyncGame(
 /**
  *                                            (check next.trans.order.first())
  * discoverUnknowns ---> Next(Unknown).scheduleTurn => * Next(Unknown -> OneOf(Unknown...)) ->|                          (check computing is null)
- * (lock unknowns)  \--> ...                           * ------------------------------------> Next(Unknown).scheduledComputation => * Next(Unknown) to scheduledComputings ->|
- * ^                 \-> ...                                                                 (lock computing & scheduledComputings)  * Next(Unknown) to computing ----------->|:~.
- * |                                                                                                                                                                             |
- * |                                                                                                                                                                             |
- * |                           .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~> (async) |
- * |                           ^ (async)                                                                                                                                         |
- * |                           |                                   (check scheduledComputings is empty)  (computing = null; add unknown after computed)                          |
- * | (always single branch)    .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- runNext(Computed) <~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
- * .<-------------------------------------------------------------------- *   (lock computing & scheduledComputings)      (lock computing & unknowns)
- * ^                                                                                               ^.<---.
+ *  (use unknowns)  \--> ...                           * ------------------------------------> Next(Unknown).scheduledComputation => * Next(Unknown) to scheduledComputings ->|
+ * ^                 \-> ...                                                                  (use computing & scheduledComputings)  * Next(Unknown) to computing ----------->|:~>.
+ * |                                                                                                                                                                              |
+ * |                                                                                                                                                                              |
+ * |                                 .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~> (async) |
+ * |                                 ^ (async)                                                                                                                                   \|
+ * | (may try to interrupt           |                              (check scheduledComputings is empty)  (computing = null; add unknown after computed to unknowns)              |
+ * | parent branch => synchronize)   .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- runNext(Computed) <~~~~~~~~~~~~~~~~~~~~~~~~~~.
+ * .<-------------------------------------------------------------------------- *    (use computing & scheduledComputings)      (use computing & unknowns)
+ * ^                                                                                                      ^
  * | (secondary branch => synchronize)                                                                    \--------------.
  * .<---------------------------------------------------------------------------------------------------.                |
- *                                                                                                      |                | ( secondary branch => synchronize)
+ *                                                                                                      |                | (secondary branch => synchronize)
  *                                                        (structural recursion)                        |                |
  *  givenHumanTurn -> setFocus -> collapseComputations \---> stopComputations =====> discoverUnknowns --.                |
  *                                                      \--> ...             /       * (if computing has been stopped) ->.
  *                                                       \-> ...            /
- *                             (lock computing, scheduledComputings, unknowns)
+ *                               (use computing, scheduledComputings, unknowns)
  *
  *        (focus is Computed | Computing)
  *  requestBotTurnAsync => * setFocus -> return
