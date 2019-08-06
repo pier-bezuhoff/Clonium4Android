@@ -7,6 +7,8 @@ import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.min
 
 // TODO: do not store transitions in Trans: useless
+// BUG: when 2 humans and 1 bot with 1 chip remains: ~deadlock/OOM
+// BUG: h;rp;h;rp: givenHumanTurn: focus is Unknown
 class AsyncGame(
     override val board: EvolvingBoard,
     bots: Set<BotPlayer>,
@@ -58,6 +60,7 @@ class AsyncGame(
         lastTurn = turn
         val transitions = board.incAnimated(turn)
         require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" }
+//        require(transitions.toList() == trans.transitions.toList())
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         currentPlayer = nextPlayer()
@@ -97,20 +100,23 @@ class AsyncGame(
  * | (may try to interrupt           |                              (check scheduledComputings is empty)         (computing = null; add unknown after computed to unknowns)       |
  * | parent branch => synchronize)   .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- onComputed(Computed) <~~~~~~~~~~~~~~~~~~~~~~~.
  * .<-------------------------------------------------------------------------- *    (use computing & scheduledComputings)      (use computing & unknowns)  (<= 1 computing at time)
- * ^                                                                                                      ^
- * | (secondary branch => synchronize)                                                                    \--------------.
- * .<---------------------------------------------------------------------------------------------------.                |
- *                                                                                                      |                | (secondary branch => synchronize)
- *  TODO: update                                          (structural recursion)                        |                |
- *  givenHumanTurn -> setFocus -> collapseComputations \---> stopComputations =====> discoverUnknowns --.                |
- *                                                      \--> ...             /       * (if computing has been stopped) ->.
- *                                                       \-> ...            /
- *                               (use computing, scheduledComputings, unknowns)
- *
- *        (focus is Computed | Computing)
- *  requestBotTurnAsync => * setFocus -> return
- *                         * ~~~~~~> wait bot -> setFocus -> return
- *                           (async)
+ * ^                                                                                                    ^                                   \ ^
+ *                                                                                                      |                                   //
+ *                                                                                                      | (secondary branch => synchronize)//
+ *                                                                                                      |                                 //
+ *                              (async)    (clear all)    (structural recursion)                        |                                //
+ *  givenHumanTurn -> setFocus  ~~~~~~~~> rescheduleAll \---> Next.reschedule /-------------------------.                               //
+ *                    and return                         \--> ...            /                                                         //
+ *                                                        \-> ...           /                                                         //
+ *                                    (use computing, scheduledComputings, unknowns)                                                 //
+ *                                                                                                                                  //
+ *        (focus is Computed | Computing | sync & (Computed | Computing))                                                          //
+ *  requestBotTurnAsync -> tryRequestBotTurnOrAsync => * setFocus -> return                                                       //
+ *                                                     * ~~~~~~> wait bot -> setFocus -> return                                  //
+ *                                                       (async)      \ ^                                                       //
+ *                                                                     \\<-----------------------------------------------------//
+ *                                                                      \------------------------------------------------------/
+ *                                                                                            (implicit)
  */
 private class LinkedTurns(
     board: EvolvingBoard,
@@ -121,11 +127,10 @@ private class LinkedTurns(
     , Logger by AndroidLogger("LinkedTurns", Logger.Level.INFO)
 {
     private var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
-    private var computingId: Id? = null
     private val scheduledComputings: AbstractQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
-        PriorityQueue(1, NextAsDepthComparator())
+        PriorityBlockingQueue(1, NextAsDepthComparator())
     private val unknowns: AbstractQueue<NextAs<Link.Unknown>> =
-        PriorityQueue(10, NextAsDepthComparator())
+        PriorityBlockingQueue(10, NextAsDepthComparator())
     private var start: Link.Start = Link.Start(nextUnknown(Trans(board, order, emptySequence()), depth = 1))
     private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
@@ -136,8 +141,20 @@ private class LinkedTurns(
             unknowns.clear()
             start.next.link = Link.End
         } else {
-            discoverUnknowns() // no need to lock UnknownsLock here
+            coroutineScope.launch(Dispatchers.Default) {
+                discoverUnknowns() // no need to lock UnknownsLock here
+            }
         }
+    }
+
+    // parent should lock UnknownsLock
+    private fun discoverUnknowns() {
+        while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
+            val nextAs = unknowns.remove()
+            nextAs.next.scheduleTurn(nextAs.link.depth)
+        }
+        if (computeWidth() >= SOFT_MAX_WIDTH)
+            logI("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
     }
 
     private fun Next.scheduleTurn(depth: Int) {
@@ -150,7 +167,7 @@ private class LinkedTurns(
                 val possibleTurns = board.possOf(player.playerId)
                 link = Link.FutureTurn.Human.OneOf(
                     player.playerId,
-                    // TODO: connect chained turns' unknowns (as in scheduleTurnsAfterHuman)
+                    // TODO: connect chained turns' unknowns
                     possibleTurns.associateWith { turn ->
                         val nextBoard = board.copy()
                         val transitions = nextBoard.incAnimated(turn)
@@ -181,33 +198,45 @@ private class LinkedTurns(
     // parent should lock ComputingsLock
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
         require(board.possOf(bot.playerId).isNotEmpty())
-        val computation = Computation(bot, board, order, depth)
+        val computation = Computation(bot, board, order, depth, Id.generate())
         if (computing == null) {
-            val id = Id.generate()
-            val newComputing = Link.FutureTurn.Bot.Computing(
-                bot.playerId, depth, computation, runComputationAsync(id, computation)
-            )
-            computing = NextAs(this, newLink = newComputing)
-            computingId = id
+            startComputing(computation)
         } else {
             val scheduledComputing = Link.FutureTurn.Bot.ScheduledComputing(bot.playerId, depth, computation)
             scheduledComputings.add(NextAs(this, scheduledComputing))
         }
     }
 
-    private fun runComputationAsync(id: Id, computation: Computation): Deferred<Link.FutureTurn.Bot.Computed> =
-        with(computation) { coroutineScope.runAsync { onComputed(id, it) } }
+    // parent should lock ComputingsLock
+    private fun Next.startComputing(computation: Computation) {
+        require(computing == null)
+        val newComputing = Link.FutureTurn.Bot.Computing(
+            computation.bot.playerId, computation.depth, computation, runComputationAsync(computation)
+        )
+        computing = NextAs(this, newLink = newComputing)
+    }
 
-    private fun onComputed(id: Id, computed: Link.FutureTurn.Bot.Computed) {
+    private fun runComputationAsync(computation: Computation): Deferred<Link.FutureTurn.Bot.Computed> =
+        with(computation) { coroutineScope.runAsync { onComputed(it) } }
+
+    private fun onComputed(computed: Link.FutureTurn.Bot.Computed) {
         synchronized(ComputingsLock) {
-            if (computing != null && computingId == id) {
-                computing!!.next.link = computed
-                computing = null
-                // add external unknown (from Computation.runAsync)
-                // no need to lock UnknownsLock because we only add new one
-                unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-                runNext()
-            } else if (computingId != id) logW("onComputed: id mismatch") else if (computing == null) logW("onComputed: computing dropped")
+            val computing = computing
+            when {
+                computing == null ->
+                    logI("onComputed: computing dropped")
+                computed.id != computing.link.computation.id ->
+                    logI("onComputed: id mismatch:\n${computed.id} of $computed\nshould be ${computing.link.computation.id} of $computing")
+                else -> {
+                    computing.next.link = computed
+                    this.computing = null
+                    // add external unknown (from Computation.runAsync)
+                    synchronized(UnknownsLock) {
+                        unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
+                    }
+                    runNext()
+                }
+            }
         }
     }
 
@@ -215,39 +244,18 @@ private class LinkedTurns(
     private fun runNext() {
         if (computing == null) {
             scheduledComputings.poll()?.let { scheduledNextAs ->
-                val id = Id.generate()
-                val newComputing = with(scheduledNextAs.link) {
-                    Link.FutureTurn.Bot.Computing(
-                        playerId, depth, computation,
-                        runComputationAsync(id, computation)
-                    )
-                }
-                logV("new computing =\n$newComputing\n")
-                computing = NextAs(scheduledNextAs.next, newLink = newComputing)
-                computingId = id
+                scheduledNextAs.next.startComputing(scheduledNextAs.link.computation)
             } ?: synchronized(UnknownsLock) {
-                discoverUnknowns()
+                logIElapsedTime("runNext: starvation:") {
+                    discoverUnknowns()
+                }
             }
         }
     }
 
-    // parent should lock UnknownsLock
-    private fun discoverUnknowns() {
-        while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
-            val nextAs = unknowns.remove()
-            nextAs.next.scheduleTurn(nextAs.link.depth)
-        }
-        if (computeWidth() >= SOFT_MAX_WIDTH)
-            logI("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
-    }
-
-    private fun setFocus(next: Next) {
-        start = Link.Start(next)
-        nOfTraversedTurns ++
-    }
-
     fun givenHumanTurn(turn: Pos): Trans {
-        require(focus is Link.FutureTurn.Human.OneOf) { "focus = $focus" }
+        logI("givenHumanTurn($turn)")
+        require(focus is Link.FutureTurn.Human.OneOf) { "focus = $focus".also { logState() } }
         val focus = focus as Link.FutureTurn.Human.OneOf
         require(turn in focus.nexts.keys)
         val next = focus.nexts.getValue(turn)
@@ -256,6 +264,11 @@ private class LinkedTurns(
             rescheduleAll()
         }
         return next.trans
+    }
+
+    private fun setFocus(next: Next) {
+        start = Link.Start(next)
+        nOfTraversedTurns ++
     }
 
     private fun rescheduleAll() {
@@ -331,10 +344,20 @@ private class LinkedTurns(
                 }
                 logW("Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n")
                 setFocus(computed.next)
+                require(this@LinkedTurns.focus !is Link.Unknown) { "focus = $focus".also { logState() } }
                 return@async computed.pos to computed.next.trans
             }
             else -> orElseBlock(focus)
         }
+    }
+
+    private fun logState() {
+        logI(
+            """focus = $focus,
+            |computing = $computing
+            |scheduledComputings = ${scheduledComputings.toPrettyString()}
+            |unknowns = ${unknowns.toPrettyString()}""".trimMargin()
+        )
     }
 
     /** Depth of [link] + [depth], `null` means infinite: all possibilities are computed */
@@ -367,18 +390,6 @@ private class LinkedTurns(
 
     object ComputingsLock
     object UnknownsLock
-
-    private class Id private constructor(val id: Int) {
-        override fun equals(other: Any?): Boolean =
-            other is Id && id == other.id
-        override fun hashCode(): Int =
-            id.hashCode()
-        companion object {
-            private var counter = 0
-            fun generate(): Id =
-                Id(counter++)
-        }
-    }
 
     companion object {
         private const val SOFT_MAX_WIDTH = 100
@@ -437,10 +448,11 @@ private sealed class Link {
             class Computed(
                 playerId: PlayerId,
                 val pos: Pos,
-                val next: Next
+                val next: Next,
+                val id: Id
             ) : Bot(playerId), Transient {
                 override fun toString(indent: Int) =
-                    indentOf(indent) + "Bot.Computed($playerId, $pos):\n" + next.toString(indent + 1)
+                    indentOf(indent) + "Bot.Computed($playerId, $pos, $id):\n" + next.toString(indent + 1)
             }
             class Computing(
                 playerId: PlayerId,
@@ -508,15 +520,16 @@ private data class Trans(
 )
 
 private data class Computation(
-    private val bot: BotPlayer,
-    private val board: EvolvingBoard,
-    private val order: List<PlayerId>,
-    private val depth: Int
+    val bot: BotPlayer,
+    val board: EvolvingBoard,
+    val order: List<PlayerId>,
+    val depth: Int,
+    val id: Id
 ) {
     inline fun CoroutineScope.runAsync(
         crossinline andThen: (Link.FutureTurn.Bot.Computed) -> Unit = {}
     ): Deferred<Link.FutureTurn.Bot.Computed> =
-        async {
+        async(Dispatchers.Default) {
             print("(...")
             val startTime = System.currentTimeMillis()
             val turn = with(bot) { makeTurnAsync(board, order).await() }
@@ -528,11 +541,25 @@ private data class Computation(
             val trans = Trans(endBoard, endOrder, transitions)
             val nextLink: Link = if (endOrder.size <= 1) Link.End else Link.Unknown(depth + 1)
             val computed = Link.FutureTurn.Bot.Computed(
-                bot.playerId, turn, Next(trans, nextLink)
+                bot.playerId, turn, Next(trans, nextLink), id
             )
             andThen(computed)
             computed
         }
+}
+
+private class Id private constructor(val id: Int) {
+    override fun equals(other: Any?): Boolean =
+        other is Id && id == other.id
+    override fun hashCode(): Int =
+        id.hashCode()
+    override fun toString(): String =
+        "Id($id)"
+    companion object {
+        private var counter = 0
+        fun generate(): Id =
+            Id(counter++)
+    }
 }
 
 private fun <E> Iterable<E>.toPrettyString(): String =

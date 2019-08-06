@@ -6,7 +6,9 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import com.pierbezuhoff.clonium.ui.meta.TapListener
+import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.Connection
+import com.pierbezuhoff.clonium.utils.Logger
 
 /** Listen to single tap */
 class GameGestures (context: Context) : GestureDetector.SimpleOnGestureListener()
