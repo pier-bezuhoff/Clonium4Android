@@ -56,7 +56,6 @@ class AsyncGame(
 
     private fun makeTurn(turn: Pos, trans: Trans): Sequence<Transition> {
         require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
-        logV("makeTurn($turn, trans)")
         lastTurn = turn
         val transitions = board.incAnimated(turn)
         require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" }
@@ -153,8 +152,6 @@ private class LinkedTurns(
             val nextAs = unknowns.remove()
             nextAs.next.scheduleTurn(nextAs.link.depth)
         }
-        if (computeWidth() >= SOFT_MAX_WIDTH)
-            logI("SOFT_MAX_WIDTH = $SOFT_MAX_WIDTH hit while discovering unknowns\n")
     }
 
     private fun Next.scheduleTurn(depth: Int) {
@@ -224,9 +221,9 @@ private class LinkedTurns(
             val computing = computing
             when {
                 computing == null ->
-                    logI("onComputed: computing dropped")
+                    logD("onComputed: computing dropped")
                 computed.id != computing.link.computation.id ->
-                    logI("onComputed: id mismatch:\n${computed.id} of $computed\nshould be ${computing.link.computation.id} of $computing")
+                    logD("onComputed: id mismatch:\n${computed.id} of $computed\nshould be ${computing.link.computation.id} of $computing")
                 else -> {
                     computing.next.link = computed
                     this.computing = null
@@ -246,9 +243,7 @@ private class LinkedTurns(
             scheduledComputings.poll()?.let { scheduledNextAs ->
                 scheduledNextAs.next.startComputing(scheduledNextAs.link.computation)
             } ?: synchronized(UnknownsLock) {
-                logIElapsedTime("runNext: starvation:") {
-                    discoverUnknowns()
-                }
+                discoverUnknowns()
             }
         }
     }
@@ -319,7 +314,7 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        logI("requestBotTurnAsync:")
+        logI("requestBotTurnAsync")
         return tryRequestBotTurnOrAsync {
             synchronized(ComputingsLock) {
                 tryRequestBotTurnOrAsync {
@@ -336,7 +331,7 @@ private class LinkedTurns(
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
                 setFocus(focus.next)
-                return coroutineScope.async { sLogI("-> ${focus.pos}"); focus.pos to focus.next.trans }
+                return coroutineScope.async { focus.pos to focus.next.trans }
             }
             is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
                 val (elapsedPretty, computed) = measureElapsedTimePretty {
