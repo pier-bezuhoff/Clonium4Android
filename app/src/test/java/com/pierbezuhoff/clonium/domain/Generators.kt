@@ -22,7 +22,7 @@ fun PosGenerator(emptyBoard: EmptyBoard): Gen<Pos> =
 fun ChipGenerator(): Gen<Chip> =
     Gen.bind(Gen.choose(0, 3), Gen.choose(1, 3)) { id, ordinal -> Chip(PlayerId(id), Level(ordinal)) }
 
-class SimpleEmptyBoardGenerator : Gen<SimpleEmptyBoard> {
+class SimpleEmptyBoardGenerator(private val softMinSize: Int = 1) : Gen<SimpleEmptyBoard> {
     override fun constants(): Iterable<SimpleEmptyBoard> =
         with(EmptyBoardFactory) {
             listOf(
@@ -33,7 +33,7 @@ class SimpleEmptyBoardGenerator : Gen<SimpleEmptyBoard> {
         }
 
     override fun random(): Sequence<SimpleEmptyBoard> =
-        Gen.pair(Gen.choose(1, 10), Gen.choose(1, 10))
+        Gen.pair(Gen.choose(softMinSize, 10), Gen.choose(softMinSize, 10))
             .flatMap { (width, height) -> Gen.set(PosGenerator(width, height))
                 .map { posSet -> SimpleEmptyBoard(width, height, posSet.toMutableSet()) } }
             .random()
@@ -86,3 +86,12 @@ fun PrimitiveBoardGenerator(): Gen<PrimitiveBoard> =
 
 fun PopulatedPrimitiveBoardGenerator(): Gen<PrimitiveBoard> =
     PrimitiveBoardGenerator().filter { it.players().isNotEmpty() }
+
+fun VeryPopulatedPrimitiveBoardGenerator(ratio: Double = 0.5): Gen<PrimitiveBoard> =
+    SimpleEmptyBoardGenerator(softMinSize = 6).map {
+        PrimitiveBoard(SimpleBoard(it).apply {
+            val nPoss = it.posSet.size
+            for (pos in it.posSet.shuffled().take((ratio * nPoss).toInt()))
+                posMap[pos] = ChipGenerator().random().first()
+        })
+    }

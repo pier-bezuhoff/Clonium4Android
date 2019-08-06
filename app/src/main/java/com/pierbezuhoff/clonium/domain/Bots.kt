@@ -89,7 +89,7 @@ object MaximizingStrategy {
             return sequenceOf(board)
         } else {
             val playerId = order.first()
-            val distinctTurns = board.distinctTurns(playerId)
+            val distinctTurns = board.possOf(playerId)
             if (distinctTurns.isEmpty())
                 return sequenceOf(board)
             return distinctTurns.asSequence()
@@ -97,6 +97,23 @@ object MaximizingStrategy {
                     val nextBoard = board.copy()
                     nextBoard.inc(turn)
                     allVariations_shifting(nTurns - 1, nextBoard.shiftOrder(order), nextBoard)
+                }
+        }
+    }
+
+    fun allVariations_distinct_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
+        if (nTurns == 0 || order.isEmpty()) {
+            return sequenceOf(board)
+        } else {
+            val playerId = order.first()
+            val distinctTurns = board.distinctTurns(playerId)
+            if (distinctTurns.isEmpty())
+                return sequenceOf(board)
+            return distinctTurns.asSequence()
+                .flatMap { turn ->
+                    val nextBoard = board.copy()
+                    nextBoard.inc(turn)
+                    allVariations_distinct_shifting(nTurns - 1, nextBoard.shiftOrder(order), nextBoard)
                 }
         }
     }
