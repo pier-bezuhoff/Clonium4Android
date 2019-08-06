@@ -234,6 +234,15 @@ interface Board : EmptyBoard {
         return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
     }
 
+    fun groupedDistinctTurns(playerId: PlayerId): Set<Set<Pos>> {
+        val chains = chains()
+        fun chainIdOf(pos: Pos): Int =
+            chains.indexOfFirst { pos in it }
+        val poss = possOf(playerId)
+        val (stable, unstable) = poss.partition { levelAt(it)!! < Level3 }
+        return stable.map { setOf(it) }.toSet() + unstable.groupBy { chainIdOf(it) }.values.map { it.toSet() }
+    }
+
     /** Cyclically shift [order] removing dead players */
     fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
         if (order.isEmpty())

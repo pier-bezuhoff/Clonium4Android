@@ -161,19 +161,28 @@ private class LinkedTurns(
         val playerId = order.first()
         when (val player = players.getValue(playerId)) {
             is HumanPlayer -> {
-                val possibleTurns = board.possOf(player.playerId)
+                val distinctTurnSets = board.groupedDistinctTurns(playerId)
+                require(board.distinctTurns(playerId).all { turn -> distinctTurnSets.filter { turn in it }.size == 1 })
+                require(distinctTurnSets.flatten().toSet() == board.possOf(playerId))
                 link = Link.FutureTurn.Human.OneOf(
                     player.playerId,
-                    // TODO: connect chained turns' unknowns
-                    possibleTurns.associateWith { turn ->
-                        val nextBoard = board.copy()
-                        val transitions = nextBoard.incAnimated(turn)
-                        val nextOrder = nextBoard.shiftOrder(order)
-                        val trans = Trans(nextBoard, nextOrder, transitions)
-                        return@associateWith if (nextOrder.size <= 1)
-                            Next(trans, Link.End)
-                        else
-                            nextUnknown(trans, depth + 1)
+                    // BUG: cause board divergence in AsyncGame.makeTurn
+                    //  probably after rescheduleAll
+                    mutableMapOf<Pos, Next>().apply {
+                        for (turnSet in distinctTurnSets) {
+                            val candidate = turnSet.first()
+                            val nextBoard = board.copy()
+                            // NOTE: transitions are useless: they are different for each candidate
+                            val transitions = nextBoard.incAnimated(candidate)
+                            val nextOrder = nextBoard.shiftOrder(order)
+                            val trans = Trans(nextBoard, nextOrder, transitions)
+                            val next = if (nextOrder.size <= 1)
+                                Next(trans, Link.End)
+                            else
+                                nextUnknown(trans, depth + 1)
+                            for (turn in turnSet)
+                                put(turn, next)
+                        }
                     }
                 )
             }
