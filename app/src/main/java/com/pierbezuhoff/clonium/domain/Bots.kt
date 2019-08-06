@@ -48,11 +48,11 @@ object MaximizingStrategy {
     ): Sequence<EvolvingBoard> {
         if (playerId == null || nTurns == 0)
             return sequenceOf(board)
-        val distinctTurns = board.possOf(playerId)
-        if (distinctTurns.isEmpty())
+        val possibleTurns = board.possOf(playerId)
+        if (possibleTurns.isEmpty())
             return sequenceOf(board)
         val nextPlayerId = nextPlayerId(playerId, order, board)
-        return distinctTurns.asSequence()
+        return possibleTurns.asSequence()
             .flatMap { turn ->
                 allVariations(
                     nTurns - 1,
@@ -63,7 +63,7 @@ object MaximizingStrategy {
     }
 
     // MAYBE: try to use sequence { ... } builder
-    fun allVariations_distinct(
+    internal fun allVariations_distinct(
         nTurns: Int,
         playerId: PlayerId?, order: List<PlayerId>,
         board: EvolvingBoard
@@ -84,15 +84,21 @@ object MaximizingStrategy {
             }
     }
 
-    fun allVariations_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
+    internal fun allVariations_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
         if (nTurns == 0 || order.isEmpty()) {
             return sequenceOf(board)
         } else {
             val playerId = order.first()
-            val distinctTurns = board.possOf(playerId)
-            if (distinctTurns.isEmpty())
+            val possibleTurns = board.possOf(playerId)
+            if (possibleTurns.isEmpty())
                 return sequenceOf(board)
-            return distinctTurns.asSequence()
+            if (nTurns == 1)
+                return possibleTurns.asSequence().map {
+                    val nextBoard = board.copy()
+                    nextBoard.inc(it)
+                    nextBoard
+                }
+            return possibleTurns.asSequence()
                 .flatMap { turn ->
                     val nextBoard = board.copy()
                     nextBoard.inc(turn)
@@ -101,7 +107,7 @@ object MaximizingStrategy {
         }
     }
 
-    fun allVariations_distinct_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
+    internal fun allVariations_distinct_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
         if (nTurns == 0 || order.isEmpty()) {
             return sequenceOf(board)
         } else {
@@ -118,7 +124,7 @@ object MaximizingStrategy {
         }
     }
 
-    fun allVariations_tailrec(
+    internal fun allVariations_tailrec(
         nTurns: Int, order: List<PlayerId>, board: EvolvingBoard
     ): Sequence<EvolvingBoard> =
         _allVariations_tailrec(sequenceOf(Triple(nTurns, order, board)), emptySequence())
@@ -165,8 +171,6 @@ object MaximizingStrategy {
     ): Int {
         if (depth == 0)
             return estimate(board)
-        if (depth == 1)
-            return estimateTurn1(turn, estimate, playerId, order, board)
         val resultingBoard = board.copy().apply { inc(turn) }
         // NOTE: if a player dies in this round we just analyze further development
         val variations = allVariations(
@@ -200,6 +204,42 @@ object MaximizingStrategy {
         val variations = allVariations(
             order.size - 1, // all variations after 1 round
             nextPlayerId(playerId, order, board), order,
+            resultingBoard
+        )
+        val worstCase = variations.minBy(estimate)
+        return worstCase?.let(estimate) ?: Int.MAX_VALUE
+    }
+
+    internal inline fun metaEstimateTurn1_(
+        crossinline allVariations: (Int, PlayerId?, List<PlayerId>, EvolvingBoard) -> Sequence<EvolvingBoard>,
+        turn: Pos,
+        estimate: (Board) -> Int,
+        playerId: PlayerId,
+        order: List<PlayerId>,
+        board: EvolvingBoard
+    ): Int {
+        val resultingBoard = board.copy().apply { inc(turn) }
+        val variations = allVariations(
+            order.size - 1, // all variations after 1 round
+            playerId,
+            order,
+            resultingBoard
+        )
+        val worstCase = variations.minBy(estimate)
+        return worstCase?.let(estimate) ?: Int.MAX_VALUE
+    }
+
+    internal inline fun metaEstimateTurn1(
+        crossinline allVariations: (Int, List<PlayerId>, EvolvingBoard) -> Sequence<EvolvingBoard>,
+        turn: Pos,
+        estimate: (Board) -> Int,
+        order: List<PlayerId>,
+        board: EvolvingBoard
+    ): Int {
+        val resultingBoard = board.copy().apply { inc(turn) }
+        val variations = allVariations(
+            order.size - 1, // all variations after 1 round
+            order,
             resultingBoard
         )
         val worstCase = variations.minBy(estimate)
