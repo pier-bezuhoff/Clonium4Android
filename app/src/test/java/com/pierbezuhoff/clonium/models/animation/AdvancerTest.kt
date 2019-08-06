@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.models.animation
 
+import com.pierbezuhoff.clonium.utils.Milliseconds
 import io.kotlintest.matchers.collections.shouldContainExactly
 import io.kotlintest.matchers.doubles.shouldBeGreaterThan
 import io.kotlintest.matchers.withClue

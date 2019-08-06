@@ -385,6 +385,10 @@ interface EvolvingBoard : Board {
     /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s while recording [Transition]s */
     fun incAnimated(pos: Pos): Sequence<Transition>
 
+    /** Return new [EvolvingBoard] after [EvolvingBoard.inc] */
+    fun afterInc(pos: Pos): EvolvingBoard =
+        copy().apply { inc(pos) }
+
     interface Builder {
         fun of(board: Board): EvolvingBoard
     }

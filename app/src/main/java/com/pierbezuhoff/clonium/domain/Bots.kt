@@ -1,9 +1,7 @@
 package com.pierbezuhoff.clonium.domain
 
-import android.util.Log
 import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.measureElapsedTime
 import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.*
 
@@ -34,7 +32,7 @@ class RandomPickerBot(override val playerId: PlayerId) : BotPlayer {
 
 object MaximizingStrategy {
 
-    private fun nextPlayerId(
+    fun nextPlayerId(
         playerId: PlayerId, order: List<PlayerId>,
         board: Board
     ): PlayerId? {
@@ -43,18 +41,18 @@ object MaximizingStrategy {
     }
 
     /** All possible [EvolvingBoard]s after [nTurns] turns starting from [playerId] according to [order] */
-    private fun allVariations(
+    fun allVariations(
         nTurns: Int,
         playerId: PlayerId?, order: List<PlayerId>,
         board: EvolvingBoard
-    ) : Sequence<EvolvingBoard> {
+    ): Sequence<EvolvingBoard> {
         if (playerId == null || nTurns == 0)
             return sequenceOf(board)
-        val possibleTurns = board.possOf(playerId)
-        if (possibleTurns.isEmpty())
+        val distinctTurns = board.possOf(playerId)
+        if (distinctTurns.isEmpty())
             return sequenceOf(board)
         val nextPlayerId = nextPlayerId(playerId, order, board)
-        return possibleTurns.asSequence()
+        return distinctTurns.asSequence()
             .flatMap { turn ->
                 allVariations(
                     nTurns - 1,
@@ -62,6 +60,81 @@ object MaximizingStrategy {
                     board.copy().apply { inc(turn) }
                 )
             }
+    }
+
+    // MAYBE: try to use sequence { ... } builder
+    fun allVariations_distinct(
+        nTurns: Int,
+        playerId: PlayerId?, order: List<PlayerId>,
+        board: EvolvingBoard
+    ): Sequence<EvolvingBoard> {
+        if (playerId == null || nTurns == 0)
+            return sequenceOf(board)
+        val distinctTurns = board.distinctTurns(playerId)
+        if (distinctTurns.isEmpty())
+            return sequenceOf(board)
+        val nextPlayerId = nextPlayerId(playerId, order, board)
+        return distinctTurns.asSequence()
+            .flatMap { turn ->
+                allVariations_distinct(
+                    nTurns - 1,
+                    nextPlayerId, order,
+                    board.copy().apply { inc(turn) }
+                )
+            }
+    }
+
+    fun allVariations_shifting(nTurns: Int, order: List<PlayerId>, board: EvolvingBoard): Sequence<EvolvingBoard> {
+        if (nTurns == 0 || order.isEmpty()) {
+            return sequenceOf(board)
+        } else {
+            val playerId = order.first()
+            val distinctTurns = board.distinctTurns(playerId)
+            if (distinctTurns.isEmpty())
+                return sequenceOf(board)
+            return distinctTurns.asSequence()
+                .flatMap { turn ->
+                    val nextBoard = board.copy()
+                    nextBoard.inc(turn)
+                    allVariations_shifting(nTurns - 1, nextBoard.shiftOrder(order), nextBoard)
+                }
+        }
+    }
+
+    fun allVariations_tailrec(
+        nTurns: Int, order: List<PlayerId>, board: EvolvingBoard
+    ): Sequence<EvolvingBoard> =
+        _allVariations_tailrec(sequenceOf(Triple(nTurns, order, board)), emptySequence())
+
+    private tailrec fun _allVariations_tailrec(
+        args: Sequence<Triple<Int, List<PlayerId>, EvolvingBoard>>,
+        result: Sequence<EvolvingBoard>
+    ): Sequence<EvolvingBoard> {
+        val arg = args.firstOrNull()
+        if (arg == null) {
+            return result
+        } else {
+            val (nTurns, order, board) = arg
+            val restArgs = args.drop(1)
+            if (nTurns == 0)
+                return _allVariations_tailrec(restArgs, result + sequenceOf(board))
+            if (order.isEmpty())
+                return _allVariations_tailrec(restArgs, result)
+            if (order.size == 1)
+                return _allVariations_tailrec(restArgs, result + sequenceOf(board))
+            val playerId = order.first()
+            val distinctTurns = board.distinctTurns(playerId) // non-empty
+            if (nTurns == 1)
+                return _allVariations_tailrec(restArgs, result + distinctTurns.asSequence().map { board.afterInc(it) })
+            val newNTurns = nTurns - 1
+            val newArgs = distinctTurns.asSequence()
+                .map {
+                    val newBoard = board.copy()
+                    newBoard.inc(it)
+                    Triple(newNTurns, newBoard.shiftOrder(order), newBoard)
+                }
+            return _allVariations_tailrec(restArgs + newArgs, result)
+        }
     }
 
     // MAYBE: inline recursion somehow ([depth] is decreasing)
@@ -75,6 +148,8 @@ object MaximizingStrategy {
     ): Int {
         if (depth == 0)
             return estimate(board)
+        if (depth == 1)
+            return estimateTurn1(turn, estimate, playerId, order, board)
         val resultingBoard = board.copy().apply { inc(turn) }
         // NOTE: if a player dies in this round we just analyze further development
         val variations = allVariations(
@@ -94,6 +169,24 @@ object MaximizingStrategy {
                 )
             }.max() ?: Int.MIN_VALUE // no turns means death
         }.min() ?: Int.MAX_VALUE
+    }
+
+    inline fun estimateTurn1(
+        turn: Pos,
+        estimate: (Board) -> Int,
+        playerId: PlayerId,
+        order: List<PlayerId>,
+        board: EvolvingBoard
+    ): Int {
+        val resultingBoard = board.copy().apply { inc(turn) }
+        // NOTE: if a player dies in this round we just analyze further development
+        val variations = allVariations(
+            order.size - 1, // all variations after 1 round
+            nextPlayerId(playerId, order, board), order,
+            resultingBoard
+        )
+        val worstCase = variations.minBy(estimate)
+        return worstCase?.let(estimate) ?: Int.MAX_VALUE
     }
 }
 

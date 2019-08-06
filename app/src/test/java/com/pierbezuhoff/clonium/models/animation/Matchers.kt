@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.models.animation
 
+import com.pierbezuhoff.clonium.utils.Milliseconds
 import io.kotlintest.Matcher
 import io.kotlintest.Result
 import io.kotlintest.should

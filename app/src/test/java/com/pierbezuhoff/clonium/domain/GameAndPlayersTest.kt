@@ -30,7 +30,7 @@ class GameAndPlayersTest : FreeSpec() {
                 )
                 val order = listOf(PlayerId0, PlayerId1, PlayerId2, PlayerId3)
                 val state = Game.State(board, bots, order)
-                val game = SimpleGame(state)
+                val game = SimpleGame(state, GlobalScope)
                 with(game) {
                     repeat(100) {
                         withClue("turn $it, player = ${game.currentPlayer}, board = ${game.board}") {

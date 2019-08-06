@@ -2,6 +2,7 @@
 
 package com.pierbezuhoff.clonium.models.animation
 
+import com.pierbezuhoff.clonium.utils.Milliseconds
 import io.kotlintest.properties.Gen
 
 fun <A> ConstAdvancer(result: A, duration: Milliseconds, blocking: Boolean): Advancer<A> =

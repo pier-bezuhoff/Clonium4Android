@@ -40,21 +40,16 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        // FIX: userTap MAY hang (when: LinkedTurns.onComputed: id mismatch)
-        //  Ex: 1:1 vs level balancer on tower board
-        //  probable cause: bot's makeTurnAsync is NOT CANCELLABLE!
-        logIElapsedTime("on userTap", startMarker = null) {
-            if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
+        if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
             val pos = gamePresenter.pointf2pos(point)
             if (pos in game.possibleTurns()) {
                 gamePresenter.unhighlight()
                 gamePresenter.freezeBoard()
-                    val transitions = game.humanTurn(pos)
-                    gamePresenter.highlightLastTurn(game.lastTurn!!)
-                    gamePresenter.startTransitions(transitions)
-                    gamePresenter.unfreezeBoard()
-                    continueGameOnce = true
-                }
+                val transitions = game.humanTurn(pos)
+                gamePresenter.highlightLastTurn(game.lastTurn!!)
+                gamePresenter.startTransitions(transitions)
+                gamePresenter.unfreezeBoard()
+                continueGameOnce = true
             }
         }
     }
@@ -79,19 +74,16 @@ class GameModel(
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> {
-                logIMilestoneScope {
                     gamePresenter.highlight(game.possibleTurns(), weak = true)
                     gamePresenter.freezeBoard()
                     coroutineScope.launch {
                         delay(config.botMinTime)
                         val transitions = with(game) { botTurnAsync() }.await()
-                        - "continueGame: waiting for bot turn"
                         gamePresenter.unhighlight()
                         gamePresenter.highlightLastTurn(game.lastTurn!!)
                         gamePresenter.startTransitions(transitions)
                         gamePresenter.unfreezeBoard()
                         continueGameOnce = true
-                    }
                 }
             }
             else -> {
