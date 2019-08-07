@@ -281,9 +281,13 @@ class PrimitiveBoard private constructor(
     }
 
     object Builder : Board.Builder, EvolvingBoard.Builder {
-        override fun of(emptyBoard: EmptyBoard): Board =
+        override fun of(emptyBoard: EmptyBoard): PrimitiveBoard =
             PrimitiveBoard(SimpleBoard(emptyBoard))
-        override fun of(board: Board): EvolvingBoard =
+
+        override fun of(board: Board): PrimitiveBoard =
             PrimitiveBoard(board)
+
+        override fun fromString(s: String): PrimitiveBoard =
+            of(SimpleBoard.Builder.fromString(s))
     }
 }

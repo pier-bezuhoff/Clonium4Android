@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity()
     private val callbacks = object : Callbacks {
         override fun onTutorial(view: View) {
             logI("onTutorial")
+            // TODO: check real-time maximizer speed
         }
         override fun onNewGame(view: View) {
             logI("onNewGame")

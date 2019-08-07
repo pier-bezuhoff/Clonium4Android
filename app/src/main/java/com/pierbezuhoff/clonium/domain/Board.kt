@@ -75,6 +75,44 @@ interface EmptyBoard {
             appendln()
         }
     }
+
+    interface Builder {
+        /** ```
+         * "1234\n5678" ->
+         * Triple(width = 2, height = 2, xMap = mapOf(
+         *     Pos(0, 0) to readCell('1', '2'), Pos(0, 1) to readCell('3', '4'),
+         *     Pos(1, 0) to readCell('5', '6'), Pos(1, 1) to readCell('7', '8')
+         * )
+         * ```
+         */
+        fun <X> unmap(s: String, readCell: (Char, Char) -> X): Triple<Int, Int, Map<Pos, X>> {
+            val lines = s.lines()
+            require(lines.isNotEmpty())
+            require(lines.first().length % 2 == 0)
+            require(lines.all { it.length == lines.first().length })
+            val height = lines.size
+            val width = lines.first().length / 2
+            val m: MutableMap<Pos, X> = mutableMapOf()
+            for ((y, line) in lines.withIndex()) {
+                line.chunked(2)
+                    .withIndex()
+                    .associateTo(m) { (x, c2) ->
+                        Pos(x, y) to readCell(c2[0], c2[1])
+                    }
+            }
+            return Triple(width, height, m)
+        }
+
+        /** -> has cell */
+        fun readCell(c1: Char, c2: Char): Boolean =
+            when {
+                c1 == ' ' && c2 == ' ' -> false
+                c1 == '□' && c2 == ' ' -> true
+                else -> throw IllegalArgumentException("Invalid cell format: \"$c1$c2\"")
+            }
+
+        fun fromString(s: String): EmptyBoard
+    }
 }
 
 class SimpleEmptyBoard(
@@ -105,7 +143,7 @@ class SimpleEmptyBoard(
     override fun hashCode(): Int =
         asString().hashCode()
 
-    object Builder {
+    object Builder : EmptyBoard.Builder {
         fun square(size: Int): SimpleEmptyBoard =
             rectangular(size, size)
 
@@ -124,6 +162,14 @@ class SimpleEmptyBoard(
             val emptyBoard = rectangular(width, height)
             emptyBoard.symmetricRemove(0, 0)
             return emptyBoard
+        }
+
+        override fun fromString(s: String): SimpleEmptyBoard {
+            val (width, height, cellMap) = unmap(s) { ch, _ -> ch != ' ' }
+            return SimpleEmptyBoard(
+                width, height,
+                cellMap.filterValues { it }.keys.toMutableSet()
+            )
         }
     }
 
@@ -326,8 +372,17 @@ interface Board : EmptyBoard {
     override fun copy(): Board =
         SimpleBoard(width, height, asPosMap().toMutableMap())
 
-    interface Builder {
+    interface Builder : EmptyBoard.Builder {
         fun of(emptyBoard: EmptyBoard): Board
+
+        override fun fromString(s: String): Board
+
+        /** Scan 2 chars of asString() repr and return Pair(has cell, chip) */
+        fun readChip(c1: Char, c2: Char): Pair<Boolean, Chip?> =
+            if (c2 == ' ')
+                Pair(readCell(c1, c2), null)
+            else
+                Pair(true, Chip(PlayerId("⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ".indexOf(c2)), Level("$c1".toInt())))
     }
 }
 
@@ -391,11 +446,21 @@ class SimpleBoard(
     }
 
     object Builder : Board.Builder {
-        override fun of(emptyBoard: EmptyBoard) =
+        override fun of(emptyBoard: EmptyBoard): SimpleBoard =
             SimpleBoard(emptyBoard)
 
         fun spawn4players(emptyBoard: EmptyBoard, margin: Int = 1): SimpleBoard =
             SimpleBoard(emptyBoard).apply { spawn4players(margin) }
+
+        override fun fromString(s: String): SimpleBoard {
+            val (width, height, map) = unmap(s) { c1, c2 -> readChip(c1, c2) }
+            return SimpleBoard(
+                width, height,
+                map
+                    .filterValues { (hasCell, _) -> hasCell }
+                    .mapValuesTo(mutableMapOf()) { (_, pair) -> pair.second }
+            )
+        }
     }
 
     object Examples {
@@ -475,7 +540,8 @@ interface EvolvingBoard : Board {
     fun afterInc(pos: Pos): EvolvingBoard =
         copy().apply { inc(pos) }
 
-    interface Builder {
+    interface Builder : Board.Builder {
         fun of(board: Board): EvolvingBoard
+        override fun fromString(s: String): EvolvingBoard
     }
 }
