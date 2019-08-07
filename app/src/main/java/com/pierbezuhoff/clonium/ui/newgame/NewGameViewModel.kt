@@ -7,6 +7,7 @@ import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.BoardPresenter
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.utils.Connection
+import com.pierbezuhoff.clonium.utils.Ring
 import com.pierbezuhoff.clonium.utils.ringOf
 import org.koin.core.get
 
@@ -114,10 +115,10 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     }
 
     companion object {
-        private val BOARDS = with(BoardFactory) {
+        private val BOARDS: Ring<Board> = with(SimpleBoard.Examples) {
             ringOf(
-                spawn4players(EmptyBoardFactory.TOWER),
-                spawn4players(EmptyBoardFactory.SMALL_TOWER),
+                TOWER,
+                SMALL_TOWER,
                 DEFAULT_1,
                 DEFAULT_2,
                 DEFAULT_3,

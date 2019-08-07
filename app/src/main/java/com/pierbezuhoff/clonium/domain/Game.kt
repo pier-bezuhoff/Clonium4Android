@@ -14,7 +14,7 @@ interface Game {
     ) : Serializable {
         companion object {
             val example = run {
-                val board = BoardFactory.spawn4players(EmptyBoardFactory.SMALL_TOWER)
+                val board = SimpleBoard.Builder.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
                 val bots: Map<PlayerId, PlayerTactic.Bot> =
                     mapOf(
                         PlayerId1 to PlayerTactic.Bot.RandomPicker,

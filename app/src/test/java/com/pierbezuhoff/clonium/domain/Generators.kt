@@ -24,9 +24,9 @@ fun ChipGenerator(): Gen<Chip> =
 
 class SimpleEmptyBoardGenerator(private val softMinSize: Int = 1, private val posRatio: Double? = null) : Gen<SimpleEmptyBoard> {
     override fun constants(): Iterable<SimpleEmptyBoard> =
-        with(EmptyBoardFactory) {
+        with(SimpleEmptyBoard.Examples) {
             listOf(
-                *(1..5).map { square(it) }.toTypedArray(),
+                *(1..5).map { SimpleEmptyBoard.Builder.square(it) }.toTypedArray(),
                 DEFAULT_1, DEFAULT_2, DEFAULT_3, DEFAULT_4, DEFAULT_5,
                 SMALL_TOWER, TOWER
             )
@@ -56,10 +56,10 @@ class SimpleBoardGenerator : Gen<SimpleBoard> {
                 if (it.width >= 2) populate(it, 2) else null,
                 if (it.width >= 3) populate(it, 3) else null,
                 if (it.width >= 4 && it.hasCell(Pos(1, 1)))
-                    BoardFactory.spawn4players(it.copy(), margin = 1)
+                    SimpleBoard.Builder.spawn4players(it.copy(), margin = 1)
                 else null,
                 if (it.width >= 6 && it.hasCell(Pos(2, 2)))
-                    BoardFactory.spawn4players(it.copy(), margin = 2)
+                    SimpleBoard.Builder.spawn4players(it.copy(), margin = 2)
                 else null
             )
         }

@@ -21,7 +21,7 @@ class GameAndPlayersTest : FreeSpec() {
             }
 
             "maximizers" {
-                val board = BoardFactory.DEFAULT_1
+                val board = SimpleBoard.Examples.DEFAULT_1
                 val bots = mapOf(
                     PlayerId0 to PlayerTactic.Bot.LevelMaximizer(depth = 1),
                     PlayerId1 to PlayerTactic.Bot.RandomPicker,

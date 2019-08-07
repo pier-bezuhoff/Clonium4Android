@@ -72,7 +72,7 @@ class BoardTest : FreeSpec() {
             "Board" - {
                 "chains example" {
                     val board = SimpleBoard(
-                        EmptyBoardFactory.square(6).apply {
+                        SimpleEmptyBoard.Builder.square(6).apply {
                             posSet.removeAll(setOf(Pos(0, 2), Pos(3, 3), Pos(5, 4), Pos(5, 5)))
                         }
                     ).with(
@@ -255,7 +255,7 @@ class BoardTest : FreeSpec() {
                         }
                     }
                     "ultimate example" {
-                        val emptyBoard: EmptyBoard = with(EmptyBoardFactory) {
+                        val emptyBoard: EmptyBoard = with(SimpleEmptyBoard.Builder) {
                             square(4).apply { symmetricRemove(1, 0) }
                         }
                         fun chip(id: Int, ordinal: Int): Chip =
