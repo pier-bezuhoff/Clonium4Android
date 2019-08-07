@@ -142,12 +142,12 @@ class MaximizingStrategyTest : FreeSpec() {
                     "lmn=1,ds", // bad
                     "lmn=1,dst", // very bad
                     "lm1", // LevelMinimizer1Bot(), better than lmn=1*
-                    "lm1d",
+                    "lm1d", // best
                     "lm1,s",
                     "lm1,d",
                     "lm1,ds", // bad
                     "lm1,dst", // very bad
-                    "lm1d,s", // best
+                    "lm1d,s",
                     "lm1d,d",
                     "lm1d,ds", // bad
                     "lm1d,dst" // very bad
