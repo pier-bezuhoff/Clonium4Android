@@ -247,16 +247,136 @@ object MaximizingStrategy {
     }
 }
 
+typealias Estimator = (Board) -> Int
 abstract class MaximizerBot(
     override val playerId: PlayerId,
-    private val estimate: (Board) -> Int,
-    private val depth: Int
+    internal val estimate: Estimator,
+    val depth: Int
 ): Any()
     , BotPlayer
     , Logger by AndroidLogger("MaximizerBot", minLogLevel = Logger.Level.WARNING)
 {
 
     override fun CoroutineScope.makeTurnAsync(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> {
+        return async(Dispatchers.Default) {
+            val possibleTurns = board.possOf(playerId)
+            require(possibleTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (possibleTurns.size == 1)
+                return@async possibleTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                possibleTurns
+                    .maxBy { turn ->
+                        MaximizingStrategy.estimateTurn(
+                            turn, depth, estimate,
+                            playerId, order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@async bestTurn
+        }
+    }
+
+    internal fun CoroutineScope.makeTurnAsync_distinct(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> {
+        return async(Dispatchers.Default) {
+            val distinctTurns = board.distinctTurns(playerId)
+            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (distinctTurns.size == 1)
+                return@async distinctTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                distinctTurns
+                    .maxBy { turn ->
+                        MaximizingStrategy.estimateTurn(
+                            turn, depth, estimate,
+                            playerId, order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@async bestTurn
+        }
+    }
+
+    internal inline fun CoroutineScope.metaMakeTurnAsync(
+        crossinline estimateTurn: (Pos, Int, Estimator, List<PlayerId>, EvolvingBoard) -> Int,
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> {
+        return async(Dispatchers.Default) {
+            val possibleTurns = board.possOf(playerId)
+            require(possibleTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (possibleTurns.size == 1)
+                return@async possibleTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                possibleTurns
+                    .maxBy { turn ->
+                        estimateTurn(
+                            turn, depth, estimate,
+                            order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@async bestTurn
+        }
+    }
+
+    internal inline fun CoroutineScope.metaMakeTurnAsync_distinct(
+        crossinline estimateTurn: (Pos, Int, Estimator, List<PlayerId>, EvolvingBoard) -> Int,
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> {
+        return async(Dispatchers.Default) {
+            val distinctTurns = board.distinctTurns(playerId)
+            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (distinctTurns.size == 1)
+                return@async distinctTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                distinctTurns
+                    .maxBy { turn ->
+                        estimateTurn(
+                            turn, depth, estimate,
+                            order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@async bestTurn
+        }
+    }
+
+    internal inline fun CoroutineScope.metaMakeTurnAsync_(
+        crossinline estimateTurn: (Pos, Int, Estimator, PlayerId, List<PlayerId>, EvolvingBoard) -> Int,
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> {
+        return async(Dispatchers.Default) {
+            val possibleTurns = board.possOf(playerId)
+            require(possibleTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (possibleTurns.size == 1)
+                return@async possibleTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                possibleTurns
+                    .maxBy { turn ->
+                        estimateTurn(
+                            turn, depth, estimate,
+                            playerId, order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@async bestTurn
+        }
+    }
+
+    internal inline fun CoroutineScope.metaMakeTurnAsync_distinct_(
+        crossinline estimateTurn: (Pos, Int, Estimator, PlayerId, List<PlayerId>, EvolvingBoard) -> Int,
         board: Board, order: List<PlayerId>
     ): Deferred<Pos> {
         return async(Dispatchers.Default) {
@@ -268,7 +388,7 @@ abstract class MaximizerBot(
             val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
                 possibleTurns
                     .maxBy { turn ->
-                        MaximizingStrategy.estimateTurn(
+                        estimateTurn(
                             turn, depth, estimate,
                             playerId, order, evolvingBoard
                         )
@@ -293,6 +413,15 @@ class LevelMaximizerBot(
 ) {
     override val difficultyName: String = "Level maximizer $depth"
     override val tactic = PlayerTactic.Bot.LevelMaximizer(depth)
+}
+
+internal class LevelMaximizer1Bot(playerId: PlayerId) : MaximizerBot(
+    playerId,
+    estimate = { board -> board.possOf(playerId).sumBy { board.levelAt(it)?.ordinal ?: 0 } },
+    depth = 1
+) {
+    override val difficultyName: String = "Level maximizer 1"
+    override val tactic = PlayerTactic.Bot.LevelMaximizer(depth = 1)
 }
 
 class ChipCountMaximizerBot(
