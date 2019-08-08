@@ -9,17 +9,19 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.domain.Highlighting
 import com.pierbezuhoff.clonium.domain.PlayerTactic
 import com.pierbezuhoff.clonium.domain.SimpleBoard
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
+import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.android.synthetic.main.activity_new_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
-// TODO: remember last default config
 class NewGameActivity : AppCompatActivity() {
     private val newGameViewModel: NewGameViewModel by viewModel()
+    private var playerAdapter: PlayerAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,13 +31,17 @@ class NewGameActivity : AppCompatActivity() {
         binding.viewModel = newGameViewModel
 
         newGameViewModel.boardPresenter.observe(this, Observer {
-            @Suppress("RemoveExplicitTypeArguments")
-            val adapter = PlayerAdapter(newGameViewModel.playerItems, get<GameBitmapLoader>())
-            adapter.boardPlayerVisibilitySubscription.subscribeFrom(newGameViewModel)
-            adapter.boardPlayerHighlightingSubscription.subscribeFrom(newGameViewModel)
-            players_recycler_view.adapter = adapter
-            val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
-            ItemTouchHelper(callback).attachToRecyclerView(players_recycler_view)
+            if (playerAdapter == null) {
+                val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
+                adapter.boardPlayerVisibilitySubscription.subscribeFrom(newGameViewModel)
+                adapter.boardPlayerHighlightingSubscription.subscribeFrom(newGameViewModel)
+                players_recycler_view.adapter = adapter
+                val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
+                ItemTouchHelper(callback).attachToRecyclerView(players_recycler_view)
+                playerAdapter = adapter
+            } else {
+                playerAdapter!!.setPlayerItems(newGameViewModel.playerItems)
+            }
         })
         previous_board.setOnClickListener {
             newGameViewModel.previousBoard()

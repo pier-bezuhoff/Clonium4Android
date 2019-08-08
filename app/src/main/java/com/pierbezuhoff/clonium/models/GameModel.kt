@@ -7,10 +7,7 @@ import com.pierbezuhoff.clonium.domain.BotPlayer
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.HumanPlayer
 import com.pierbezuhoff.clonium.ui.game.DrawThread
-import com.pierbezuhoff.clonium.utils.AndroidLogger
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.Once
-import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
+import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -28,10 +25,10 @@ class GameModel(
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
-    , Logger by AndroidLogger("GameModel")
+    , Logger by AndroidLoggerOf<GameModel>()
     , KoinComponent
 {
-    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game)
+    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, margin = 1f)
     private var continueGameOnce by Once(true)
 
     init {
@@ -43,10 +40,10 @@ class GameModel(
         if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
             val pos = gamePresenter.pointf2pos(point)
             if (pos in game.possibleTurns()) {
-                gamePresenter.unhighlight()
+                gamePresenter.boardHighlighting.hidePossibleTurns()
                 gamePresenter.freezeBoard()
                 val transitions = game.humanTurn(pos)
-                gamePresenter.highlightLastTurn(game.lastTurn!!)
+                gamePresenter.boardHighlighting.showLastTurn(pos, game.order.size)
                 gamePresenter.startTransitions(transitions)
                 gamePresenter.unfreezeBoard()
                 continueGameOnce = true
@@ -74,21 +71,21 @@ class GameModel(
                 // show overall stat
             }
             game.currentPlayer is BotPlayer -> {
-                    gamePresenter.highlight(game.possibleTurns(), weak = true)
-                    gamePresenter.freezeBoard()
-                    coroutineScope.launch {
-                        delay(config.botMinTime)
-                        val transitions = with(game) { botTurnAsync() }.await()
-                        gamePresenter.unhighlight()
-                        gamePresenter.highlightLastTurn(game.lastTurn!!)
-                        gamePresenter.startTransitions(transitions)
-                        gamePresenter.unfreezeBoard()
-                        continueGameOnce = true
+                gamePresenter.boardHighlighting.showBotPossibleTurns(game.possibleTurns())
+                gamePresenter.freezeBoard()
+                coroutineScope.launch {
+                    delay(config.botMinTime)
+                    val transitions = with(game) { botTurnAsync() }.await()
+                    gamePresenter.boardHighlighting.hidePossibleTurns()
+                    gamePresenter.boardHighlighting.showLastTurn(game.lastTurn!!, game.nPlayers)
+                    gamePresenter.startTransitions(transitions)
+                    gamePresenter.unfreezeBoard()
+                    continueGameOnce = true
                 }
             }
             else -> {
                 // before human's turn:
-                gamePresenter.highlight(game.possibleTurns())
+                gamePresenter.boardHighlighting.showHumanPossibleTurns(game.possibleTurns())
             }
         }
     }

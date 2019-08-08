@@ -44,14 +44,10 @@ class BoardHighlighting {
     fun showLastTurn(turn: Pos, nPlayers: Int) {
         _highlightings -= listOfNotNull(lastMainTurn)
         _highlightings -= lastMinorTurns
-        lastMinorTurns = (listOfNotNull(lastMainTurn) + lastMinorTurns).take(max(nPlayers - 2, 0)) // without main last and current
+        lastMinorTurns = (listOfNotNull(lastMainTurn) + (lastMinorTurns - turn)).take(max(nPlayers - 2, 0)) // without main last and current
         lastMainTurn = turn
         lastMinorTurns.associateWithTo(_highlightings) { Highlighting.LastTurn.Minor }
         _highlightings[turn] = Highlighting.LastTurn.Main
-    }
-
-    fun hideInterceptedLastTurns(transition: Transition) {
-        hideInterceptedLastTurns(sequenceOf(transition))
     }
 
     fun hideInterceptedLastTurns(transitions: Sequence<Transition>) {
@@ -60,7 +56,7 @@ class BoardHighlighting {
         hideInterceptedLastTurns(interceptedByExplosions)
     }
 
-    fun hideInterceptedLastTurns(turns: List<Pos>) {
+    fun hideInterceptedLastTurns(turns: Collection<Pos>) {
         require(lastTurns.containsAll(turns))
         _highlightings -= turns
         lastMainTurn = lastMainTurn.takeUnless { it in turns }

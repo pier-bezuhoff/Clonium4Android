@@ -24,11 +24,14 @@ class TransitionAnimationsPool : Any()
     override val blocking: Boolean
         get() = pool.any { it.blocking }
 
+    object AdvanceAnimations
     override fun advanceAnimations(timeDelta: Milliseconds) {
-        for (advancer in pool) {
-            advancer.advance(timeDelta)
+        synchronized(AdvanceAnimations) {
+            for (advancer in pool) {
+                advancer.advance(timeDelta)
+            }
+            pool.removeAll { it.ended }
         }
-        pool.removeAll { it.ended }
     }
 
     override fun drawAnimations(canvas: Canvas) {

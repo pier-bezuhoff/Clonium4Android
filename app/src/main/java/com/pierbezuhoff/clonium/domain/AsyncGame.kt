@@ -249,6 +249,7 @@ private class LinkedTurns(
         }
     }
 
+    // BUG: when focus is End + at the end of 2h game
     fun givenHumanTurn(turn: Pos): Trans {
         logI("givenHumanTurn($turn)")
         require(focus is Link.FutureTurn.Human.OneOf) { "focus = $focus".also { logState() } }

@@ -11,16 +11,14 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
+import com.pierbezuhoff.clonium.models.PlayerItem
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Connection
+import com.pierbezuhoff.clonium.utils.Logger
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
 import org.jetbrains.anko.layoutInflater
-
-data class PlayerItem(
-    val playerId: PlayerId,
-    var tactic: PlayerTactic,
-    var participate: Boolean
-)
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
     override fun isLongPressDragEnabled(): Boolean =
@@ -67,10 +65,11 @@ interface RowManager {
 }
 
 class PlayerAdapter(
-    private val playerItems: MutableList<PlayerItem>,
+    private var playerItems: MutableList<PlayerItem>,
     private val bitmapLoader: GameBitmapLoader
 ) : RecyclerView.Adapter<PlayerAdapter.ViewHolder>()
     , RowManager
+    , Logger by AndroidLoggerOf<PlayerAdapter>()
 {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         lateinit var playerItem: PlayerItem
@@ -80,7 +79,7 @@ class PlayerAdapter(
     private val boardPlayerVisibility = Connection<BoardPlayerHider>()
     val boardPlayerVisibilitySubscription = boardPlayerVisibility.subscription
 
-    interface BoardPlayerHighlighter { fun highlighPlayer(playerId: PlayerId); fun unhighlight() }
+    interface BoardPlayerHighlighter { fun highlightPlayer(playerId: PlayerId); fun unhighlight() }
     private val boardPlayerHighlighting = Connection<BoardPlayerHighlighter>()
     val boardPlayerHighlightingSubscription = boardPlayerHighlighting.subscription
 
@@ -89,6 +88,11 @@ class PlayerAdapter(
             .from(parent.context)
             .inflate(R.layout.player_item, parent, false)
         return ViewHolder(view)
+    }
+
+    fun setPlayerItems(newPlayerItems: MutableList<PlayerItem>) {
+        playerItems = newPlayerItems
+        notifyDataSetChanged()
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -126,19 +130,19 @@ class PlayerAdapter(
     override fun moveRow(fromPosition: Int, toPosition: Int) {
         val removed = playerItems.removeAt(fromPosition)
         if (toPosition < itemCount) {
-            val targetPosition = if (toPosition >= fromPosition) (toPosition + 1) else toPosition
-            playerItems.add(targetPosition, removed)
+            playerItems.add(toPosition, removed)
         } else {
             playerItems.add(removed)
         }
         notifyItemMoved(fromPosition, toPosition)
+
     }
 
     override fun selectRow(viewHolder: ViewHolder) {
         // TODO: highlight row, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
         val playerId = viewHolder.playerItem.playerId
         boardPlayerHighlighting.send {
-            highlighPlayer(playerId)
+            highlightPlayer(playerId)
         }
     }
 

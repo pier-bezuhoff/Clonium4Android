@@ -96,6 +96,7 @@ object MaximizingStrategy {
 
 private typealias Estimator = (Board) -> Int
 
+// MAYBE: optimize for multi-core (several threads)
 abstract class MaximizerBot(
     override val playerId: PlayerId,
     private val estimator: Estimator,

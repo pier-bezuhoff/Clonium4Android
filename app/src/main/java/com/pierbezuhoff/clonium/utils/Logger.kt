@@ -3,6 +3,7 @@ package com.pierbezuhoff.clonium.utils
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.reflect.KClass
 
 interface Logger {
     enum class Level {
@@ -182,6 +183,8 @@ class AndroidLogger(
     logTag: String = "AndroidLogger",
     minLogLevel: Logger.Level = Logger.Level.VERBOSE
 ) : AbstractLogger(logTag, minLogLevel) {
+    constructor(cls: KClass<*>, minLogLevel: Logger.Level = Logger.Level.VERBOSE) : this(cls.simpleName ?: "<AnonymousClass>", minLogLevel)
+
     override fun _log(level: Logger.Level, message: String) {
         when (level) {
             Logger.Level.VERBOSE -> Log.v(logTag, message)
@@ -199,3 +202,7 @@ class AndroidLogger(
         }
     }
 }
+
+@Suppress("FunctionName")
+inline fun <reified C> AndroidLoggerOf(minLogLevel: Logger.Level = Logger.Level.VERBOSE): AndroidLogger =
+    AndroidLogger(C::class, minLogLevel)

@@ -34,14 +34,14 @@ class NewGameBoardGestures(context: Context) : GestureDetector.SimpleOnGestureLi
         return true
     }
 
-    override fun onDown(e: MotionEvent?): Boolean {
+    override fun onDown(e: MotionEvent): Boolean {
         super.onDown(e)
         return true
     }
 
     override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
         tapConnection.send { onTap(e.x, e.y) }
-        return super.onSingleTapConfirmed(e)
+        return true
     }
 }
 

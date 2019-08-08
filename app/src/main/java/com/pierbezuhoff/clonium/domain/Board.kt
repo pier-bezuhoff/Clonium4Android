@@ -473,6 +473,10 @@ class SimpleBoard(
         val DEFAULT_3 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_3)
         val DEFAULT_4 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_4)
         val DEFAULT_5 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_5)
+        val ALL = listOf(
+            TOWER, SMALL_TOWER,
+            DEFAULT_1, DEFAULT_2, DEFAULT_3, DEFAULT_4, DEFAULT_5
+        )
     }
 }
 

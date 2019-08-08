@@ -39,6 +39,8 @@ interface Game {
     val order: List<Player>
     val lives: Map<Player, Boolean>
     val currentPlayer: Player
+    val nPlayers: Int
+        get() = order.filter { lives.getValue(it) }.size
 
     val lastTurn: Pos?
 
