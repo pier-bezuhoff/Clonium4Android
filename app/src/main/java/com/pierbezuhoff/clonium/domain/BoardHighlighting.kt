@@ -1,7 +1,5 @@
 package com.pierbezuhoff.clonium.domain
 
-import kotlin.math.max
-
 sealed class Highlighting {
     sealed class PossibleTurn : Highlighting() {
         object Human : PossibleTurn()
@@ -21,7 +19,7 @@ class BoardHighlighting {
     private var nextTurn: Pos? = null
     private var lastMainTurn: Pos? = null
     private var lastMinorTurns: List<Pos> = emptyList()
-    val lastTurns: List<Pos>
+    private val lastTurns: List<Pos>
         get() = listOfNotNull(lastMainTurn) + lastMinorTurns
 
     fun showHumanPossibleTurns(turns: Set<Pos>) {
@@ -44,7 +42,8 @@ class BoardHighlighting {
     fun showLastTurn(turn: Pos, nPlayers: Int) {
         _highlightings -= listOfNotNull(lastMainTurn)
         _highlightings -= lastMinorTurns
-        lastMinorTurns = (listOfNotNull(lastMainTurn) + (lastMinorTurns - turn)).take(max(nPlayers - 2, 0)) // without main last and current
+        lastMinorTurns = (listOfNotNull(lastMainTurn) + (lastMinorTurns - turn))
+            .take(maxOf(nPlayers - 2, 0)) // without main last and current
         lastMainTurn = turn
         lastMinorTurns.associateWithTo(_highlightings) { Highlighting.LastTurn.Minor }
         _highlightings[turn] = Highlighting.LastTurn.Main
@@ -56,11 +55,11 @@ class BoardHighlighting {
         hideInterceptedLastTurns(interceptedByExplosions)
     }
 
-    fun hideInterceptedLastTurns(turns: Collection<Pos>) {
-        require(lastTurns.containsAll(turns))
-        _highlightings -= turns
-        lastMainTurn = lastMainTurn.takeUnless { it in turns }
-        lastMinorTurns = lastMinorTurns.filterNot { it in turns }
+    private fun hideInterceptedLastTurns(intercepted: Collection<Pos>) {
+        require(lastTurns.containsAll(intercepted))
+        _highlightings -= intercepted
+        lastMainTurn = lastMainTurn.takeUnless { it in intercepted }
+        lastMinorTurns = lastMinorTurns.filterNot { it in intercepted }
     }
 
     fun showNextTurn(turn: Pos) {

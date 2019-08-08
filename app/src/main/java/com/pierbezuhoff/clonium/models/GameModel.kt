@@ -16,8 +16,6 @@ import org.koin.core.get
 import org.koin.core.parameter.parametersOf
 
 // MAYBE: non-significant explosions are non-blocking
-// MAYBE: new type: board with highlights
-// TODO: show all last turns in the round if no intersection (with decreasing visibility?)
 // TODO: issue pre-turn (BoardPresenter.showNextTurn)
 class GameModel(
     val game: Game,
@@ -37,16 +35,20 @@ class GameModel(
     }
 
     fun userTap(point: PointF) {
-        if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
-            val pos = gamePresenter.pointf2pos(point)
-            if (pos in game.possibleTurns()) {
-                gamePresenter.boardHighlighting.hidePossibleTurns()
-                gamePresenter.freezeBoard()
-                val transitions = game.humanTurn(pos)
-                gamePresenter.boardHighlighting.showLastTurn(pos, game.order.size)
-                gamePresenter.startTransitions(transitions)
-                gamePresenter.unfreezeBoard()
-                continueGameOnce = true
+        synchronized(Lock) {
+            if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
+                val pos = gamePresenter.pointf2pos(point)
+                if (pos in game.possibleTurns()) {
+                    gamePresenter.boardHighlighting.hidePossibleTurns()
+                    gamePresenter.freezeBoard()
+                    if (game.isEnd())
+                        game.board
+                    val transitions = game.humanTurn(pos)
+                    gamePresenter.boardHighlighting.showLastTurn(pos, game.nPlayers)
+                    gamePresenter.startTransitions(transitions)
+                    gamePresenter.unfreezeBoard()
+                    continueGameOnce = true
+                }
             }
         }
     }
@@ -55,12 +57,16 @@ class GameModel(
         gamePresenter.setSize(width, height)
 
     override fun draw(canvas: Canvas) =
-        gamePresenter.draw(canvas)
+        synchronized(Lock) {
+            gamePresenter.draw(canvas)
+        }
 
     override fun advance(timeDelta: Long) {
-        gamePresenter.advance((config.gameSpeed * timeDelta).toLong())
-        if (!gamePresenter.blocking && continueGameOnce)
-            continueGame()
+        synchronized(Lock) {
+            gamePresenter.advance((config.gameSpeed * timeDelta).toLong())
+            if (!gamePresenter.blocking && continueGameOnce)
+                continueGame()
+        }
     }
 
     private fun continueGame() {
@@ -76,11 +82,13 @@ class GameModel(
                 coroutineScope.launch {
                     delay(config.botMinTime)
                     val transitions = with(game) { botTurnAsync() }.await()
-                    gamePresenter.boardHighlighting.hidePossibleTurns()
-                    gamePresenter.boardHighlighting.showLastTurn(game.lastTurn!!, game.nPlayers)
-                    gamePresenter.startTransitions(transitions)
-                    gamePresenter.unfreezeBoard()
-                    continueGameOnce = true
+                    synchronized(Lock) {
+                        gamePresenter.boardHighlighting.hidePossibleTurns()
+                        gamePresenter.boardHighlighting.showLastTurn(game.lastTurn!!, game.nPlayers)
+                        gamePresenter.startTransitions(transitions)
+                        gamePresenter.unfreezeBoard()
+                        continueGameOnce = true
+                    }
                 }
             }
             else -> {
@@ -89,4 +97,6 @@ class GameModel(
             }
         }
     }
+
+    object Lock
 }

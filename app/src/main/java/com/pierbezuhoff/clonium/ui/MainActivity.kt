@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity()
             logI("onTutorial")
         }
         override fun onNewGame(view: View) {
+            // TODO: optimize new game action: skipping ~30 frames!
             navigateToNewGameActivity()
         }
         override fun onBoardEditor(view: View) {

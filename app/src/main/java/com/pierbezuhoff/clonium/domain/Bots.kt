@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.domain
 
 import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.*
@@ -103,7 +104,7 @@ abstract class MaximizerBot(
     protected val depth: Int
 ): Any()
     , BotPlayer
-    , Logger by AndroidLogger("MaximizerBot", minLogLevel = Logger.Level.WARNING)
+    , Logger by AndroidLoggerOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
 {
 
     override fun CoroutineScope.makeTurnAsync(

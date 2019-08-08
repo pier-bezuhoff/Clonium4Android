@@ -19,14 +19,19 @@ interface Logger {
             }
         object InfLevelException : IllegalArgumentException("Level.INF cannot be log-ged")
     }
+
     @DslMarker
     annotation class MilestoneScopeMarker
     @MilestoneScopeMarker
     interface MilestoneScope {
+        /** Set start time for [name] */
         fun milestoneStartOf(name: String)
+        /** Log elapsed time from previous [milestoneEndOf] or [milestoneStartOf] of [name] */
         fun milestoneEndOf(name: String)
+        /** Synonym to [milestoneStartOf], set start time for [this] */
         operator fun String.unaryPlus() =
             milestoneStartOf(this)
+        /** Synonym to [milestoneEndOf], log elapsed time from previous [milestoneEndOf] or [milestoneStartOf] of [this] */
         operator fun String.unaryMinus() =
             milestoneEndOf(this)
     }
@@ -45,6 +50,37 @@ interface Logger {
         endMarker: String? = if (startMarker != null) "]" else null,
         block: () -> R
     ): R
+
+    /**
+     * Style 1:
+     * ```
+     * logIMilestoneScope(...) {
+     *     val a = 1
+     *     + "f1"
+     *     f1(a)
+     *     - "f1" // log elapsed time from '+' mark until this '-' mark
+     *     val b = 2
+     *     + "f2"
+     *     f2(a, b, flag = true)
+     *     - "f2"
+     *     closeSomeFiles()
+     *     - "ending" // log elapsed time from previous '-' mark until this '-' mark
+     * }
+     * ```
+     * Style 2:
+     * ```
+     * logIMilestoneScope(...) {
+     *     val a = 1
+     *     f1(a)
+     *     - "section f1" // log elapsed time from start of MilestoneScope until this '-' mark
+     *     val b = 2
+     *     f2(a, b, flag = true)
+     *     - "section f2" // log elapsed time from previous '-' mark until this '-' mark
+     *     closeSomeFiles()
+     *     - "ending"
+     * }
+     * ```
+     */
     fun logIMilestoneScope(
         scopeName: String = "MilestoneScope",
         milestonePrefix: String = "*",
@@ -183,7 +219,11 @@ class AndroidLogger(
     logTag: String = "AndroidLogger",
     minLogLevel: Logger.Level = Logger.Level.VERBOSE
 ) : AbstractLogger(logTag, minLogLevel) {
-    constructor(cls: KClass<*>, minLogLevel: Logger.Level = Logger.Level.VERBOSE) : this(cls.simpleName ?: "<AnonymousClass>", minLogLevel)
+    constructor(
+        cls: KClass<*>, minLogLevel: Logger.Level = Logger.Level.VERBOSE
+    ) : this(
+        cls.simpleName ?: "<AnonymousClass>", minLogLevel
+    )
 
     override fun _log(level: Logger.Level, message: String) {
         when (level) {

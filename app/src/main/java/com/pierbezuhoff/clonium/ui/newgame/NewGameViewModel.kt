@@ -62,7 +62,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 .map { PlayerItem(it, PlayerTactic.Bot.RandomPicker, true) }
             playerItems = (oldPlayerItems + newPlayerItems).toMutableList()
         }
-        _boardPresenter.value = get<BoardPresenter.Builder>().of(board, margin = 0f)
+        _boardPresenter.value = get<BoardPresenter.Builder>().of(board, margin = 0.01f) // experimental value for visually equal margins from all sides
         boardViewInvalidating.send {
             invalidateBoardView()
         }

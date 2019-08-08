@@ -22,11 +22,12 @@ class TransitionAnimationsPool : Any()
 {
     private val pool: MutableList<AnimatedAdvancer<*>> = mutableListOf()
     override val blocking: Boolean
-        get() = pool.any { it.blocking }
+        get() = synchronized(PoolLock) {
+            pool.any { it.blocking }
+        }
 
-    object AdvanceAnimations
     override fun advanceAnimations(timeDelta: Milliseconds) {
-        synchronized(AdvanceAnimations) {
+        synchronized(PoolLock) {
             for (advancer in pool) {
                 advancer.advance(timeDelta)
             }
@@ -35,13 +36,16 @@ class TransitionAnimationsPool : Any()
     }
 
     override fun drawAnimations(canvas: Canvas) {
-        val (blocking, nonBlocking) =
-            pool.flatMap { advancer -> advancer.lastOutput // BUG: [rare] lastOutput has not been initialized
-                .map { step -> advancer to step }
-            }.partition { (_, step) -> step.blocking }
-        // heterogeneous list => type of [step] is lost
-        for ((advancer, step) in (blocking + nonBlocking)) {
-            canvas.unsafeDrawOne(advancer, step)
+        synchronized(PoolLock) {
+            val (blocking, nonBlocking) =
+                pool.flatMap { advancer ->
+                    advancer.lastOutput // BUG: [rare] lastOutput has not been initialized
+                        .map { step -> advancer to step }
+                }.partition { (_, step) -> step.blocking }
+            // heterogeneous list => type of [step] is lost
+            for ((advancer, step) in (blocking + nonBlocking)) {
+                canvas.unsafeDrawOne(advancer, step)
+            }
         }
     }
 
@@ -51,11 +55,14 @@ class TransitionAnimationsPool : Any()
     }
 
     override fun startAdvancer(animatedAdvancer: AnimatedAdvancer<*>) {
-        require(!blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
-        if (!animatedAdvancer.ended) {
-            pool.add(animatedAdvancer)
-            animatedAdvancer.advance(0L) // emit initial advance result
+        synchronized(PoolLock) {
+            require(!blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
+            if (!animatedAdvancer.ended) {
+                pool.add(animatedAdvancer)
+                animatedAdvancer.advance(0L) // emit initial advance result
+            }
         }
     }
 
+    object PoolLock
 }
