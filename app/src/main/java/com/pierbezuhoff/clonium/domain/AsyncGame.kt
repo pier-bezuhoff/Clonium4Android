@@ -6,9 +6,6 @@ import java.util.*
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.min
 
-// TODO: do not store transitions in Trans: useless
-// BUG: when 2 humans and 1 bot with 1 chip remains: ~deadlock/OOM
-// BUG: h;rp;h;rp: givenHumanTurn: focus is Unknown
 class AsyncGame(
     override val board: EvolvingBoard,
     bots: Set<BotPlayer>,
@@ -74,7 +71,6 @@ class AsyncGame(
     }
 
     override fun botTurnAsync(): Deferred<Sequence<Transition>> {
-        logI("botTurnAsync()")
         require(currentPlayer is BotPlayer)
         return coroutineScope.async(Dispatchers.Default) {
             val (pos, trans) = linkedTurns.requestBotTurnAsync().await()
@@ -142,14 +138,22 @@ private class LinkedTurns(
             start.next.link = Link.End
         } else {
             coroutineScope.launch(Dispatchers.Default) {
-                discoverUnknowns() // no need to lock UnknownsLock here
+                lockingComputings {
+                    lockingUnknowns {
+                        discoverUnknowns()
+                    }
+                }
             }
         }
     }
 
-    // parent should lock UnknownsLock and NOT lock ComputingsLock
+    // parent should lock UnknownsLock AND lock ComputingsLock
     private fun discoverUnknowns() {
-        while (unknowns.isNotEmpty() && (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)) {
+        while (
+            unknowns.isNotEmpty() &&
+            (unknowns.size < SOFT_MAX_N_OF_UKNOWNS || players.getValue(unknowns.element().next.trans.order.first()) is BotPlayer) &&
+            (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)
+        ) {
             val nextAs = unknowns.remove()
             nextAs.next.scheduleTurn(nextAs.link.depth)
         }
@@ -179,9 +183,8 @@ private class LinkedTurns(
                     }
                 )
             }
-            is BotPlayer -> lockingComputings { // NOTE: UC locking order! deadlock?
+            is BotPlayer ->
                 scheduleComputation(player, board, order, depth = depth)
-            }
             else -> impossibleCaseOf(player)
         }
     }
@@ -219,14 +222,11 @@ private class LinkedTurns(
         with(computation) { coroutineScope.runAsync { onComputed(it) } }
 
     private fun onComputed(computed: Link.FutureTurn.Bot.Computed) {
-        var shouldDiscoverUnknowns = false
         lockingComputings {
             val computing = computing
             when {
-                computing == null ->
-                    logD("onComputed: computing dropped")
-                computed.id != computing.link.computation.id ->
-                    logD("onComputed: id mismatch:\n${computed.id} of $computed\nshould be ${computing.link.computation.id} of $computing")
+                computing == null -> Unit
+                computed.id != computing.link.computation.id -> Unit
                 else -> {
                     computing.next.link = computed
                     this.computing = null
@@ -234,13 +234,13 @@ private class LinkedTurns(
                     lockingUnknowns {
                         unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
                     }
-                    shouldDiscoverUnknowns = !runNext()
+                    val shouldDiscoverUnknowns = !runNext()
+                    if (shouldDiscoverUnknowns) {
+                        lockingUnknowns {
+                            discoverUnknowns()
+                        }
+                    }
                 }
-            }
-        }
-        if (shouldDiscoverUnknowns) {
-            lockingUnknowns {
-                discoverUnknowns()
             }
         }
     }
@@ -258,10 +258,7 @@ private class LinkedTurns(
         return false
     }
 
-    // BUG: at the end of 2h game
     fun givenHumanTurn(turn: Pos): Trans {
-        logI("givenHumanTurn($turn)")
-        logIState()
         when (val focus = focus) {
             is Link.FutureTurn.Human.OneOf -> {
                 require(turn in focus.nexts.keys)
@@ -290,20 +287,14 @@ private class LinkedTurns(
     }
 
     private fun rescheduleAll() {
-        logIMilestoneScope("rescheduleAll", measureScope = true) {
-            val shouldDiscoverUnknowns: Boolean
-            synchronized(ComputingsLock) {
-                synchronized(UnknownsLock) {
-                    computing = null
-                    scheduledComputings.clear()
-                    unknowns.clear()
-                    - "unscheduled"
-                    start.next.reschedule()
-                    - "rescheduled"
-                }
-                shouldDiscoverUnknowns = !runNext()
-                - "runNext"
+        lockingComputings {
+            lockingUnknowns {
+                computing = null
+                scheduledComputings.clear()
+                unknowns.clear()
+                start.next.reschedule()
             }
+            val shouldDiscoverUnknowns = !runNext()
             if (shouldDiscoverUnknowns) {
                 lockingUnknowns {
                     discoverUnknowns()
@@ -348,9 +339,7 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        logI("requestBotTurnAsync")
         return tryRequestBotTurnOrAsync {
-            logI("requestBotTurnAsync:synchronized(ComputingsLock)")
             lockingComputings {
                 tryRequestBotTurnOrAsync {
                     impossibleCaseOf(it)
@@ -424,12 +413,14 @@ private class LinkedTurns(
     private inline fun <R> lockingUnknowns(block: () -> R): R =
         synchronized(UnknownsLock, block)
 
+    // NOTE: locking order: first ComputingsLock THEN UnknownsLock (to prevent deadlock)
     object ComputingsLock
     object UnknownsLock
 
     companion object {
         private const val SOFT_MAX_WIDTH = 100
         private const val SOFT_MIN_DEPTH = 5
+        private const val SOFT_MAX_N_OF_UKNOWNS = 500
     }
 }
 

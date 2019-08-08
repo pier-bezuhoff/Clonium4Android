@@ -6,8 +6,8 @@ data class ElapsedTime<A>(val elapsed: Milliseconds, val result: A) {
     val elapsedSeconds = elapsed / 1_000f
     val elapsedMinutes = elapsedSeconds / 60f
     fun prettyTime(): String {
-        val elapsedSeconds = elapsed / 1_000
-        val elapsedMinutes = elapsedSeconds / 60
+        val elapsedSeconds = (elapsed / 1_000) % 60
+        val elapsedMinutes = elapsed / 60_000
         val m = if (elapsedMinutes > 0) "${elapsedMinutes}m " else ""
         val s = if (elapsedSeconds > 0) "${elapsedSeconds}s " else ""
         val ms = "${elapsed % 1_000}ms"

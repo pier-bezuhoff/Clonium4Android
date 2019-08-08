@@ -52,7 +52,7 @@ interface Logger {
     ): R
 
     /**
-     * Style 1:
+     * Start/end style:
      * ```
      * logIMilestoneScope(...) {
      *     val a = 1
@@ -67,7 +67,7 @@ interface Logger {
      *     - "ending" // log elapsed time from previous '-' mark until this '-' mark
      * }
      * ```
-     * Style 2:
+     * Section style:
      * ```
      * logIMilestoneScope(...) {
      *     val a = 1
