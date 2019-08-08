@@ -86,7 +86,7 @@ interface EmptyBoard {
          * ```
          */
         fun <X> unmap(s: String, readCell: (Char, Char) -> X): Triple<Int, Int, Map<Pos, X>> {
-            val lines = s.lines()
+            val lines = s.trimIndent().lines()
             require(lines.isNotEmpty())
             require(lines.first().length % 2 == 0)
             require(lines.all { it.length == lines.first().length })
