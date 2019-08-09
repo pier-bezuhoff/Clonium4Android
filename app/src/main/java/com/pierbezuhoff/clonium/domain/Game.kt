@@ -81,7 +81,7 @@ interface Game {
 
     fun humanTurn(pos: Pos): Sequence<Transition>
 
-    fun botTurnAsync(): Deferred<Sequence<Transition>>
+    suspend fun botTurn(): Pair<Pos, Sequence<Transition>>
 
     interface Builder {
         fun of(gameState: State, coroutineScope: CoroutineScope): Game
@@ -143,15 +143,10 @@ class SimpleGame(
         return makeTurn(pos)
     }
 
-    override fun botTurnAsync(): Deferred<Sequence<Transition>> {
+    override suspend fun botTurn(): Pair<Pos, Sequence<Transition>> {
         require(currentPlayer is BotPlayer)
-        return coroutineScope.async(Dispatchers.Default) {
-            val turn =
-                with(currentPlayer as BotPlayer) {
-                    makeTurnAsync(board, order.map { it.playerId })
-                }.await()
-            return@async makeTurn(turn)
-        }
+        val turn = (currentPlayer as BotPlayer).makeTurn(board, order.map { it.playerId })
+        return turn to makeTurn(turn)
     }
 
     object Builder : Game.Builder {

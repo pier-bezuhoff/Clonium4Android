@@ -1,17 +1,8 @@
 package com.pierbezuhoff.clonium.domain
 
-import com.pierbezuhoff.clonium.utils.Milliseconds
-import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
-import io.kotlintest.matchers.withClue
-import io.kotlintest.properties.Gen
 import io.kotlintest.properties.assertAll
-import io.kotlintest.shouldBe
 import io.kotlintest.specs.FreeSpec
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runBlockingTest
 import kotlin.system.measureNanoTime
 
 class MaximizingStrategyTest : FreeSpec() {
@@ -60,8 +51,8 @@ class MaximizingStrategyTest : FreeSpec() {
                         timesTested += 1
                         runBlocking {
                             with(lmn1) {
-                                impls.addElapsedTime("seq") {
-                                    makeTurnAsync(board, order).await()
+                                impls.addElapsedTime("deferred-max") {
+                                    makeTurn(board, order)
                                 }
                             }
                         }

@@ -2,7 +2,6 @@ package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
 import android.graphics.PointF
-import android.util.Log
 import com.pierbezuhoff.clonium.domain.BotPlayer
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.domain.HumanPlayer
@@ -13,7 +12,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 import org.koin.core.get
-import org.koin.core.parameter.parametersOf
 
 // MAYBE: non-significant explosions are non-blocking
 // TODO: issue pre-turn (BoardPresenter.showNextTurn)
@@ -80,10 +78,10 @@ class GameModel(
                 gamePresenter.freezeBoard()
                 coroutineScope.launch {
                     delay(config.botMinTime)
-                    val transitions = with(game) { botTurnAsync() }.await()
+                    val (turn, transitions) = game.botTurn()
                     synchronized(Lock) {
                         gamePresenter.boardHighlighting.hidePossibleTurns()
-                        gamePresenter.boardHighlighting.showLastTurn(game.lastTurn!!, game.nPlayers)
+                        gamePresenter.boardHighlighting.showLastTurn(turn, game.nPlayers)
                         gamePresenter.startTransitions(transitions)
                         gamePresenter.unfreezeBoard()
                         continueGameOnce = true

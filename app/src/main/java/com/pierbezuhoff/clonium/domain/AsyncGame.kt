@@ -70,12 +70,10 @@ class AsyncGame(
         return makeTurn(pos, trans)
     }
 
-    override fun botTurnAsync(): Deferred<Sequence<Transition>> {
+    override suspend fun botTurn(): Pair<Pos, Sequence<Transition>> {
         require(currentPlayer is BotPlayer)
-        return coroutineScope.async(Dispatchers.Default) {
-            val (pos, trans) = linkedTurns.requestBotTurnAsync().await()
-            return@async makeTurn(pos, trans)
-        }
+        val (turn, trans) = linkedTurns.requestBotTurnAsync().await()
+        return turn to makeTurn(turn, trans)
     }
 
     object Builder : Game.Builder {
@@ -219,7 +217,9 @@ private class LinkedTurns(
     }
 
     private fun runComputationAsync(computation: Computation): Deferred<Link.FutureTurn.Bot.Computed> =
-        with(computation) { coroutineScope.runAsync { onComputed(it) } }
+        coroutineScope.async {
+            computation.run { onComputed(it) }
+        }
 
     private fun onComputed(computed: Link.FutureTurn.Bot.Computed) {
         lockingComputings {
@@ -552,20 +552,18 @@ private data class Computation(
     val depth: Int,
     val id: Id
 ) {
-    inline fun CoroutineScope.runAsync(
+    suspend inline fun run(
         crossinline andThen: (Link.FutureTurn.Bot.Computed) -> Unit = {}
-    ): Deferred<Link.FutureTurn.Bot.Computed> =
-        async(Dispatchers.Default) {
-            print("(...")
-            val startTime = System.currentTimeMillis()
-            val turn = with(bot) { makeTurnAsync(board, order).await() }
-            val elapsed = System.currentTimeMillis() - startTime
-            print("$elapsed ms)")
+    ): Link.FutureTurn.Bot.Computed =
+        withContext(Dispatchers.Default) {
+            val turn = bot.makeTurn(board, order)
             val endBoard = board.copy()
             endBoard.inc(turn)
             val endOrder = endBoard.shiftOrder(order)
             val trans = Trans(endBoard, endOrder)
-            val nextLink: Link = if (endOrder.size <= 1) Link.End else Link.Unknown(depth + 1)
+            val nextLink: Link =
+                if (endOrder.size <= 1) Link.End
+                else Link.Unknown(depth + 1) // will be added to LinkedTurns.unknowns in LinkedTurns.onComputed
             val computed = Link.FutureTurn.Bot.Computed(
                 bot.playerId, turn, Next(trans, nextLink), id
             )

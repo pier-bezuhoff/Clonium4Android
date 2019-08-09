@@ -4,28 +4,20 @@ import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 interface BotPlayer : Player {
     val difficultyName: String
 
-    fun CoroutineScope.makeTurnAsync(
-        board: Board,
-        order: List<PlayerId>
-    ): Deferred<Pos>
+    suspend fun makeTurn(board: Board, order: List<PlayerId>): Pos
 }
 
 class RandomPickerBot(override val playerId: PlayerId) : BotPlayer {
     override val difficultyName = "Random picker"
     override val tactic = PlayerTactic.Bot.RandomPicker
 
-    override fun CoroutineScope.makeTurnAsync(
-        board: Board,
-        order: List<PlayerId>
-    ): Deferred<Pos> = async {
+    override suspend fun makeTurn(board: Board, order: List<PlayerId>): Pos {
         val possibleTurns = board.possOf(playerId)
-        return@async possibleTurns.random()
+        return possibleTurns.random()
     }
 
     override fun toString(): String =
@@ -108,59 +100,62 @@ abstract class MaximizerBot(
     , Logger by AndroidLoggerOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
 {
 
-    // TODO: move from *Async style to suspend style
-    fun CoroutineScope.makeTurnTimedAsync(
+    suspend fun makeTurnTimed(
         board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async {
+    ): Pos {
         val (pretty, bestTurn) = measureElapsedTimePretty {
-            makeTurnAsync(board, order).await()
+            makeTurn(board, order)
         }
         sLogI("$difficultyName thought $pretty")
-        return@async bestTurn
+        return bestTurn
     }
 
-    override fun CoroutineScope.makeTurnAsync(
-        board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async(Dispatchers.Default) {
-        val distinctTurns = board.distinctTurnsOf(playerId)
-        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-        if (distinctTurns.size == 1)
-            return@async distinctTurns.first()
-        val evolvingBoard = PrimitiveBoard(board)
-        val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
-        for (turn in distinctTurns) {
-            estimations.add(turn to async {
-                MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
-            })
+    override suspend fun makeTurn(board: Board, order: List<PlayerId>): Pos =
+        withContext(Dispatchers.Default) {
+            val distinctTurns = board.distinctTurnsOf(playerId)
+            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (distinctTurns.size == 1)
+                return@withContext distinctTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+            val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
+            for (turn in distinctTurns) {
+                estimations.add(
+                    turn to async {
+                        MaximizingStrategy.estimateTurn(
+                            turn,
+                            depth, estimator,
+                            playerId, order, evolvingBoard
+                        )
+                    }
+                )
+            }
+            return@withContext estimations.maxBy { it.second.await() }!!.first
         }
-        return@async estimations.maxBy { it.second.await() }!!.first
-    }
 
     // TODO: measure other possible impls
-    fun CoroutineScope.makeTurnAsync_(
-        board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async(Dispatchers.Default) {
-        val distinctTurns = board.distinctTurnsOf(playerId)
-        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-        if (distinctTurns.size == 1)
-            return@async distinctTurns.first()
-        val evolvingBoard = PrimitiveBoard(board)
-//        Semaphore(nThreads)
-//        CyclicBarrier(nThreads)
-//        flowOf(distinctTurns).broadcastIn(this).openSubscription()
-//        val scope = CoroutineScope(Executors.newFixedThreadPool(nThreads).asCoroutineDispatcher())
-        val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
-            distinctTurns
-                .maxBy { turn ->
-                    MaximizingStrategy.estimateTurn(
-                        turn, depth, estimator,
-                        playerId, order, evolvingBoard
-                    )
-                }!!
+    suspend fun makeTurnAsync_(board: Board, order: List<PlayerId>): Pos =
+        withContext(Dispatchers.Default) {
+            val distinctTurns = board.distinctTurnsOf(playerId)
+            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+            if (distinctTurns.size == 1)
+                return@withContext distinctTurns.first()
+            val evolvingBoard = PrimitiveBoard(board)
+//            Semaphore(nThreads)
+//            CyclicBarrier(nThreads)
+//            flowOf(distinctTurns).broadcastIn(this).openSubscription()
+//            val scope = CoroutineScope(Executors.newFixedThreadPool(nThreads).asCoroutineDispatcher())
+            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+                distinctTurns
+                    .maxBy { turn ->
+                        MaximizingStrategy.estimateTurn(
+                            turn, depth, estimator,
+                            playerId, order, evolvingBoard
+                        )
+                    }!!
+            }
+            sLogI("$difficultyName thought $prettyElapsed")
+            return@withContext bestTurn
         }
-        sLogI("$difficultyName thought $prettyElapsed")
-        return@async bestTurn
-    }
 
     override fun toString(): String =
         "MaximizerBot($playerId, $difficultyName)"
@@ -215,18 +210,17 @@ class LevelBalancerBot(
 ) : MaximizerBot(
     playerId,
     estimator = { board ->
-        (board.asPosMap()
+        val enemiesLevel = board.asPosMap()
             .values
             .filterNotNull()
             .filter { it.playerId != playerId }
-            .sumBy { -it.level.ordinal }
-                +
-                ratio * board.possOf(playerId)
-            .sumBy { board.levelAt(it)!!.ordinal })
-            .toInt()
+            .sumBy { it.level.ordinal }
+        val botLevel = board.possOf(playerId)
+            .sumBy { board.levelAt(it)!!.ordinal }
+        (enemiesLevel + ratio * botLevel).toInt()
     },
     depth = depth
 ) {
-    override val difficultyName: String = "Level balancer $depth ($ratio:1)"
+    override val difficultyName: String = "Level balancer $depth (${ratio.toInt()}:1)"
     override val tactic = PlayerTactic.Bot.LevelBalancer(depth, ratio)
 }
