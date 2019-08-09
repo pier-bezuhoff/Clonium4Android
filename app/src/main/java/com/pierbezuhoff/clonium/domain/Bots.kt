@@ -127,55 +127,6 @@ abstract class MaximizerBot(
         if (distinctTurns.size == 1)
             return@async distinctTurns.first()
         val evolvingBoard = PrimitiveBoard(board)
-        return@async distinctTurns
-            .maxBy { turn ->
-                MaximizingStrategy.estimateTurn(
-                    turn, depth, estimator,
-                    playerId, order, evolvingBoard
-                )
-            }!!
-    }
-
-    // better than default
-    fun CoroutineScope.makeTurnAsync_mutexAll(
-        board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async(Dispatchers.Default) {
-        val distinctTurns = board.distinctTurnsOf(playerId)
-        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-        if (distinctTurns.size == 1)
-            return@async distinctTurns.first()
-        val evolvingBoard = PrimitiveBoard(board)
-        val estimations: MutableList<Pair<Pos, Int>> = mutableListOf()
-        val nTurns = distinctTurns.size
-        var nProcessedTurns = 0
-        val mutex = Mutex(locked = true)
-        for (turn in distinctTurns) {
-            launch {
-                val estimation = MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
-                synchronized(estimations) {
-                    estimations.add(turn to estimation)
-                    nProcessedTurns ++
-                    if (nProcessedTurns == nTurns)
-                        mutex.unlock()
-                }
-            }
-        }
-        return@async mutex.withLock {
-            synchronized(estimations) {
-                estimations.maxBy { it.second }!!.first
-            }
-        }
-    }
-
-    // better than mutex-based
-    fun CoroutineScope.makeTurnAsync_deferredAllAwaitInMax(
-        board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async(Dispatchers.Default) {
-        val distinctTurns = board.distinctTurnsOf(playerId)
-        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-        if (distinctTurns.size == 1)
-            return@async distinctTurns.first()
-        val evolvingBoard = PrimitiveBoard(board)
         val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
         for (turn in distinctTurns) {
             estimations.add(turn to async {
@@ -185,6 +136,7 @@ abstract class MaximizerBot(
         return@async estimations.maxBy { it.second.await() }!!.first
     }
 
+    // TODO: measure other possible impls
     fun CoroutineScope.makeTurnAsync_(
         board: Board, order: List<PlayerId>
     ): Deferred<Pos> = async(Dispatchers.Default) {
