@@ -16,4 +16,8 @@
     <string name="previous_board">Previous board</string>
     <string name="next_board">Next board</string>
     <string name="drag_handle">Drag handle</string>
+    <string name="player_chip">player chip</string>
+    <string name="sum_level">sum level</string>
+    <string name="chip_count">chip count</string>
+    <string name="player_tactic">Player tactic</string>
 </resources>

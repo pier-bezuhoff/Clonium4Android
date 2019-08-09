@@ -139,7 +139,7 @@ class PlayerAdapter(
     }
 
     override fun selectRow(viewHolder: ViewHolder) {
-        // TODO: highlight row, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
+        // MAYBE: highlight row, for example: viewHolder.itemView.setBackgroundColor(Color.YELLOW)
         val playerId = viewHolder.playerItem.playerId
         boardPlayerHighlighting.send {
             highlightPlayer(playerId)
@@ -177,8 +177,9 @@ fun Context.tacticDescription(tactic: PlayerTactic): String =
     when (tactic) {
         PlayerTactic.Human -> getString(R.string.human)
         PlayerTactic.Bot.RandomPicker -> getString(R.string.random_picker)
-        is PlayerTactic.Bot.LevelMaximizer -> getString(R.string.level_maximizer, tactic.depth)
-        is PlayerTactic.Bot.ChipCountMaximizer -> getString(R.string.chip_count_maximizer, tactic.depth)
-        is PlayerTactic.Bot.LevelMinimizer -> getString(R.string.level_minimizer, tactic.depth)
-        is PlayerTactic.Bot.LevelBalancer -> getString(R.string.level_balancer, tactic.depth)
+        is PlayerTactic.Bot.LevelMaximizer -> getString(R.string.level_maximizer)
+        is PlayerTactic.Bot.ChipCountMaximizer -> getString(R.string.chip_count_maximizer)
+        is PlayerTactic.Bot.LevelMinimizer -> getString(R.string.level_minimizer)
+        is PlayerTactic.Bot.LevelBalancer -> getString(R.string.level_balancer)
+        is PlayerTactic.Bot.AlliedLevelBalancer -> getString(R.string.allied_level_balancer)
     }

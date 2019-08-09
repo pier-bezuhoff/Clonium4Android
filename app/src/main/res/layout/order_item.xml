@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+>
+    <data>
+
+    </data>
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+    >
+        <ImageView
+                android:id="@+id/chip_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginTop="8dp"
+                android:layout_marginStart="8dp"
+                tools:srcCompat="@tools:sample/avatars[15]"
+                android:contentDescription="@string/player_chip"
+        />
+        <TextView
+                android:id="@+id/sum_level"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@+id/chip_view"
+                app:layout_constraintBottom_toBottomOf="@+id/chip_view"
+                app:layout_constraintStart_toStartOf="@+id/chip_view"
+                app:layout_constraintEnd_toEndOf="@+id/chip_view"
+                android:text="@string/sum_level"
+        />
+        <TextView
+                android:id="@+id/chip_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@+id/chip_view"
+                app:layout_constraintBottom_toBottomOf="@+id/chip_view"
+                app:layout_constraintStart_toEndOf="@+id/chip_view"
+                android:layout_marginStart="8dp"
+                android:text="@string/chip_count"
+        />
+        <TextView
+                android:id="@+id/player_tactic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@+id/chip_view"
+                app:layout_constraintBottom_toBottomOf="@+id/chip_view"
+                app:layout_constraintStart_toEndOf="@+id/chip_view"
+                android:layout_marginStart="80sp"
+                android:text="@string/player_tactic"
+        />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

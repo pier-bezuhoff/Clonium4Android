@@ -75,5 +75,5 @@ val PLAYER_TACTICS = listOf(
     PlayerTactic.Bot.ChipCountMaximizer(1),
     PlayerTactic.Bot.LevelMinimizer(1),
     PlayerTactic.Bot.LevelBalancer(1, Rational(2, 1)),
-    PlayerTactic.Bot.AlliedLevelBalancer(1, PlayerId0, Rational(2, 1))
+    PlayerTactic.Bot.AlliedLevelBalancer(1, PlayerId0, Rational(2, 1)) // ally of PlayerId0
 )

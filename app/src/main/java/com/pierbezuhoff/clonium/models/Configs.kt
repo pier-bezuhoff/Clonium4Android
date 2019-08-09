@@ -22,7 +22,7 @@ data class PlayersConfig(val playerItems: List<PlayerItem>) {
     fun toStringSet(): Set<String> =
         playerItems.withIndex()
             .map { (i, item) ->
-                "$i ${item.playerId.id} ${item.tactic.name} ${item.participate}"
+                "$i; ${item.playerId.id}; ${item.tactic.name}; ${item.participate}"
             }.toSet()
 
     object Builder {
@@ -30,11 +30,11 @@ data class PlayersConfig(val playerItems: List<PlayerItem>) {
             runCatching {
                 stringSet
                     .map {
-                        val (indexPart, playerIdPart, tacticPart, participatePart) = it.split(' ')
-                        val ix = indexPart.toInt()
-                        val playerId = PlayerId(playerIdPart.toInt())
-                        val tactic = PlayerTactic.Builder.fromName(tacticPart)
-                        val participate = participatePart.toBoolean()
+                        val (indexPart, playerIdPart, tacticPart, participatePart) = it.split(';')
+                        val ix = indexPart.trim().toInt()
+                        val playerId = PlayerId(playerIdPart.trim().toInt())
+                        val tactic = PlayerTactic.Builder.fromName(tacticPart.trim())
+                        val participate = participatePart.trim().toBoolean()
                         IndexedValue(ix, PlayerItem(playerId, tactic, participate))
                     }.sortedBy { it.index }
                     .map { it.value }

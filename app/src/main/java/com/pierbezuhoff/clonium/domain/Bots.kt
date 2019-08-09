@@ -244,7 +244,6 @@ class AlliedLevelBalancerBot(
             .filter { it.playerId != playerId && it.playerId != allyId }
             .sumBy { it.level.ordinal }
         botLevel + ratio.numerator * allyLevel - ratio.denominator * enemiesLevel
-        TODO()
     },
     depth = depth
 ) {
