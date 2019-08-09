@@ -108,7 +108,7 @@ abstract class MaximizerBot(
     , Logger by AndroidLoggerOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
 {
 
-    // TODO: move form *Async style to suspend style
+    // TODO: move from *Async style to suspend style
     fun CoroutineScope.makeTurnTimedAsync(
         board: Board, order: List<PlayerId>
     ): Deferred<Pos> = async {

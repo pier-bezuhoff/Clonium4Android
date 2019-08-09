@@ -48,7 +48,6 @@ class MaximizingStrategyTest : FreeSpec() {
             "measure different Level Maximizer 1 implementations" {
                 var timesTested = 0
                 val impls: MutableMap<String, Float> = setOf(
-                    "seq",
                     "deferred-max"
                 ).associateWithTo(mutableMapOf()) { 0f }
                 VeryPopulatedPrimitiveBoardGenerator(posRatio = 0.95, chipRatio = 0.9).assertAll(iterations = 100) { board: EvolvingBoard ->
@@ -63,9 +62,6 @@ class MaximizingStrategyTest : FreeSpec() {
                             with(lmn1) {
                                 impls.addElapsedTime("seq") {
                                     makeTurnAsync(board, order).await()
-                                }
-                                impls.addElapsedTime("deferred-max") {
-                                    makeTurnAsync_deferredAllAwaitInMax(board, order).await()
                                 }
                             }
                         }

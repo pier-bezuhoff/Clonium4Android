@@ -70,7 +70,6 @@ class GameModel(
     }
 
     private fun continueGame() {
-        logI("continueGame()")
         when {
             game.isEnd() -> {
                 logI("game ended: ${game.currentPlayer} won")
