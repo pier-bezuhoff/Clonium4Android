@@ -46,14 +46,30 @@ class MainActivity : AppCompatActivity()
                 """
             )
             val playerId = PlayerId3
-            val (pretty, _) = measureElapsedTimePretty {
+            val (pretty1, _) = measureElapsedTimePretty {
                 with(LevelMaximizerBot(playerId, depth = 1)) {
                     runBlocking {
                         GlobalScope.makeTurnAsync(board, order).await()
                     }
                 }
             }
-            logI("lm1 thought $pretty")
+            logI("lm1 thought $pretty1")
+            val (pretty3, _) = measureElapsedTimePretty {
+                with(LevelMaximizerBot(playerId, depth = 1)) {
+                    runBlocking {
+                        GlobalScope.makeTurnAsync_mutexAll(board, order).await()
+                    }
+                }
+            }
+            logI("lm1/mutex thought $pretty3")
+            val (pretty2, _) = measureElapsedTimePretty {
+                with(LevelMaximizerBot(playerId, depth = 1)) {
+                    runBlocking {
+                        GlobalScope.makeTurnAsync_deferredAllAwaitInMax(board, order).await()
+                    }
+                }
+            }
+            logI("lm1/async thought $pretty2")
             // TODO: check real-time maximizer speed
         }
         override fun onNewGame(view: View) {

@@ -50,7 +50,6 @@ class MaximizingStrategyTest : FreeSpec() {
                 val impls: MutableMap<String, Float> = setOf(
                     "seq",
                     "mutex",
-                    "deferred-all",
                     "deferred-max"
                 ).associateWithTo(mutableMapOf()) { 0f }
                 VeryPopulatedPrimitiveBoardGenerator(posRatio = 0.95, chipRatio = 0.9).assertAll(iterations = 100) { board: EvolvingBoard ->
