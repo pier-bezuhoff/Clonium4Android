@@ -145,7 +145,7 @@ class SimpleGame(
 
     override suspend fun botTurn(): Pair<Pos, Sequence<Transition>> {
         require(currentPlayer is BotPlayer)
-        val turn = (currentPlayer as BotPlayer).makeTurn(board, order.map { it.playerId })
+        val turn = (currentPlayer as BotPlayer).makeTurn(board, order.filter { lives.getValue(it) }.map { it.playerId })
         return turn to makeTurn(turn)
     }
 

@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.domain
 
+import android.util.Rational
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
@@ -8,6 +9,7 @@ import kotlinx.coroutines.*
 interface BotPlayer : Player {
     val difficultyName: String
 
+    /** [BotPlayer] compute its turn on [board] given [order] of alive players */
     suspend fun makeTurn(board: Board, order: List<PlayerId>): Pos
 }
 
@@ -61,11 +63,13 @@ object MaximizingStrategy {
         depth: Int,
         estimate: (Board) -> Int,
         playerId: PlayerId,
+        /** should contain only alive players */
         order: List<PlayerId>,
         board: EvolvingBoard
     ): Int {
         if (depth == 0)
             return estimate(board)
+        // MAYBE: filter order on alive players
         val resultingBoard = board.copy().apply { inc(turn) }
         // NOTE: if a player dies in this round we just analyze further development
         val variations = allVariations(
@@ -206,7 +210,7 @@ class LevelBalancerBot(
     playerId: PlayerId,
     depth: Int,
     /** Priority of own chips over enemies' */
-    private val ratio: Float
+    private val ratio: Rational
 ) : MaximizerBot(
     playerId,
     estimator = { board ->
@@ -215,12 +219,38 @@ class LevelBalancerBot(
             .filterNotNull()
             .filter { it.playerId != playerId }
             .sumBy { it.level.ordinal }
-        val botLevel = board.possOf(playerId)
-            .sumBy { board.levelAt(it)!!.ordinal }
-        (enemiesLevel + ratio * botLevel).toInt()
+        val botLevel = board.levelOf(playerId)
+        (-enemiesLevel + ratio.toFloat() * botLevel).toInt()
     },
     depth = depth
 ) {
-    override val difficultyName: String = "Level balancer $depth (${ratio.toInt()}:1)"
+    override val difficultyName: String = "Level balancer $depth (${ratio.numerator}:${ratio.denominator})"
     override val tactic = PlayerTactic.Bot.LevelBalancer(depth, ratio)
 }
+
+class AlliedLevelBalancerBot(
+    playerId: PlayerId,
+    depth: Int,
+    val allyId: PlayerId,
+    val ratio: Rational
+) : MaximizerBot(
+    playerId,
+    estimator = { board ->
+        val botLevel = board.levelOf(playerId)
+        val allyLevel = board.levelOf(allyId)
+        val enemiesLevel = board.asPosMap()
+            .values
+            .filterNotNull()
+            .filter { it.playerId != playerId && it.playerId != allyId }
+            .sumBy { it.level.ordinal }
+        botLevel + ratio.numerator * allyLevel - ratio.denominator * enemiesLevel
+        TODO()
+    },
+    depth = depth
+) {
+    override val difficultyName = "Allied level balancer $depth of $allyId 1:${ratio.numerator}:${ratio.denominator}"
+    override val tactic = PlayerTactic.Bot.AlliedLevelBalancer(depth, allyId, ratio)
+}
+
+private fun Board.levelOf(playerId: PlayerId): Int =
+    possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }

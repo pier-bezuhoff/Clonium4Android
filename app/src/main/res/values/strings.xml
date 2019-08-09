@@ -2,15 +2,18 @@
     <string name="app_name">Clonium</string>
     <string name="start_game">Start game</string>
     <string name="colored_chip_description">Colored chip of player</string>
+    <string name="player_tactics_prompt">Choose type of player</string>
+
     <string name="human">Human</string>
     <string name="random_picker">Random picker</string>
-    <string name="level_maximizer">Level maximizer %d</string>
-    <string name="chip_count_maximizer">Chip count maximizer %d</string>
-    <string name="player_tactics_prompt">Choose type of player</string>
+    <string name="level_maximizer">Level maximizer</string>
+    <string name="chip_count_maximizer">Chip count maximizer</string>
+    <string name="level_minimizer">Level minimizer</string>
+    <string name="level_balancer">Level balancer</string>
+    <string name="allied_level_balancer">Allied balancer</string>
+
     <string name="use_random_order">Random order</string>
     <string name="previous_board">Previous board</string>
     <string name="next_board">Next board</string>
-    <string name="level_minimizer">Level minimizer %d</string>
-    <string name="level_balancer">Level balancer %d</string>
     <string name="drag_handle">Drag handle</string>
 </resources>

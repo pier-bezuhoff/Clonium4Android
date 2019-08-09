@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.domain
 
+import android.util.Rational
 import java.io.Serializable
 
 interface Player {
@@ -44,10 +45,15 @@ sealed class PlayerTactic : Serializable {
             override fun toPlayer(playerId: PlayerId) =
                 LevelMinimizerBot(playerId, depth)
         }
-        class LevelBalancer(val depth: Int, val ratio: Float) : Bot() {
-            override val name = "LevelBalancer($depth,$ratio)"
+        class LevelBalancer(val depth: Int, val ratio: Rational) : Bot() {
+            override val name = "LevelBalancer($depth,${ratio.numerator}:${ratio.denominator})"
             override fun toPlayer(playerId: PlayerId) =
                 LevelBalancerBot(playerId, depth, ratio)
+        }
+        class AlliedLevelBalancer(val depth: Int, val allyId: PlayerId, val ratio: Rational) : Bot() {
+            override val name = "AlliedLevelBalancer($depth,$allyId,1:${ratio.numerator}:${ratio.denominator})"
+            override fun toPlayer(playerId: PlayerId) =
+                AlliedLevelBalancerBot(playerId, depth, allyId, ratio)
         }
     }
 
@@ -68,6 +74,6 @@ val PLAYER_TACTICS = listOf(
     PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: up to 5s on tower board
     PlayerTactic.Bot.ChipCountMaximizer(1),
     PlayerTactic.Bot.LevelMinimizer(1),
-    PlayerTactic.Bot.LevelBalancer(1, 2f)
+    PlayerTactic.Bot.LevelBalancer(1, Rational(2, 1)),
+    PlayerTactic.Bot.AlliedLevelBalancer(1, PlayerId0, Rational(2, 1))
 )
-
