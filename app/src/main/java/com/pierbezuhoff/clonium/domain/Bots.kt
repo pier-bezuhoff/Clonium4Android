@@ -1,10 +1,11 @@
 package com.pierbezuhoff.clonium.domain
 
-import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 interface BotPlayer : Player {
     val difficultyName: String
@@ -107,27 +108,125 @@ abstract class MaximizerBot(
     , Logger by AndroidLoggerOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
 {
 
+    // TODO: move form *Async style to suspend style
+    fun CoroutineScope.makeTurnTimedAsync(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> = async {
+        val (pretty, bestTurn) = measureElapsedTimePretty {
+            makeTurnAsync(board, order).await()
+        }
+        sLogI("$difficultyName thought $pretty")
+        return@async bestTurn
+    }
+
     override fun CoroutineScope.makeTurnAsync(
         board: Board, order: List<PlayerId>
-    ): Deferred<Pos> {
-        return async(Dispatchers.Default) {
-            val distinctTurns = board.distinctTurnsOf(playerId)
-            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-            if (distinctTurns.size == 1)
-                return@async distinctTurns.first()
-            val evolvingBoard = PrimitiveBoard(board)
-            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
-                distinctTurns
-                    .maxBy { turn ->
-                        MaximizingStrategy.estimateTurn(
-                            turn, depth, estimator,
-                            playerId, order, evolvingBoard
-                        )
-                    }!!
+    ): Deferred<Pos> = async(Dispatchers.Default) {
+        val distinctTurns = board.distinctTurnsOf(playerId)
+        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+        if (distinctTurns.size == 1)
+            return@async distinctTurns.first()
+        val evolvingBoard = PrimitiveBoard(board)
+        return@async distinctTurns
+            .maxBy { turn ->
+                MaximizingStrategy.estimateTurn(
+                    turn, depth, estimator,
+                    playerId, order, evolvingBoard
+                )
+            }!!
+    }
+
+    // better than default
+    fun CoroutineScope.makeTurnAsync_mutexAll(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> = async(Dispatchers.Default) {
+        val distinctTurns = board.distinctTurnsOf(playerId)
+        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+        if (distinctTurns.size == 1)
+            return@async distinctTurns.first()
+        val evolvingBoard = PrimitiveBoard(board)
+        val estimations: MutableList<Pair<Pos, Int>> = mutableListOf()
+        val nTurns = distinctTurns.size
+        var nProcessedTurns = 0
+        val mutex = Mutex(locked = true)
+        for (turn in distinctTurns) {
+            launch {
+                val estimation = MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
+                synchronized(estimations) {
+                    estimations.add(turn to estimation)
+                    nProcessedTurns ++
+                    if (nProcessedTurns == nTurns)
+                        mutex.unlock()
+                }
             }
-            sLogI("$difficultyName thought $prettyElapsed")
-            return@async bestTurn
         }
+        return@async mutex.withLock {
+            synchronized(estimations) {
+                estimations.maxBy { it.second }!!.first
+            }
+        }
+    }
+
+    // better than mutex-based
+    fun CoroutineScope.makeTurnAsync_deferredAllAwaitInMax(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> = async(Dispatchers.Default) {
+        val distinctTurns = board.distinctTurnsOf(playerId)
+        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+        if (distinctTurns.size == 1)
+            return@async distinctTurns.first()
+        val evolvingBoard = PrimitiveBoard(board)
+        val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
+        for (turn in distinctTurns) {
+            estimations.add(turn to async {
+                MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
+            })
+        }
+        return@async estimations.maxBy { it.second.await() }!!.first
+    }
+
+    fun CoroutineScope.makeTurnAsync_deferredAllAwaitAll(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> = async(Dispatchers.Default) {
+        val distinctTurns = board.distinctTurnsOf(playerId)
+        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+        if (distinctTurns.size == 1)
+            return@async distinctTurns.first()
+        val evolvingBoard = PrimitiveBoard(board)
+        val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
+        for (turn in distinctTurns) {
+            estimations.add(turn to async {
+                MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
+            })
+        }
+        for ((_, deferredEstimation) in estimations)
+            deferredEstimation.await()
+        return@async estimations.maxBy { it.second.await() }!!.first
+    }
+
+    fun CoroutineScope.makeTurnAsync_(
+        board: Board, order: List<PlayerId>
+    ): Deferred<Pos> = async(Dispatchers.Default) {
+        val distinctTurns = board.distinctTurnsOf(playerId)
+        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
+        if (distinctTurns.size == 1)
+            return@async distinctTurns.first()
+        val evolvingBoard = PrimitiveBoard(board)
+//        Semaphore(nThreads)
+//        CyclicBarrier(nThreads)
+//        flowOf(distinctTurns).broadcastIn(this).openSubscription()
+//        val scope = CoroutineScope(Executors.newFixedThreadPool(nThreads).asCoroutineDispatcher())
+        val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
+            distinctTurns
+                .maxBy { turn ->
+                    MaximizingStrategy.estimateTurn(
+                        turn, depth, estimator,
+                        playerId, order, evolvingBoard
+                    )
+                }!!
+        }
+        sLogI("$difficultyName thought $prettyElapsed")
+        return@async bestTurn
     }
 
     override fun toString(): String =
