@@ -185,25 +185,6 @@ abstract class MaximizerBot(
         return@async estimations.maxBy { it.second.await() }!!.first
     }
 
-    fun CoroutineScope.makeTurnAsync_deferredAllAwaitAll(
-        board: Board, order: List<PlayerId>
-    ): Deferred<Pos> = async(Dispatchers.Default) {
-        val distinctTurns = board.distinctTurnsOf(playerId)
-        require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-        if (distinctTurns.size == 1)
-            return@async distinctTurns.first()
-        val evolvingBoard = PrimitiveBoard(board)
-        val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
-        for (turn in distinctTurns) {
-            estimations.add(turn to async {
-                MaximizingStrategy.estimateTurn(turn, depth, estimator, playerId, order, evolvingBoard)
-            })
-        }
-        for ((_, deferredEstimation) in estimations)
-            deferredEstimation.await()
-        return@async estimations.maxBy { it.second.await() }!!.first
-    }
-
     fun CoroutineScope.makeTurnAsync_(
         board: Board, order: List<PlayerId>
     ): Deferred<Pos> = async(Dispatchers.Default) {

@@ -48,7 +48,10 @@ class MaximizingStrategyTest : FreeSpec() {
             "measure different Level Maximizer 1 implementations" {
                 var timesTested = 0
                 val impls: MutableMap<String, Float> = setOf(
-                    "lmn=1"
+                    "seq",
+                    "mutex",
+                    "deferred-all",
+                    "deferred-max"
                 ).associateWithTo(mutableMapOf()) { 0f }
                 VeryPopulatedPrimitiveBoardGenerator(posRatio = 0.95, chipRatio = 0.9).assertAll(iterations = 100) { board: EvolvingBoard ->
                     val players = board.players()
@@ -60,8 +63,14 @@ class MaximizingStrategyTest : FreeSpec() {
                         timesTested += 1
                         runBlocking {
                             with(lmn1) {
-                                impls.addElapsedTime("lmn=1") {
+                                impls.addElapsedTime("seq") {
                                     makeTurnAsync(board, order).await()
+                                }
+                                impls.addElapsedTime("mutex") {
+                                    makeTurnAsync_mutexAll(board, order).await()
+                                }
+                                impls.addElapsedTime("deferred-max") {
+                                    makeTurnAsync_deferredAllAwaitInMax(board, order).await()
                                 }
                             }
                         }
@@ -76,9 +85,5 @@ class MaximizingStrategyTest : FreeSpec() {
 
     private inline fun <K> MutableMap<K, Float>.addElapsedTime(key: K, block: () -> Unit) {
         this[key] = this[key]!! + measureNanoTime(block)
-    }
-
-    private fun <K> MutableMap<K, Milliseconds>.add(key: K, timeDelta: Milliseconds) {
-        this[key] = this[key]!! + timeDelta
     }
 }
