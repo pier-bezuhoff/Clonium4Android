@@ -9,7 +9,6 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
-import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.android.synthetic.main.activity_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
@@ -35,6 +34,9 @@ class GameActivity : AppCompatActivity() {
                 val adapter = OrderAdapter(orderItemsOf(gameModel), get())
                 adapter.updateStat(gameModel.game.stat())
                 gameModel.statUpdatingSubscription
+                    .subscribeFrom(adapter)
+                    .unsubscribeOnDestroy(this)
+                gameModel.currentPlayerUpdatingSubscription
                     .subscribeFrom(adapter)
                     .unsubscribeOnDestroy(this)
                 orderAdapter = adapter

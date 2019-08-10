@@ -3,7 +3,7 @@ package com.pierbezuhoff.clonium.domain
 import kotlinx.coroutines.*
 import java.io.Serializable
 
-typealias GameStat = Map<Player, Pair<Int, Int>>
+typealias GameStat = Map<Player, Game.PlayerStat>
 interface Game {
     /** Initial [Game] parameters, [Game] can be constructed from it */
     data class State(
@@ -35,6 +35,8 @@ interface Game {
         }
     }
 
+    data class PlayerStat(val chipCount: Int, val sumLevel: Int, val conquered: Double)
+
     val board: Board
     val players: Map<PlayerId, Player>
     val order: List<Player>
@@ -64,13 +66,18 @@ interface Game {
         return (order.drop(ix + 1) + order).first { isAlive(it) }
     }
 
-    /** (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    private fun statOf(player: Player): Pair<Int, Int> =
-        Pair(board.possOf(player.playerId).size, board.levelOf(player.playerId))
-
-    /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    fun stat(): GameStat =
-        order.associateWith { statOf(it) }
+    /** [Player] to (# of [Chip]s, sum of [Chip]'s [Level]s, percent of total [board]'s [Pos]s) */
+    fun stat(): GameStat {
+        val nPoss = board.asPosSet().size
+        return order.associateWith { player ->
+            val chipCount = board.possOf(player.playerId).size
+            return@associateWith PlayerStat(
+                chipCount = chipCount,
+                sumLevel = board.levelOf(player.playerId),
+                conquered = chipCount.toDouble() / nPoss
+            )
+        }
+    }
 
     fun humanTurn(pos: Pos): Sequence<Transition>
 

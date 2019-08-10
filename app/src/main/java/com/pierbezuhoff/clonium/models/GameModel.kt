@@ -2,10 +2,7 @@ package com.pierbezuhoff.clonium.models
 
 import android.graphics.Canvas
 import android.graphics.PointF
-import com.pierbezuhoff.clonium.domain.BotPlayer
-import com.pierbezuhoff.clonium.domain.Game
-import com.pierbezuhoff.clonium.domain.GameStat
-import com.pierbezuhoff.clonium.domain.HumanPlayer
+import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.ui.game.DrawThread
 import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.CoroutineScope
@@ -25,9 +22,13 @@ class GameModel(
     , Logger by AndroidLoggerOf<GameModel>()
     , KoinComponent
 {
-    interface StatHolder { fun updateStat(stat: GameStat) }
+    interface StatHolder { fun updateStat(gameStat: GameStat) }
     private val statHolderConnection = Connection<StatHolder>()
     val statUpdatingSubscription = statHolderConnection.subscription
+
+    interface CurrentPlayerHolder { fun updateCurrentPlayer(player: Player) }
+    private val currentPlayerHolderConnection = Connection<CurrentPlayerHolder>()
+    val currentPlayerUpdatingSubscription = currentPlayerHolderConnection.subscription
 
     private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, margin = 1f)
     private var continueGameOnce by Once(true)
@@ -83,6 +84,9 @@ class GameModel(
             }
             game.currentPlayer is BotPlayer -> {
                 gamePresenter.boardHighlighting.showBotPossibleTurns(game.possibleTurns())
+                currentPlayerHolderConnection.send {
+                    updateCurrentPlayer(game.currentPlayer)
+                }
                 gamePresenter.freezeBoard()
                 coroutineScope.launch {
                     delay(config.botMinTime)
@@ -99,6 +103,9 @@ class GameModel(
             else -> {
                 // before human's turn:
                 gamePresenter.boardHighlighting.showHumanPossibleTurns(game.possibleTurns())
+                currentPlayerHolderConnection.send {
+                    updateCurrentPlayer(game.currentPlayer)
+                }
             }
         }
     }

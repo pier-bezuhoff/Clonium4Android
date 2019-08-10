@@ -3,48 +3,54 @@ package com.pierbezuhoff.clonium.ui.game
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.databinding.*
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Transformations
-import androidx.lifecycle.map
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.databinding.OrderItemBinding
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GameModel
-import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
+import kotlin.math.roundToInt
 
 data class OrderItem(val player: Player) {
-    val sumLevel = ObservableInt(0)
-    val sumLevelText = object : ObservableField<String>(sumLevel) {
-        override fun get() = sumLevel.get().toString()
+    internal val stat = ObservableField(Game.PlayerStat(0, 0, 0.0))
+    val sumLevel = stat.projection {
+        if (it.sumLevel == 0) "" else "${it.sumLevel}"
     }
-    val chipCount = ObservableInt(0)
-    val chipCountText = object : ObservableField<String>(chipCount) {
-        override fun get() = chipCount.get().toString()
+    val chipCount = stat.projection {
+        if (it.chipCount == 0) "" else "${it.chipCount}"
+    }
+    val conqueredPercent = stat.projection {
+        if (it.conquered == 0.0) "" else "${(it.conquered * 100).roundToInt()}%"
     }
     val tacticDescription: String = when (player) {
         is BotPlayer -> player.difficultyName
         is HumanPlayer -> "Human"
         else -> impossibleCaseOf(player)
     }
+    val highlight = ObservableBoolean(false)
     val alive = ObservableBoolean(true)
 }
+
+private inline fun <reified S : Any, reified T> ObservableField<S>.projection(
+    crossinline project: (S) -> T
+): ObservableField<T> =
+    object : ObservableField<T>(this) {
+        override fun get(): T? = this@projection.get()?.let(project)
+    }
 
 internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
     with(gameModel.game) {
         order.map { OrderItem(it) }
     }
 
-// TODO: highlight current player
 class OrderAdapter(
     orderItems: List<OrderItem>,
     private val bitmapLoader: GameBitmapLoader
 ) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
     , GameModel.StatHolder
+    , GameModel.CurrentPlayerHolder
     , Logger by AndroidLoggerOf<OrderAdapter>()
 {
     class ViewHolder(val binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
@@ -75,13 +81,20 @@ class OrderAdapter(
     override fun getItemCount(): Int =
         orderItems.size
 
-    override fun updateStat(stat: GameStat) {
+    override fun updateStat(gameStat: GameStat) {
         for (orderItem in orderItems) {
-            val (chipCount, sumLevel) = stat.getValue(orderItem.player)
-            require(chipCount > 0 == sumLevel > 0)
-            orderItem.chipCount.set(chipCount)
-            orderItem.sumLevel.set(sumLevel)
-            orderItem.alive.set(chipCount > 0)
+            val stat = gameStat.getValue(orderItem.player)
+            orderItem.stat.set(stat)
+            orderItem.alive.set(stat.chipCount > 0)
+        }
+    }
+
+    override fun updateCurrentPlayer(player: Player) {
+        for (orderItem in orderItems) {
+            if (orderItem.player == player)
+                orderItem.highlight.set(true)
+            else
+                orderItem.highlight.set(false)
         }
     }
 }
