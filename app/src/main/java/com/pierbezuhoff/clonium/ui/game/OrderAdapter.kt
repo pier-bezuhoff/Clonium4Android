@@ -1,15 +1,13 @@
 package com.pierbezuhoff.clonium.ui.game
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.RecyclerView
-import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.OrderItemBinding
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
+import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 
 class OrderItem(val player: Player) {
@@ -23,10 +21,16 @@ class OrderItem(val player: Player) {
     val alive: MutableLiveData<Boolean> = MutableLiveData(true)
 }
 
+internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
+    gameModel.game.players.values.map { OrderItem(it) }
+
+// TODO: highlight current player
 class OrderAdapter(
-    private val orderItems: List<OrderItem>,
+    var orderItems: List<OrderItem>,
     private val bitmapLoader: GameBitmapLoader
-) : RecyclerView.Adapter<OrderAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
+    , GameModel.StatHolder
+{
     class ViewHolder(val binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -49,20 +53,12 @@ class OrderAdapter(
     override fun getItemCount(): Int =
         orderItems.size
 
-    fun updateStat(stat: GameStat) {
+    override fun updateStat(stat: GameStat) {
         for (orderItem in orderItems) {
             val (chipCount, sumLevel) = stat.getValue(orderItem.player)
             orderItem.chipCount.value = chipCount
             orderItem.sumLevel.value = sumLevel
             orderItem.alive.value = chipCount > 0
         }
-    }
-
-    fun setSumLevel(playerId: PlayerId, newSumLevel: Int) {
-        orderItems.find { it.player.playerId == playerId }!!.sumLevel.value = newSumLevel
-    }
-
-    fun setChipCount(playerId: PlayerId, newChipCount: Int) {
-        orderItems.find { it.player.playerId == playerId }!!.chipCount.value = newChipCount
     }
 }

@@ -20,4 +20,5 @@
     <string name="sum_level">sum level</string>
     <string name="chip_count">chip count</string>
     <string name="player_tactic">player tactic</string>
+    <string name="shading">shading</string>
 </resources>

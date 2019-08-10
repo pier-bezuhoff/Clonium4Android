@@ -4,15 +4,20 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.Observer
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
+import com.pierbezuhoff.clonium.utils.Once
+import kotlinx.android.synthetic.main.activity_game.*
+import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
-// TODO: stat and action bar
+// TODO: action bar
 class GameActivity : AppCompatActivity() {
     private val gameViewModel: GameViewModel by viewModel()
+    private var orderAdapter: OrderAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +29,21 @@ class GameActivity : AppCompatActivity() {
         (intent.getSerializableExtra(NewGameActivity.GAME_STATE_EXTRA) as Game.State?)?.let {
             gameViewModel.newGame(it)
         } ?: gameViewModel.newGame()
+
+        gameViewModel.gameModel.observe(this, Observer { gameModel ->
+            if (orderAdapter == null) {
+                val adapter = OrderAdapter(orderItemsOf(gameModel), get())
+                adapter.updateStat(gameModel.game.stat())
+                gameModel.statUpdatingSubscription
+                    .subscribeFrom(adapter)
+                    .unsubscribeOnDestroy(this)
+                orderAdapter = adapter
+                order_recycler_view.adapter = adapter
+            } else {
+                orderAdapter!!.orderItems = orderItemsOf(gameModel)
+                orderAdapter!!.updateStat(gameModel.game.stat())
+            }
+        })
     }
 
     /** Enforce fullscreen sticky immersive mode */

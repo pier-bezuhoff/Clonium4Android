@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.PointF
 import com.pierbezuhoff.clonium.domain.BotPlayer
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.domain.GameStat
 import com.pierbezuhoff.clonium.domain.HumanPlayer
 import com.pierbezuhoff.clonium.ui.game.DrawThread
 import com.pierbezuhoff.clonium.utils.*
@@ -14,7 +15,7 @@ import org.koin.core.KoinComponent
 import org.koin.core.get
 
 // MAYBE: non-significant explosions are non-blocking
-// TODO: issue pre-turn (BoardPresenter.showNextTurn)
+// MAYBE: issue pre-turn (BoardPresenter.boardHighlighting.showNextTurn)
 class GameModel(
     val game: Game,
     private val config: GameConfig,
@@ -24,6 +25,10 @@ class GameModel(
     , Logger by AndroidLoggerOf<GameModel>()
     , KoinComponent
 {
+    interface StatHolder { fun updateStat(stat: GameStat) }
+    private val statHolderConnection = Connection<StatHolder>()
+    val statUpdatingSubscription = statHolderConnection.subscription
+
     private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, margin = 1f)
     private var continueGameOnce by Once(true)
 
@@ -67,7 +72,10 @@ class GameModel(
         }
     }
 
-    private fun continueGame() {
+    private fun continueGame() { // synchronized(Lock) from advance
+        statHolderConnection.send {
+            updateStat(game.stat())
+        }
         when {
             game.isEnd() -> {
                 logI("game ended: ${game.currentPlayer} won")
