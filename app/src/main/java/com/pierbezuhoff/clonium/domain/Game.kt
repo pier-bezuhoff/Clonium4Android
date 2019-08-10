@@ -3,6 +3,7 @@ package com.pierbezuhoff.clonium.domain
 import kotlinx.coroutines.*
 import java.io.Serializable
 
+typealias GameStat = Map<Player, Pair<Int, Int>>
 interface Game {
     /** Initial [Game] parameters, [Game] can be constructed from it */
     data class State(
@@ -64,19 +65,11 @@ interface Game {
     }
 
     /** (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    private fun statOf(player: Player): Pair<Int, Int>? {
-        return if (!isAlive(player))
-            null
-        else {
-            val ownedChips = board.asPosMap().values
-                .filterNotNull()
-                .filter { it.playerId == player.playerId }
-            Pair(ownedChips.size, ownedChips.sumBy { it.level.ordinal })
-        }
-    }
+    private fun statOf(player: Player): Pair<Int, Int> =
+        Pair(board.possOf(player.playerId).size, board.levelOf(player.playerId))
 
     /** [Player] to (# of [Chip]s, sum of [Chip] [Level]s) or `null` if dead */
-    fun stat(): Map<Player, Pair<Int, Int>?> =
+    fun stat(): GameStat =
         order.associateWith { statOf(it) }
 
     fun humanTurn(pos: Pos): Sequence<Transition>

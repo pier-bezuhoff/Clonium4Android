@@ -5,7 +5,7 @@
         xmlns:tools="http://schemas.android.com/tools"
 >
     <data>
-
+        <variable name="orderItem" type="com.pierbezuhoff.clonium.ui.game.OrderItem"/>
     </data>
     <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -30,7 +30,7 @@
                 app:layout_constraintBottom_toBottomOf="@+id/chip_view"
                 app:layout_constraintStart_toStartOf="@+id/chip_view"
                 app:layout_constraintEnd_toEndOf="@+id/chip_view"
-                android:text="@string/sum_level"
+                android:text="@{orderItem.sumLevel}"
         />
         <TextView
                 android:id="@+id/chip_count"
@@ -40,7 +40,7 @@
                 app:layout_constraintBottom_toBottomOf="@+id/chip_view"
                 app:layout_constraintStart_toEndOf="@+id/chip_view"
                 android:layout_marginStart="8dp"
-                android:text="@string/chip_count"
+                android:text="@{orderItem.chipCount}"
         />
         <TextView
                 android:id="@+id/player_tactic"
@@ -50,7 +50,7 @@
                 app:layout_constraintBottom_toBottomOf="@+id/chip_view"
                 app:layout_constraintStart_toEndOf="@+id/chip_view"
                 android:layout_marginStart="80sp"
-                android:text="@string/player_tactic"
+                android:text="@{orderItem.tacticDescription}"
         />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

@@ -41,7 +41,7 @@ object MaximizingStrategy {
         nTurns: Int,
         playerId: PlayerId?, order: List<PlayerId>,
         board: EvolvingBoard
-    ): Sequence<EvolvingBoard> {
+    ): Sequence<EvolvingBoard> { // TODO: filter order while making turns
         if (playerId == null || nTurns == 0)
             return sequenceOf(board)
         val possibleTurns = board.possOf(playerId)
@@ -85,7 +85,7 @@ object MaximizingStrategy {
             board.distinctTurnsOf(playerId).map { turn ->
                 estimateTurn(
                     turn, depth - 1, estimate,
-                    playerId, order, variation
+                    playerId, order, variation // TODO: change order if a player dies!
                 )
             }.max() ?: Int.MIN_VALUE // no turns means death
         }.min() ?: Int.MAX_VALUE
@@ -250,6 +250,3 @@ class AlliedLevelBalancerBot(
     override val difficultyName = "Allied level balancer $depth of $allyId 1:${ratio.numerator}:${ratio.denominator}"
     override val tactic = PlayerTactic.Bot.AlliedLevelBalancer(depth, allyId, ratio)
 }
-
-private fun Board.levelOf(playerId: PlayerId): Int =
-    possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }

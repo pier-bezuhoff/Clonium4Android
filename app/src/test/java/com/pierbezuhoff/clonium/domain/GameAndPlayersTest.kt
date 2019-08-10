@@ -35,7 +35,7 @@ class GameAndPlayersTest : FreeSpec() {
                     repeat(100) {
                         withClue("turn $it, player = ${game.currentPlayer}, board = ${game.board}") {
                             runBlocking {
-                                val transitions = botTurnAsync().await()
+                                val (turn, transitions) = botTurn()
                                 Unit
                             }
                         }

@@ -142,7 +142,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
             playerItems = playersConfig.playerItems.toMutableList()
             val index = getInt(SimpleBoard.Examples::class.simpleName, 0)
             setBoard(SimpleBoard.Examples.ALL[index])
-            useRandomOrder.value = getBoolean("useRandomOrder", useRandomOrder.value ?: true)
+            useRandomOrder.value = getBoolean(::useRandomOrder.name, useRandomOrder.value ?: true)
         }
     }
 
@@ -150,7 +150,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         context.defaultSharedPreferences.edit {
             putStringSet(PlayersConfig::class.simpleName, PlayersConfig(playerItems).toStringSet())
             putInt(SimpleBoard.Examples::class.simpleName, SimpleBoard.Examples.ALL.indexOf(initialBoard))
-            useRandomOrder.value?.let { putBoolean("useRandomOrder", it) }
+            useRandomOrder.value?.let { putBoolean(::useRandomOrder.name, it) }
         }
     }
 

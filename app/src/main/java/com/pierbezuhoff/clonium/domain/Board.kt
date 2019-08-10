@@ -294,6 +294,9 @@ interface Board : EmptyBoard {
     fun isAlive(playerId: PlayerId): Boolean =
         possOf(playerId).isNotEmpty()
 
+   fun levelOf(playerId: PlayerId): Int =
+        possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }
+
     /** [Set] of transitive [Level3] neighbors */
     fun chains(): Set<Set<Pos>> {
         val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
@@ -324,7 +327,7 @@ interface Board : EmptyBoard {
         if (levelAt(pos)?.let { it < Level3 } ?: true)
             null
         else
-            chains().firstOrNull { pos in it }
+            chains().first { pos in it }
 
     /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
     fun distinctTurnsOf(playerId: PlayerId): Set<Pos> {
@@ -464,7 +467,6 @@ class SimpleBoard(
     }
 
     object Examples {
-        // showcase for chip fallout
         val TOWER = Builder.spawn4players(SimpleEmptyBoard.Examples.TOWER)
         val SMALL_TOWER = Builder.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
         // Default boards from BGC/Clonium
@@ -493,7 +495,7 @@ sealed class Direction {
 }
 
 /** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 and
- * 4 transient [Chip]s with `Level(1)` explode to [up], [right], [down] and [left] */
+ * 4 transient [Chip]s with [Level1] explode to [up], [right], [down] and [left] */
 data class Explosion(
     val playerId: PlayerId,
     val center: Pos,
@@ -528,7 +530,7 @@ data class Transition(
 
 /** Board with [Chip]s on which [Player]s can make turns ([inc] and [incAnimated]) */
 interface EvolvingBoard : Board {
-    class InvalidTurn(reason: String) : Exception(reason)
+    class InvalidTurn(reason: String) : IllegalArgumentException(reason)
 
     override fun copy(): EvolvingBoard
 
@@ -541,6 +543,7 @@ interface EvolvingBoard : Board {
     fun incAnimated(pos: Pos): Sequence<Transition>
 
     /** Return new [EvolvingBoard] after [EvolvingBoard.inc] */
+    @Throws(InvalidTurn::class)
     fun afterInc(pos: Pos): EvolvingBoard =
         copy().apply { inc(pos) }
 
