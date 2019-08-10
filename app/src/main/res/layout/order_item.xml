@@ -11,9 +11,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@color/dark_background"
     >
-        <!--android:background="@{orderItem.highlight ? @android:color/holo_blue_bright : @android:color/white}"-->
-        <!--tools:background="@android:color/white"-->
+        <!-- TODO: card view! -->
         <ImageView
                 android:id="@+id/chip_view"
                 android:layout_width="45dp"
@@ -36,6 +36,7 @@
                 app:layout_constraintEnd_toEndOf="@id/chip_view"
                 android:text="@{orderItem.sumLevel}"
                 android:textSize="20sp"
+                android:textColor="@color/light_text_color"
                 tools:text="26"
         />
         <TextView
@@ -48,6 +49,7 @@
                 android:layout_marginStart="8dp"
                 android:text="@{orderItem.chipCount}"
                 android:textSize="20sp"
+                android:textColor="@color/light_text_color"
                 tools:text="12"
         />
         <TextView
@@ -56,10 +58,11 @@
                 android:layout_height="wrap_content"
                 app:layout_constraintTop_toTopOf="@id/chip_view"
                 app:layout_constraintBottom_toBottomOf="@id/chip_view"
-                app:layout_constraintStart_toEndOf="@id/chip_count"
-                android:layout_marginStart="8dp"
+                app:layout_constraintStart_toEndOf="@id/chip_view"
+                android:layout_marginStart="40sp"
                 android:text="@{orderItem.conqueredPercent}"
                 android:textSize="14sp"
+                android:textColor="@color/light_text_color"
                 tools:text="12%"
         />
         <TextView
@@ -72,6 +75,7 @@
                 android:layout_marginStart="80sp"
                 android:text="@{orderItem.tacticDescription}"
                 android:textSize="16sp"
+                android:textColor="@color/light_text_color"
                 tools:text="Level maximizer 1"
         />
         <ImageView
@@ -83,7 +87,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:srcCompat="@android:color/darker_gray"
-                android:alpha="0.75"
+                android:alpha="0.25"
                 android:contentDescription="@string/shading"
                 android:visibility="@{orderItem.alive? View.GONE : View.VISIBLE}"
                 tools:visibility="gone"

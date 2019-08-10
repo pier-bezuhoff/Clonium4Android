@@ -11,6 +11,7 @@ import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
+import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
 data class OrderItem(val player: Player) {
@@ -29,7 +30,6 @@ data class OrderItem(val player: Player) {
         is HumanPlayer -> "Human"
         else -> impossibleCaseOf(player)
     }
-    val highlight = ObservableBoolean(false)
     val alive = ObservableBoolean(true)
 }
 
@@ -46,7 +46,7 @@ internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
     }
 
 class OrderAdapter(
-    orderItems: List<OrderItem>,
+    private var orderItems: List<OrderItem>,
     private val bitmapLoader: GameBitmapLoader
 ) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
     , GameModel.StatHolder
@@ -55,11 +55,7 @@ class OrderAdapter(
 {
     class ViewHolder(val binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
 
-    var orderItems: List<OrderItem> = orderItems
-        set(value) {
-            field = value
-            notifyDataSetChanged()
-        }
+    private var nOfAlivePlayers = orderItems.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding =
@@ -82,19 +78,62 @@ class OrderAdapter(
         orderItems.size
 
     override fun updateStat(gameStat: GameStat) {
-        for (orderItem in orderItems) {
+        val dying = mutableSetOf<Int>()
+        for ((ix, orderItem) in orderItems.withIndex()) {
             val stat = gameStat.getValue(orderItem.player)
             orderItem.stat.set(stat)
-            orderItem.alive.set(stat.chipCount > 0)
+            val alive = stat.chipCount > 0
+            orderItem.alive.set(alive)
+            if (ix < nOfAlivePlayers && !alive) {
+                dying += ix
+            }
+        }
+        for (ix in dying) {
+            // FIX: try on small board and fix bug here
+            moveOrderItem(ix, nOfAlivePlayers)
+            nOfAlivePlayers --
         }
     }
 
     override fun updateCurrentPlayer(player: Player) {
-        for (orderItem in orderItems) {
-            if (orderItem.player == player)
-                orderItem.highlight.set(true)
-            else
-                orderItem.highlight.set(false)
+        if (orderItems.first().player != player) {
+            moveOrderItem(0, nOfAlivePlayers - 1)
+        }
+    }
+
+    fun setOrderItems(newOrderItems: List<OrderItem>) {
+        orderItems = newOrderItems
+        nOfAlivePlayers = newOrderItems.size
+        notifyDataSetChanged()
+    }
+
+    // pushing item at `to` forward
+    private fun moveOrderItem(from: Int, to: Int) {
+        val size = orderItems.size
+        require(from in 0 until size)
+        require(to in 0..size)
+        require(from != to)
+        orderItems = when {
+            to == size -> {
+                val before = orderItems.subList(0, from)
+                val between = orderItems.subList(from + 1, size)
+                before + between + orderItems[from]
+            }
+            from < to -> {
+                val before = orderItems.subList(0, from)
+                val between = orderItems.subList(from + 1, to)
+                val after = orderItems.subList(to, size)
+                before + between + orderItems[from] + after
+            }
+            else -> {
+                val before = orderItems.subList(0, to)
+                val between = orderItems.subList(to, from)
+                val after = orderItems.subList(from + 1, size)
+                before + orderItems[from] + between + after
+            }
+        }
+        runBlocking(Dispatchers.Main) {
+            notifyItemMoved(from, minOf(size - 1, to))
         }
     }
 }

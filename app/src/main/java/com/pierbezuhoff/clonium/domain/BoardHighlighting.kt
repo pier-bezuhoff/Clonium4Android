@@ -18,9 +18,9 @@ class BoardHighlighting {
     private var possibleTurns: Set<Pos> = emptySet()
     private var nextTurn: Pos? = null
     private var lastMainTurn: Pos? = null
-    private var lastMinorTurns: List<Pos> = emptyList()
+    private var lastMinorTurns: List<Pos?> = emptyList() // null items are placeholders for intercepted minor turns
     private val lastTurns: List<Pos>
-        get() = listOfNotNull(lastMainTurn) + lastMinorTurns
+        get() = listOfNotNull(lastMainTurn) + lastMinorTurns.filterNotNull()
 
     fun showHumanPossibleTurns(turns: Set<Pos>) {
         _highlightings -= possibleTurns
@@ -41,11 +41,11 @@ class BoardHighlighting {
 
     fun showLastTurn(turn: Pos, nPlayers: Int) {
         _highlightings -= listOfNotNull(lastMainTurn)
-        _highlightings -= lastMinorTurns
-        lastMinorTurns = (listOfNotNull(lastMainTurn) + (lastMinorTurns - turn))
-            .take(maxOf(nPlayers - 2, 0)) // without main last and current
+        _highlightings -= lastMinorTurns.filterNotNull()
+        lastMinorTurns = (listOf(lastMainTurn) + (lastMinorTurns - turn))
+            .take(maxOf(nPlayers - 1, 0)) // without and current
         lastMainTurn = turn
-        lastMinorTurns.associateWithTo(_highlightings) { Highlighting.LastTurn.Minor }
+        lastMinorTurns.filterNotNull().associateWithTo(_highlightings) { Highlighting.LastTurn.Minor }
         _highlightings[turn] = Highlighting.LastTurn.Main
     }
 
@@ -59,7 +59,7 @@ class BoardHighlighting {
         require(lastTurns.containsAll(intercepted))
         _highlightings -= intercepted
         lastMainTurn = lastMainTurn.takeUnless { it in intercepted }
-        lastMinorTurns = lastMinorTurns.filterNot { it in intercepted }
+        lastMinorTurns = lastMinorTurns.map { it?.takeUnless { it in intercepted } }
     }
 
     fun showNextTurn(turn: Pos) {

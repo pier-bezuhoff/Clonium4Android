@@ -53,7 +53,7 @@ class GameModel(
                     gamePresenter.unfreezeBoard()
                     continueGameOnce = true
                 }
-            }
+            } // if next is human => issue pre-turn
         }
     }
 

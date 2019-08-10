@@ -42,7 +42,7 @@ class GameActivity : AppCompatActivity() {
                 orderAdapter = adapter
                 order_recycler_view.adapter = adapter
             } else {
-                orderAdapter!!.orderItems = orderItemsOf(gameModel)
+                orderAdapter!!.setOrderItems(orderItemsOf(gameModel))
                 orderAdapter!!.updateStat(gameModel.game.stat())
             }
         })
