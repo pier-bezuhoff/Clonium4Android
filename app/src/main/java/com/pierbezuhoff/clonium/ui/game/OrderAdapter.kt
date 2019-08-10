@@ -2,36 +2,58 @@ package com.pierbezuhoff.clonium.ui.game
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.databinding.*
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
+import androidx.lifecycle.map
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.databinding.OrderItemBinding
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GameModel
+import com.pierbezuhoff.clonium.utils.AndroidLogger
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
+import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 
-class OrderItem(val player: Player) {
-    val sumLevel: MutableLiveData<Int> = MutableLiveData(0)
-    val chipCount: MutableLiveData<Int> = MutableLiveData(0)
+data class OrderItem(val player: Player) {
+    val sumLevel = ObservableInt(0)
+    val sumLevelText = object : ObservableField<String>(sumLevel) {
+        override fun get() = sumLevel.get().toString()
+    }
+    val chipCount = ObservableInt(0)
+    val chipCountText = object : ObservableField<String>(chipCount) {
+        override fun get() = chipCount.get().toString()
+    }
     val tacticDescription: String = when (player) {
         is BotPlayer -> player.difficultyName
         is HumanPlayer -> "Human"
         else -> impossibleCaseOf(player)
     }
-    val alive: MutableLiveData<Boolean> = MutableLiveData(true)
+    val alive = ObservableBoolean(true)
 }
 
 internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
-    gameModel.game.players.values.map { OrderItem(it) }
+    with(gameModel.game) {
+        order.map { OrderItem(it) }
+    }
 
 // TODO: highlight current player
 class OrderAdapter(
-    var orderItems: List<OrderItem>,
+    orderItems: List<OrderItem>,
     private val bitmapLoader: GameBitmapLoader
 ) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
     , GameModel.StatHolder
+    , Logger by AndroidLoggerOf<OrderAdapter>()
 {
     class ViewHolder(val binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
+
+    var orderItems: List<OrderItem> = orderItems
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding =
@@ -56,9 +78,10 @@ class OrderAdapter(
     override fun updateStat(stat: GameStat) {
         for (orderItem in orderItems) {
             val (chipCount, sumLevel) = stat.getValue(orderItem.player)
-            orderItem.chipCount.value = chipCount
-            orderItem.sumLevel.value = sumLevel
-            orderItem.alive.value = chipCount > 0
+            require(chipCount > 0 == sumLevel > 0)
+            orderItem.chipCount.set(chipCount)
+            orderItem.sumLevel.set(sumLevel)
+            orderItem.alive.set(chipCount > 0)
         }
     }
 }
