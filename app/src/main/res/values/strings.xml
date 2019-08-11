@@ -10,7 +10,7 @@
     <string name="chip_count_maximizer">Chip count maximizer</string>
     <string name="level_minimizer">Level minimizer</string>
     <string name="level_balancer">Level balancer</string>
-    <string name="allied_level_balancer">Allied balancer</string>
+    <string name="allied_level_balancer">Ally of %d</string>
 
     <string name="use_random_order">Random order</string>
     <string name="previous_board">Previous board</string>

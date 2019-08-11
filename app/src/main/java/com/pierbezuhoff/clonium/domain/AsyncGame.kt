@@ -136,16 +136,13 @@ private class LinkedTurns(
             start.next.link = Link.End
         } else {
             coroutineScope.launch(Dispatchers.Default) {
-                lockingComputings {
-                    lockingUnknowns {
-                        discoverUnknowns()
-                    }
+                synchronized {
+                    discoverUnknowns()
                 }
             }
         }
     }
 
-    // parent should lock UnknownsLock AND lock ComputingsLock
     private fun discoverUnknowns() {
         while (
             unknowns.isNotEmpty() &&
@@ -187,7 +184,6 @@ private class LinkedTurns(
         }
     }
 
-    // parent should lock UnknownsLock
     private fun nextUnknown(trans: Trans, depth: Int): Next {
         val unknown = Link.Unknown(depth)
         val nextAs = NextAs(trans, unknown)
@@ -195,7 +191,6 @@ private class LinkedTurns(
         return nextAs.next
     }
 
-    // parent should lock ComputingsLock
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
         require(board.possOf(bot.playerId).isNotEmpty())
         val computation = Computation(bot, board, order, depth, Id.generate())
@@ -207,7 +202,6 @@ private class LinkedTurns(
         }
     }
 
-    // parent should lock ComputingsLock
     private fun Next.startComputing(computation: Computation) {
         require(computing == null)
         val newComputing = Link.FutureTurn.Bot.Computing(
@@ -222,7 +216,7 @@ private class LinkedTurns(
         }
 
     private fun onComputed(computed: Link.FutureTurn.Bot.Computed) {
-        lockingComputings {
+        synchronized {
             val computing = computing
             when {
                 computing == null -> Unit
@@ -230,22 +224,17 @@ private class LinkedTurns(
                 else -> {
                     computing.next.link = computed
                     this.computing = null
-                    // add external unknown (from Computation.runAsync)
-                    lockingUnknowns {
-                        unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
-                    }
+                    // add external unknown (from Computation.run)
+                    unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
                     val shouldDiscoverUnknowns = !runNext()
                     if (shouldDiscoverUnknowns) {
-                        lockingUnknowns {
-                            discoverUnknowns()
-                        }
+                        discoverUnknowns()
                     }
                 }
             }
         }
     }
 
-    // parent should lock ComputingsLock, runNext may lock UnknownsLock
     /** Return `false` if there are no [scheduledComputings] available and [discoverUnknowns] should be started,
      * `true` otherwise */
     private fun runNext(): Boolean {
@@ -277,7 +266,10 @@ private class LinkedTurns(
                 setFocus(Next(trans, Link.End))
                 return trans
             }
-            else -> impossibleCaseOf(focus)
+            else -> {
+                logIState()
+                impossibleCaseOf(focus)
+            }
         }
     }
 
@@ -287,23 +279,18 @@ private class LinkedTurns(
     }
 
     private fun rescheduleAll() {
-        lockingComputings {
-            lockingUnknowns {
-                computing = null
-                scheduledComputings.clear()
-                unknowns.clear()
-                start.next.reschedule()
-            }
+        synchronized {
+            computing = null
+            scheduledComputings.clear()
+            unknowns.clear()
+            start.next.reschedule()
             val shouldDiscoverUnknowns = !runNext()
             if (shouldDiscoverUnknowns) {
-                lockingUnknowns {
-                    discoverUnknowns()
-                }
+                discoverUnknowns()
             }
         }
     }
 
-    // parent should lock UnknownsLock and ComputingsLock
     private fun Next.reschedule() {
         when (val link = link) {
             is Link.Unknown -> unknowns.add(NextAs(this, link))
@@ -314,34 +301,11 @@ private class LinkedTurns(
         }
     }
 
-    // MAYBE: delete: no need in optimized version
-    private tailrec fun Next?._reschedule(nexts: Sequence<Next> = emptySequence()) {
-        if (this == null) {
-            nexts.firstOrNull()?._reschedule(nexts.drop(1)) // firstOrNull does not change nexts here
-        } else {
-            when (val link = link) {
-                is Link.Unknown -> {
-                    unknowns.add(NextAs(this, link))
-                    null._reschedule(nexts)
-                }
-                is Link.FutureTurn.Bot.ScheduledComputing -> {
-                    scheduledComputings.add(NextAs(this, link))
-                    null._reschedule(nexts)
-                }
-                is Link.FutureTurn.Bot.Computing -> {
-                    computing = NextAs(this, link)
-                    null._reschedule(nexts)
-                }
-                is Link.FutureTurn.Bot.Computed -> null._reschedule(nexts + link.next)
-                is Link.FutureTurn.Human.OneOf -> null._reschedule(nexts + link.nexts.values)
-            }
-        }
-    }
-
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
         return tryRequestBotTurnOrAsync {
-            lockingComputings {
+            synchronized {
                 tryRequestBotTurnOrAsync {
+                    logIState()
                     impossibleCaseOf(it)
                 }
             }
@@ -351,7 +315,7 @@ private class LinkedTurns(
     private inline fun tryRequestBotTurnOrAsync(
         orElseBlock: (Link.FutureTurn.Bot) -> Deferred<Pair<Pos, Trans>>
     ): Deferred<Pair<Pos, Trans>> {
-        require(focus is Link.FutureTurn.Bot) { "focus = $focus" }
+        require(focus is Link.FutureTurn.Bot) { "focus = $focus".also { logIState() } }
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
                 setFocus(focus.next)
@@ -407,18 +371,9 @@ private class LinkedTurns(
             o1.link.depth.compareTo(o2.link.depth)
     }
 
-    private inline fun <R> lockingComputings(block: () -> R): R =
-        synchronized(ComputingsLock, block)
-
-    private inline fun <R> lockingUnknowns(block: () -> R): R =
-        synchronized(UnknownsLock, block)
-
-    private inline fun <R> locking(block: () -> R): R =
+    private inline fun <R> synchronized(block: () -> R): R =
         synchronized(Lock, block)
 
-    // NOTE: locking order: first ComputingsLock THEN UnknownsLock (to prevent deadlock)
-    object ComputingsLock
-    object UnknownsLock
     object Lock
 
     companion object {

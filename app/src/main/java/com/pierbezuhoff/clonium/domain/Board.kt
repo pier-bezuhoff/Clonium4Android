@@ -265,6 +265,14 @@ interface Board : EmptyBoard {
     /** For [Pos] with cell: `Map.Entry<Pos, Chip?>` */
     fun asPosMap(): Map<Pos, Chip?>
 
+    fun asInhabitedPosMap(): Map<Pos, Chip> =
+        asPosMap()
+            .mapNotNull { (key, value) ->
+                if (value == null) null
+                else key to value
+            }
+            .toMap()
+
     fun chipAt(pos: Pos): Chip? =
         asPosMap()[pos]
 
@@ -290,6 +298,9 @@ interface Board : EmptyBoard {
         asPosMap()
             .filterValues { chip -> chip?.playerId == playerId }
             .keys
+
+    fun chipCountOf(playerId: PlayerId): Int =
+        possOf(playerId).size
 
     fun isAlive(playerId: PlayerId): Boolean =
         possOf(playerId).isNotEmpty()

@@ -100,16 +100,30 @@ class PrimitiveBoard private constructor(
         return map
     }
 
+    override fun asInhabitedPosMap(): Map<Pos, Chip> {
+        val map = mutableMapOf<Pos, Chip>()
+        for (ix in chips.indices)
+            chips[ix].let { value ->
+                if (value >= 0)
+                    map[ix2pos(ix)] = int2chip(value)!!
+            }
+        return map
+    }
+
     override fun possOf(playerId: PlayerId): Set<Pos> =
-        ownedIxs.getValue(playerId).map { ix2pos(it) }.toSet()
+        ownedIxs[playerId]?.map { ix2pos(it) }?.toSet() ?: emptySet()
+
+    override fun chipCountOf(playerId: PlayerId): Int =
+        ownedIxs[playerId]?.size ?: 0
 
     override fun isAlive(playerId: PlayerId): Boolean =
         ownedIxs[playerId]?.isNotEmpty() ?: false
 
+    override fun levelOf(playerId: PlayerId): Int =
+        ownedIxs[playerId]?.sumBy { chipAt(it)!!.level.ordinal } ?: 0
+
     override fun players(): Set<PlayerId> =
-        ownedIxs
-            .filterValues { it.isNotEmpty() }
-            .keys
+        ownedIxs.keys
 
     private fun hasChip(ix: Int): Boolean =
         hasCell(ix) && chips[ix] != NO_CHIP
@@ -146,7 +160,7 @@ class PrimitiveBoard private constructor(
     private inline fun explodeToNeighbors(ix: Int, playerId: PlayerId) {
         for (i in neighbors(ix)) {
             if (chips[i] == NO_CHIP) {
-                chips[i] = chip2int(Chip(playerId, Level(1)))
+                chips[i] = chip2int(Chip(playerId, Level1))
                 ownedIxs.getValue(playerId).add(i)
             } else {
                 val previousOwner = playerAt(i)!!

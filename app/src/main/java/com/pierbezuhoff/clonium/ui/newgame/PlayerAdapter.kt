@@ -12,10 +12,10 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.PlayerItem
-import com.pierbezuhoff.clonium.utils.AndroidLogger
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Connection
 import com.pierbezuhoff.clonium.utils.Logger
+import com.pierbezuhoff.clonium.utils.tactic
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
 import org.jetbrains.anko.layoutInflater
@@ -64,6 +64,8 @@ interface RowManager {
     fun unselectRow(viewHolder: PlayerAdapter.ViewHolder)
 }
 
+// TODO: move on tap
+// TODO: select allied for ally
 class PlayerAdapter(
     private var playerItems: MutableList<PlayerItem>,
     private val bitmapLoader: GameBitmapLoader
@@ -169,17 +171,7 @@ class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
         convertView ?: context.layoutInflater
             .inflate(R.layout.player_tactic_item, parent, false).apply {
                 val tactic = getItem(position)
-                tactic_description.text = context.tacticDescription(tactic)
+                tactic(tactic_description, tactic)
             }
 }
 
-fun Context.tacticDescription(tactic: PlayerTactic): String =
-    when (tactic) {
-        PlayerTactic.Human -> getString(R.string.human)
-        PlayerTactic.Bot.RandomPicker -> getString(R.string.random_picker)
-        is PlayerTactic.Bot.LevelMaximizer -> getString(R.string.level_maximizer)
-        is PlayerTactic.Bot.ChipCountMaximizer -> getString(R.string.chip_count_maximizer)
-        is PlayerTactic.Bot.LevelMinimizer -> getString(R.string.level_minimizer)
-        is PlayerTactic.Bot.LevelBalancer -> getString(R.string.level_balancer)
-        is PlayerTactic.Bot.AlliedLevelBalancer -> getString(R.string.allied_level_balancer)
-    }

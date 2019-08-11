@@ -11,7 +11,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/dark_background"
+            android:background="@android:color/transparent"
     >
         <!-- TODO: card view! -->
         <ImageView
@@ -73,7 +73,7 @@
                 app:layout_constraintBottom_toBottomOf="@id/chip_view"
                 app:layout_constraintStart_toEndOf="@id/chip_view"
                 android:layout_marginStart="80sp"
-                android:text="@{orderItem.tacticDescription}"
+                app:tactic="@{orderItem.tactic}"
                 android:textSize="16sp"
                 android:textColor="@color/light_text_color"
                 tools:text="Level maximizer 1"

@@ -25,11 +25,7 @@ data class OrderItem(val player: Player) {
     val conqueredPercent = stat.projection {
         if (it.conquered == 0.0) "" else "${(it.conquered * 100).roundToInt()}%"
     }
-    val tacticDescription: String = when (player) {
-        is BotPlayer -> player.difficultyName
-        is HumanPlayer -> "Human"
-        else -> impossibleCaseOf(player)
-    }
+    val tactic: PlayerTactic = player.tactic
     val alive = ObservableBoolean(true)
 }
 

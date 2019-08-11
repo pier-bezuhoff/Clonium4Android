@@ -45,15 +45,15 @@ sealed class PlayerTactic : Serializable {
             override fun toPlayer(playerId: PlayerId) =
                 LevelMinimizerBot(playerId, depth)
         }
-        class LevelBalancer(val depth: Int, val ratio: Rational) : Bot() {
-            override val name = "LevelBalancer($depth,${ratio.numerator}:${ratio.denominator})"
+        class LevelBalancer(val depth: Int, val enemyMinimization: Double) : Bot() {
+            override val name = "LevelBalancer($depth, 1:$enemyMinimization"
             override fun toPlayer(playerId: PlayerId) =
-                LevelBalancerBot(playerId, depth, ratio)
+                LevelBalancerBot(playerId, depth, enemyMinimization)
         }
-        class AlliedLevelBalancer(val depth: Int, val allyId: PlayerId, val ratio: Rational) : Bot() {
-            override val name = "AlliedLevelBalancer($depth,$allyId,1:${ratio.numerator}:${ratio.denominator})"
+        class AlliedLevelBalancer(val depth: Int, val allyId: PlayerId, val allyMaximization: Double, val enemyMinimization: Double) : Bot() {
+            override val name = "AlliedLevelBalancer($depth, $allyId, 1:$allyMaximization:$enemyMinimization)"
             override fun toPlayer(playerId: PlayerId) =
-                AlliedLevelBalancerBot(playerId, depth, allyId, ratio)
+                AlliedLevelBalancerBot(playerId, depth, allyId, allyMaximization, enemyMinimization)
         }
     }
 
@@ -71,9 +71,9 @@ sealed class PlayerTactic : Serializable {
 val PLAYER_TACTICS = listOf(
     PlayerTactic.Human,
     PlayerTactic.Bot.RandomPicker,
-    PlayerTactic.Bot.LevelMaximizer(1), // NOTE: slow: up to 5s on tower board
+    PlayerTactic.Bot.LevelMaximizer(1),
     PlayerTactic.Bot.ChipCountMaximizer(1),
     PlayerTactic.Bot.LevelMinimizer(1),
-    PlayerTactic.Bot.LevelBalancer(1, Rational(2, 1)),
-    PlayerTactic.Bot.AlliedLevelBalancer(1, PlayerId0, Rational(2, 1)) // ally of PlayerId0
+    PlayerTactic.Bot.LevelBalancer(1, 0.5),
+    PlayerTactic.Bot.AlliedLevelBalancer(1, PlayerId0, 1.5, 1.0) // ally of PlayerId0
 )
