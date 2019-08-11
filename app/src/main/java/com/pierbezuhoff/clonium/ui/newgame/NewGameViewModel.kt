@@ -9,18 +9,16 @@ import com.pierbezuhoff.clonium.models.BoardPresenter
 import com.pierbezuhoff.clonium.models.PlayerItem
 import com.pierbezuhoff.clonium.models.PlayersConfig
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
-import com.pierbezuhoff.clonium.utils.Connection
-import com.pierbezuhoff.clonium.utils.Ring
-import com.pierbezuhoff.clonium.utils.ringOf
+import com.pierbezuhoff.clonium.utils.*
 import org.jetbrains.anko.coroutines.experimental.asReference
 import org.jetbrains.anko.defaultSharedPreferences
 import org.koin.core.get
 
 // TODO: choose color of chip
-// TODO: tap to move handle
 class NewGameViewModel(application: Application) : CloniumAndroidViewModel(application)
     , PlayerAdapter.BoardPlayerHider
     , PlayerAdapter.BoardPlayerHighlighter
+    , Logger by AndroidLoggerOf<NewGameViewModel>()
 {
     interface BoardViewInvalidator { fun invalidateBoardView() }
     private val boardViewInvalidating = Connection<BoardViewInvalidator>()

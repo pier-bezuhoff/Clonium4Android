@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
+import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.VerticalSpaceItemDecoration
 import kotlinx.android.synthetic.main.activity_new_game.*
 import org.jetbrains.anko.custom.onUiThread
@@ -20,49 +22,58 @@ import org.jetbrains.anko.runOnUiThread
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
-class NewGameActivity : AppCompatActivity() {
+class NewGameActivity : AppCompatActivity()
+    , Logger by AndroidLoggerOf<NewGameActivity>()
+{
     private val newGameViewModel: NewGameViewModel by viewModel()
     private var playerAdapter: PlayerAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val binding: ActivityNewGameBinding =
-            DataBindingUtil.setContentView(this, R.layout.activity_new_game)
-        binding.lifecycleOwner = this
-        binding.viewModel = newGameViewModel
+        logIMilestoneScope("onCreate", measureScope = true) {
+            super.onCreate(savedInstanceState)
+            - "super.onCreate"
+            // FIX: ~200ms on setContentView!
+            val binding: ActivityNewGameBinding =
+                DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)
+            - "setContentView"
+            binding.lifecycleOwner = this@NewGameActivity
+            - "set lifecycleOwner"
+            binding.viewModel = newGameViewModel
+            - "set viewModel"
 
-        newGameViewModel.boardPresenter.observe(this, Observer {
-            if (playerAdapter == null) {
-                val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
-                adapter.boardPlayerVisibilitySubscription
-                    .subscribeFrom(newGameViewModel)
-                    .unsubscribeOnDestroy(this)
-                adapter.boardPlayerHighlightingSubscription
-                    .subscribeFrom(newGameViewModel)
-                    .unsubscribeOnDestroy(this)
-                players_recycler_view.adapter = adapter
-                val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
-                val itemTouchHelper = ItemTouchHelper(callback)
-                adapter.itemTouchSubscription
-                    .subscribeFrom(itemTouchHelper)
-                    .unsubscribeOnDestroy(this)
-                itemTouchHelper.attachToRecyclerView(players_recycler_view)
-                playerAdapter = adapter
-            } else {
-                playerAdapter!!.setPlayerItems(newGameViewModel.playerItems)
+            newGameViewModel.boardPresenter.observe(this@NewGameActivity, Observer {
+                if (playerAdapter == null) {
+                    val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
+                    adapter.boardPlayerVisibilitySubscription
+                        .subscribeFrom(newGameViewModel)
+                        .unsubscribeOnDestroy(this@NewGameActivity)
+                    adapter.boardPlayerHighlightingSubscription
+                        .subscribeFrom(newGameViewModel)
+                        .unsubscribeOnDestroy(this@NewGameActivity)
+                    players_recycler_view.adapter = adapter
+                    val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
+                    val itemTouchHelper = ItemTouchHelper(callback)
+                    adapter.itemTouchSubscription
+                        .subscribeFrom(itemTouchHelper)
+                        .unsubscribeOnDestroy(this@NewGameActivity)
+                    itemTouchHelper.attachToRecyclerView(players_recycler_view)
+                    playerAdapter = adapter
+                } else {
+                    playerAdapter!!.setPlayerItems(newGameViewModel.playerItems)
+                }
+            })
+            previous_board.setOnClickListener {
+                newGameViewModel.previousBoard()
             }
-        })
-        previous_board.setOnClickListener {
-            newGameViewModel.previousBoard()
-        }
-        next_board.setOnClickListener {
-            newGameViewModel.nextBoard()
-        }
-        cancel_button.setOnClickListener {
-            onBackPressed()
-        }
-        start_game_button.setOnClickListener {
-            startGame()
+            next_board.setOnClickListener {
+                newGameViewModel.nextBoard()
+            }
+            cancel_button.setOnClickListener {
+                onBackPressed()
+            }
+            start_game_button.setOnClickListener {
+                startGame()
+            }
         }
     }
 

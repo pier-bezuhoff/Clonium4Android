@@ -8,6 +8,7 @@ import org.koin.core.KoinComponent
 abstract class CloniumAndroidViewModel(application: Application) : AndroidViewModel(application)
     , KoinComponent
 {
+    /** Application context */
     protected val context: Context
         get() = getApplication<Application>().applicationContext
 }
