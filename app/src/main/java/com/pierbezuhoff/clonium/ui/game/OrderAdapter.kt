@@ -89,9 +89,9 @@ class OrderAdapter(
             }
         }
         for (ix in dying) {
-            // FIX: try on small board and fix bug here
-            moveOrderItem(ix, nOfAlivePlayers)
             nOfAlivePlayers --
+            if (ix != nOfAlivePlayers) // may be already at the right place
+                moveOrderItem(ix, nOfAlivePlayers)
         }
     }
 
@@ -107,11 +107,10 @@ class OrderAdapter(
         notifyDataSetChanged()
     }
 
-    // pushing item at `to` forward
     private fun moveOrderItem(from: Int, to: Int) {
         val size = orderItems.size
         require(from in 0 until size)
-        require(to in 0..size)
+        require(to in 0 until size)
         require(from != to)
         orderItems = when {
             to == size -> {
@@ -119,12 +118,14 @@ class OrderAdapter(
                 val between = orderItems.subList(from + 1, size)
                 before + between + orderItems[from]
             }
+            // pushing item at `to` backward
             from < to -> {
                 val before = orderItems.subList(0, from)
-                val between = orderItems.subList(from + 1, to)
-                val after = orderItems.subList(to, size)
+                val between = orderItems.subList(from + 1, to + 1)
+                val after = orderItems.subList(to + 1, size)
                 before + between + orderItems[from] + after
             }
+            // pushing item at `to` forward
             else -> {
                 val before = orderItems.subList(0, to)
                 val between = orderItems.subList(to, from)
