@@ -2,8 +2,10 @@ package com.pierbezuhoff.clonium.utils
 
 import android.widget.TextView
 import androidx.databinding.BindingAdapter
+import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.PlayerTactic
+import kotlin.math.roundToInt
 
 @BindingAdapter("tactic")
 fun tactic(textView: TextView, tactic: PlayerTactic) {
@@ -18,4 +20,9 @@ fun tactic(textView: TextView, tactic: PlayerTactic) {
             is PlayerTactic.Bot.AlliedLevelBalancer -> getString(R.string.allied_level_balancer, tactic.allyId.id)
         }
     }
+}
+
+@BindingAdapter("verticalSpace")
+fun verticalSpace(recyclerView: RecyclerView, verticalSpace: Float) {
+    recyclerView.addItemDecoration(VerticalSpaceItemDecoration(verticalSpace = verticalSpace.roundToInt()))
 }

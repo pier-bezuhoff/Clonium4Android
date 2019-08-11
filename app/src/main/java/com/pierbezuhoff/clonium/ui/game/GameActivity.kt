@@ -9,6 +9,7 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
+import com.pierbezuhoff.clonium.utils.VerticalSpaceItemDecoration
 import kotlinx.android.synthetic.main.activity_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel

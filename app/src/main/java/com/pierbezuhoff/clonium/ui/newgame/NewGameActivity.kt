@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
+import com.pierbezuhoff.clonium.utils.VerticalSpaceItemDecoration
 import kotlinx.android.synthetic.main.activity_new_game.*
 import org.jetbrains.anko.custom.onUiThread
 import org.jetbrains.anko.runOnUiThread
@@ -40,15 +41,6 @@ class NewGameActivity : AppCompatActivity() {
                     .subscribeFrom(newGameViewModel)
                     .unsubscribeOnDestroy(this)
                 players_recycler_view.adapter = adapter
-                val verticalSpace = 6
-                players_recycler_view.addItemDecoration(
-                    object : RecyclerView.ItemDecoration() {
-                        override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
-//                            if (parent.getChildAdapterPosition(view) != parent.adapter!!.itemCount - 1)
-                                outRect.bottom = verticalSpace
-                        }
-                    }
-                )
                 val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
                 val itemTouchHelper = ItemTouchHelper(callback)
                 adapter.itemTouchSubscription
