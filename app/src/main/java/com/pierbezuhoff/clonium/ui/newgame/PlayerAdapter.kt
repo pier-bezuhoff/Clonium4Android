@@ -2,6 +2,7 @@ package com.pierbezuhoff.clonium.ui.newgame
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
@@ -21,9 +22,10 @@ import kotlinx.android.synthetic.main.player_tactic_item.view.*
 import org.jetbrains.anko.layoutInflater
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
-    override fun isLongPressDragEnabled(): Boolean =
+    override fun isLongPressDragEnabled() =
         true
-    override fun isItemViewSwipeEnabled(): Boolean =
+
+    override fun isItemViewSwipeEnabled() =
         false
 
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) { }
@@ -64,7 +66,6 @@ interface RowManager {
     fun unselectRow(viewHolder: PlayerAdapter.ViewHolder)
 }
 
-// TODO: move on tap
 // TODO: select allied for ally
 class PlayerAdapter(
     private var playerItems: MutableList<PlayerItem>,
@@ -84,6 +85,9 @@ class PlayerAdapter(
     interface BoardPlayerHighlighter { fun highlightPlayer(playerId: PlayerId); fun unhighlight() }
     private val boardPlayerHighlighting = Connection<BoardPlayerHighlighter>()
     val boardPlayerHighlightingSubscription = boardPlayerHighlighting.subscription
+
+    private val itemTouchConnection = Connection<ItemTouchHelper>()
+    val itemTouchSubscription = itemTouchConnection.subscription
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater
@@ -120,8 +124,17 @@ class PlayerAdapter(
                 override fun onNothingSelected(parent: AdapterView<*>?) { }
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                     val tactic = itemView.player_tactics.getItemAtPosition(position) as PlayerTactic
+                    if (tactic is PlayerTactic.Bot.AlliedLevelBalancer)
+                        Unit // show dialog
                     playerItem.tactic = tactic
                 }
+            }
+            itemView.drag_handle.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_DOWN)
+                    itemTouchConnection.send {
+                        startDrag(holder)
+                    }
+                return@setOnTouchListener false
             }
         }
     }

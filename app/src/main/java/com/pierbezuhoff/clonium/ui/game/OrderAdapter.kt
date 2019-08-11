@@ -129,6 +129,8 @@ class OrderAdapter(
                 before + orderItems[from] + between + after
             }
         }
+        // NOTE: in activity you can call: runOnUiThread
+        // TODO: find better solution
         runBlocking(Dispatchers.Main) {
             notifyItemMoved(from, minOf(size - 1, to))
         }

@@ -120,6 +120,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         boardViewInvalidating.send {
             invalidateBoardView()
         }
+        useRandomOrder.value = false // dragging started => not random order
     }
 
     override fun unhighlight() {

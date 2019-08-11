@@ -1,21 +1,21 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
-import com.pierbezuhoff.clonium.domain.Game
-import com.pierbezuhoff.clonium.domain.Highlighting
-import com.pierbezuhoff.clonium.domain.PlayerTactic
-import com.pierbezuhoff.clonium.domain.SimpleBoard
-import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.ui.game.GameActivity
-import com.pierbezuhoff.clonium.utils.Once
 import kotlinx.android.synthetic.main.activity_new_game.*
+import org.jetbrains.anko.custom.onUiThread
+import org.jetbrains.anko.runOnUiThread
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
@@ -33,11 +33,28 @@ class NewGameActivity : AppCompatActivity() {
         newGameViewModel.boardPresenter.observe(this, Observer {
             if (playerAdapter == null) {
                 val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
-                adapter.boardPlayerVisibilitySubscription.subscribeFrom(newGameViewModel)
-                adapter.boardPlayerHighlightingSubscription.subscribeFrom(newGameViewModel)
+                adapter.boardPlayerVisibilitySubscription
+                    .subscribeFrom(newGameViewModel)
+                    .unsubscribeOnDestroy(this)
+                adapter.boardPlayerHighlightingSubscription
+                    .subscribeFrom(newGameViewModel)
+                    .unsubscribeOnDestroy(this)
                 players_recycler_view.adapter = adapter
+                val verticalSpace = 6
+                players_recycler_view.addItemDecoration(
+                    object : RecyclerView.ItemDecoration() {
+                        override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
+//                            if (parent.getChildAdapterPosition(view) != parent.adapter!!.itemCount - 1)
+                                outRect.bottom = verticalSpace
+                        }
+                    }
+                )
                 val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
-                ItemTouchHelper(callback).attachToRecyclerView(players_recycler_view)
+                val itemTouchHelper = ItemTouchHelper(callback)
+                adapter.itemTouchSubscription
+                    .subscribeFrom(itemTouchHelper)
+                    .unsubscribeOnDestroy(this)
+                itemTouchHelper.attachToRecyclerView(players_recycler_view)
                 playerAdapter = adapter
             } else {
                 playerAdapter!!.setPlayerItems(newGameViewModel.playerItems)

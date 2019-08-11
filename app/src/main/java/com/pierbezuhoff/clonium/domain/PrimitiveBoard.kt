@@ -57,14 +57,14 @@ class PrimitiveBoard private constructor(
     }
     private inline fun chip2int(maybeChip: Chip?): Int =
         maybeChip?.let { (player, level) ->
-            level.ordinal + player.id * Level.MAX_LEVEL.ordinal
+            level.ordinal + player.id * MAX_LEVEL_ORDINAL
         } ?: NO_CHIP
 
     private inline fun int2playerId(value: Int): PlayerId =
-        PlayerId(value / Level.MAX_LEVEL.ordinal)
+        PlayerId(value / MAX_LEVEL_ORDINAL)
 
     private inline fun int2level(value: Int): Level =
-        Level(value % Level.MAX_LEVEL.ordinal)
+        Level(value % MAX_LEVEL_ORDINAL)
 
     private inline fun int2chip(value: Int): Chip? =
         when {
@@ -72,7 +72,7 @@ class PrimitiveBoard private constructor(
                 null
             value < -2 ->
                 throw IllegalArgumentException("Impossible to decode $value < -2 to Chip? at board $this")
-            value % Level.MAX_LEVEL.ordinal == 0 ->
+            value % MAX_LEVEL_ORDINAL == 0 ->
                 throw IllegalArgumentException("Impossible to decode $value with level = 0 to Chip? at board $this")
             else ->
                 Chip(int2playerId(value), int2level(value))
@@ -119,8 +119,9 @@ class PrimitiveBoard private constructor(
     override fun isAlive(playerId: PlayerId): Boolean =
         ownedIxs[playerId]?.isNotEmpty() ?: false
 
-    override fun levelOf(playerId: PlayerId): Int =
-        ownedIxs[playerId]?.sumBy { chipAt(it)!!.level.ordinal } ?: 0
+    override fun levelOf(playerId: PlayerId): Int {
+        return ownedIxs[playerId]?.sumBy { chips[it] % MAX_LEVEL_ORDINAL } ?: 0
+    }
 
     override fun players(): Set<PlayerId> =
         ownedIxs.keys
@@ -292,6 +293,9 @@ class PrimitiveBoard private constructor(
     companion object {
         private const val NO_CELL = -2
         private const val NO_CHIP = -1
+        private const val MAX_STABLE_LEVEL_ORDINAL = Level.MAX_STABLE_LEVEL_ORDINAL
+        private const val MIN_UNSTABLE_LEVEL_ORDINAL = Level.MIN_UNSTABLE_LEVEL_ORDINAL
+        private const val MAX_LEVEL_ORDINAL = Level.MAX_LEVEL_ORDINAL
     }
 
     object Builder : Board.Builder, EvolvingBoard.Builder {

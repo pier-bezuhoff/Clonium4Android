@@ -238,6 +238,9 @@ open class Level(@IntRange(from = 1, to = 7) val ordinal: Int) : Any()
         val MAX_STABLE_LEVEL = Level3
         val MIN_UNSTABLE_LEVEL = Level4
         val MAX_LEVEL = Level7
+        const val MAX_STABLE_LEVEL_ORDINAL = 3
+        const val MIN_UNSTABLE_LEVEL_ORDINAL = 4
+        const val MAX_LEVEL_ORDINAL = 7
     }
 }
 object Level1 : Level(1)
