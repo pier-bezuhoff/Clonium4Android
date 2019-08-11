@@ -413,9 +413,13 @@ private class LinkedTurns(
     private inline fun <R> lockingUnknowns(block: () -> R): R =
         synchronized(UnknownsLock, block)
 
+    private inline fun <R> locking(block: () -> R): R =
+        synchronized(Lock, block)
+
     // NOTE: locking order: first ComputingsLock THEN UnknownsLock (to prevent deadlock)
     object ComputingsLock
     object UnknownsLock
+    object Lock
 
     companion object {
         private const val SOFT_MAX_WIDTH = 100

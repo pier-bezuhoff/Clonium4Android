@@ -43,7 +43,7 @@ class BoardHighlighting {
         _highlightings -= listOfNotNull(lastMainTurn)
         _highlightings -= lastMinorTurns.filterNotNull()
         lastMinorTurns = (listOf(lastMainTurn) + (lastMinorTurns - turn))
-            .take(maxOf(nPlayers - 1, 0)) // without and current
+            .take(maxOf(nPlayers - 1, 0)) // without last main
         lastMainTurn = turn
         lastMinorTurns.filterNotNull().associateWithTo(_highlightings) { Highlighting.LastTurn.Minor }
         _highlightings[turn] = Highlighting.LastTurn.Main

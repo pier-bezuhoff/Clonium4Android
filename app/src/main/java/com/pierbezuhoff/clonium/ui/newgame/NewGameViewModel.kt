@@ -129,6 +129,20 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         }
     }
 
+    fun makeGameState(): Game.State {
+        val board = SimpleBoard(board)
+        val bots = playerItems
+            .filter { it.tactic is PlayerTactic.Bot && it.participate }
+            .associate { it.playerId to (it.tactic as PlayerTactic.Bot) }
+        val order =
+            if (useRandomOrder.value!!) null
+            else playerItems
+                .filter { it.participate }
+                .map { it.playerId }
+        saveConfig()
+        return Game.State(board, bots, order)
+    }
+
     override fun onCleared() {
         saveConfig()
         super.onCleared()

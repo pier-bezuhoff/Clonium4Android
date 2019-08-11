@@ -59,17 +59,7 @@ class NewGameActivity : AppCompatActivity() {
 
     private fun startGame() {
         val intent = Intent(this, GameActivity::class.java)
-        val board = SimpleBoard(newGameViewModel.board)
-        val bots = newGameViewModel.playerItems
-            .filter { it.tactic is PlayerTactic.Bot && it.participate }
-            .associate { it.playerId to (it.tactic as PlayerTactic.Bot) }
-        val order =
-            if (newGameViewModel.useRandomOrder.value!!) null
-            else newGameViewModel.playerItems
-                .filter { it.participate }
-                .map { it.playerId }
-        val gameState = Game.State(board, bots, order)
-        intent.putExtra(GAME_STATE_EXTRA, gameState)
+        intent.putExtra(GAME_STATE_EXTRA, newGameViewModel.makeGameState())
         startActivityForResult(intent, GAME_REQUEST_CODE)
     }
 
