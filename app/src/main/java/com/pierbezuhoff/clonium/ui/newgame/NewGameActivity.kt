@@ -23,45 +23,23 @@ import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
 class NewGameActivity : AppCompatActivity()
-    , Logger by AndroidLoggerOf<NewGameActivity>()
 {
     private val newGameViewModel: NewGameViewModel by viewModel()
-    private var playerAdapter: PlayerAdapter? = null
+    private lateinit var playerAdapter: PlayerAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        logIMilestoneScope("onCreate", measureScope = true) {
             super.onCreate(savedInstanceState)
-            - "super.onCreate"
-            // FIX: ~200ms on setContentView!
+//             FIX: ~200ms on setContentView!
             val binding: ActivityNewGameBinding =
                 DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)
-            - "setContentView"
+//            setContentView(R.layout.activity_new_game)
             binding.lifecycleOwner = this@NewGameActivity
-            - "set lifecycleOwner"
             binding.viewModel = newGameViewModel
-            - "set viewModel"
-
+            initPlayerRecyclerView()
             newGameViewModel.boardPresenter.observe(this@NewGameActivity, Observer {
-                if (playerAdapter == null) {
-                    val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
-                    adapter.boardPlayerVisibilitySubscription
-                        .subscribeFrom(newGameViewModel)
-                        .unsubscribeOnDestroy(this@NewGameActivity)
-                    adapter.boardPlayerHighlightingSubscription
-                        .subscribeFrom(newGameViewModel)
-                        .unsubscribeOnDestroy(this@NewGameActivity)
-                    players_recycler_view.adapter = adapter
-                    val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
-                    val itemTouchHelper = ItemTouchHelper(callback)
-                    adapter.itemTouchSubscription
-                        .subscribeFrom(itemTouchHelper)
-                        .unsubscribeOnDestroy(this@NewGameActivity)
-                    itemTouchHelper.attachToRecyclerView(players_recycler_view)
-                    playerAdapter = adapter
-                } else {
-                    playerAdapter!!.setPlayerItems(newGameViewModel.playerItems)
-                }
+                playerAdapter.setPlayerItems(newGameViewModel.playerItems)
             })
+            board_view.viewModel = newGameViewModel
             previous_board.setOnClickListener {
                 newGameViewModel.previousBoard()
             }
@@ -74,7 +52,24 @@ class NewGameActivity : AppCompatActivity()
             start_game_button.setOnClickListener {
                 startGame()
             }
-        }
+    }
+
+    private fun initPlayerRecyclerView() {
+        val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
+        adapter.boardPlayerVisibilitySubscription
+            .subscribeFrom(newGameViewModel)
+            .unsubscribeOnDestroy(this@NewGameActivity)
+        adapter.boardPlayerHighlightingSubscription
+            .subscribeFrom(newGameViewModel)
+            .unsubscribeOnDestroy(this@NewGameActivity)
+        players_recycler_view.adapter = adapter
+        val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
+        val itemTouchHelper = ItemTouchHelper(callback)
+        adapter.itemTouchSubscription
+            .subscribeFrom(itemTouchHelper)
+            .unsubscribeOnDestroy(this@NewGameActivity)
+        itemTouchHelper.attachToRecyclerView(players_recycler_view)
+        playerAdapter = adapter
     }
 
     private fun startGame() {

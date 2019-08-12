@@ -90,3 +90,25 @@ class GreenGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader
         "${chip.level.ordinal}"
 }
 
+class StarGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader(assetManager)
+    , GameBitmapLoader
+{
+    override fun loadChip(chip: Chip): Bitmap {
+        require(chip.level.ordinal in 1..7)
+        require(chip.playerId.id in 0..7)
+        return loadAssetBitmap("star_chip_set/chip-${i1(chip)}-${i2(chip)}.png")
+    }
+
+    override fun loadBottomOfChip(chip: Chip): Bitmap {
+        require(chip.level.ordinal == 1)
+        require(chip.playerId.id in 0..7)
+        return loadAssetBitmap("star_chip_set/chip-${i1(chip)}-0.png")
+    }
+
+    private fun i1(chip: Chip): String =
+        "${chip.playerId.id + 1}"
+
+    private fun i2(chip: Chip): String =
+        "${chip.level.ordinal}"
+}
+

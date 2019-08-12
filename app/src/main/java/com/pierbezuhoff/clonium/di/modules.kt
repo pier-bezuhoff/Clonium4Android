@@ -18,15 +18,16 @@ import org.koin.dsl.module
 
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
-    single<ChipSymmetry> { ChipSymmetry.None }
-    factory<Board.Builder> { SimpleBoard.Builder }
-    factory<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
+    single<ChipSymmetry> { ChipSymmetry.Four }
+    single<Board.Builder> { SimpleBoard.Builder }
+    single<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
 
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
+    single<GameBitmapLoader>(named(NAMES.STAR)) { StarGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader> { get(named(NAMES.STAR)) }
 
-    factory<Game.Builder> { AsyncGame.Builder }
+    single<Game.Builder> { AsyncGame.Builder }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
     factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get()) }
@@ -42,5 +43,6 @@ val gameModule = module {
 object NAMES {
     const val GREEN = "green"
     const val STANDARD = "standard"
+    const val STAR = "star"
 }
 
