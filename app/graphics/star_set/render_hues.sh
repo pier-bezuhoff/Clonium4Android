@@ -4,7 +4,7 @@ base_file=$1
 base_filename=${base_file##*/}
 base_name=${base_filename%%.*}
 output_dir=$2
-for player_id in 0 2 4 6 1 3 5 7
+for player_id in {0..7}
 do
     hue_shift=$((player_id * 25))
     output_file=${output_dir%/}/$base_name-$player_id.png

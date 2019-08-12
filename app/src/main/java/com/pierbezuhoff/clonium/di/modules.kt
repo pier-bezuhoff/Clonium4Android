@@ -8,11 +8,8 @@ import com.pierbezuhoff.clonium.ui.game.GameGestures
 import com.pierbezuhoff.clonium.ui.game.GameViewModel
 import com.pierbezuhoff.clonium.ui.newgame.NewGameBoardGestures
 import com.pierbezuhoff.clonium.ui.newgame.NewGameViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.viewmodel.dsl.viewModel
-import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -25,7 +22,8 @@ val gameModule = module {
     single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
     single<GameBitmapLoader>(named(NAMES.STAR)) { StarGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader> { get(named(NAMES.STAR)) }
+    single<GameBitmapLoader>(named(NAMES.WHITE_STAR)) { WhiteStarGameBitmapLoader(androidContext().assets) }
+    single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
 
     single<Game.Builder> { AsyncGame.Builder }
 
@@ -44,5 +42,6 @@ object NAMES {
     const val GREEN = "green"
     const val STANDARD = "standard"
     const val STAR = "star"
+    const val WHITE_STAR = "white star"
 }
 

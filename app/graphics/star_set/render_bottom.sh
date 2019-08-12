@@ -11,8 +11,9 @@ do
     hue_shift=$((player_id * 25))
     output_file=${output_dir%/}/$prefix-$player_id-0.png
     convert $base_file -modulate 100,100,$hue_shift $output_file
-    hole_file=${holes_dir%/}/1.png
-    composite -compose Dst_Out $hole_file $output_file $output_file
+
+    # hole_file=${holes_dir%/}/1.png
+    # composite -compose Dst_Out $hole_file $output_file $output_file
     outline_file=${outlines_dir%/}/1.png
     composite $outline_file $output_file $output_file
 done
