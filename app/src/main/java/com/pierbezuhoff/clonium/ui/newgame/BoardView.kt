@@ -14,6 +14,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.Observer
 import com.pierbezuhoff.clonium.R
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
+import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.KoinComponent
 import org.koin.core.get
@@ -25,6 +27,7 @@ class BoardView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr)
     , LifecycleOwner
     , NewGameViewModel.BoardViewInvalidator
+    , Logger by AndroidLoggerOf<BoardView>()
     , KoinComponent
 {
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -41,7 +44,7 @@ class BoardView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        Log.i("BoardView", "onSizeChanged($w, $h, $oldw, $oldh)")
+        logI("onSizeChanged($w, $h, $oldw, $oldh)")
         if (firstSizeChanged) {
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
             viewModel.boardPresenter.observe(this, Observer {

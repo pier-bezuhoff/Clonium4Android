@@ -15,7 +15,7 @@ import org.koin.dsl.module
 
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
-    single<ChipSymmetry> { ChipSymmetry.Four }
+    single<ChipSymmetry> { ChipSymmetry.None }
     single<Board.Builder> { SimpleBoard.Builder }
     single<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
 

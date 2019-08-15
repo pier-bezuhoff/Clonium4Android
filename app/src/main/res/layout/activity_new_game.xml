@@ -26,7 +26,6 @@
                 android:layout_marginEnd="8dp"
                 app:layout_constraintDimensionRatio="w,1:1"
         />
-        <!--app:viewModel="@{viewModel}"-->
         <ImageButton
                 android:id="@+id/previous_board"
                 android:layout_width="wrap_content"
@@ -62,8 +61,7 @@
                 app:verticalSpace="@{@dimen/new_game_order_vertical_space}"
                 tools:listitem="@layout/player_item"
                 tools:itemCount="4"
-        >
-        </androidx.recyclerview.widget.RecyclerView>
+        />
         <Switch
                 android:id="@+id/use_random_order"
                 android:layout_width="wrap_content"
@@ -77,8 +75,8 @@
                 app:layout_constraintVertical_bias="0.0"
                 app:layout_constraintHorizontal_bias="1.0"
                 android:text="@string/use_random_order"
+                android:checked="@={viewModel.useRandomOrder}"
         />
-        <!--android:checked="@={viewModel.useRandomOrder}"-->
         <LinearLayout
                 android:id="@+id/button_panel"
                 android:orientation="horizontal"

@@ -1,44 +1,43 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
 import android.content.Intent
-import android.graphics.Rect
 import android.os.Bundle
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.VerticalSpaceItemDecoration
 import kotlinx.android.synthetic.main.activity_new_game.*
-import org.jetbrains.anko.custom.onUiThread
-import org.jetbrains.anko.runOnUiThread
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
 class NewGameActivity : AppCompatActivity()
+    , Logger by AndroidLoggerOf<NewGameActivity>()
 {
     private val newGameViewModel: NewGameViewModel by viewModel()
     private lateinit var playerAdapter: PlayerAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
-//             FIX: ~200ms on setContentView!
+        withMilestoneScope("onCreate", measureScope = true) {
+//            FIX: ~200ms on setContentView!
             val binding: ActivityNewGameBinding =
                 DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)
 //            setContentView(R.layout.activity_new_game)
+            - "setContentView"
             binding.lifecycleOwner = this@NewGameActivity
             binding.viewModel = newGameViewModel
+            - "set lifecycleOwner and viewModel"
             initPlayerRecyclerView()
+            - "init recyclerview"
             newGameViewModel.boardPresenter.observe(this@NewGameActivity, Observer {
                 playerAdapter.setPlayerItems(newGameViewModel.playerItems)
             })
+            - "observe boardPresenter"
             board_view.viewModel = newGameViewModel
             previous_board.setOnClickListener {
                 newGameViewModel.previousBoard()
@@ -52,6 +51,8 @@ class NewGameActivity : AppCompatActivity()
             start_game_button.setOnClickListener {
                 startGame()
             }
+            - "set up callbacks"
+        }
     }
 
     private fun initPlayerRecyclerView() {

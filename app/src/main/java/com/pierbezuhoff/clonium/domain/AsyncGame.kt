@@ -226,12 +226,20 @@ private class LinkedTurns(
                     this.computing = null
                     // add external unknown (from Computation.run)
                     unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
+                    runNextOrDiscover()
                     val shouldDiscoverUnknowns = !runNext()
                     if (shouldDiscoverUnknowns) {
                         discoverUnknowns()
                     }
                 }
             }
+        }
+    }
+
+    private fun runNextOrDiscover() {
+        val shouldDiscoverUnknowns = !runNext()
+        if (shouldDiscoverUnknowns) {
+            discoverUnknowns()
         }
     }
 
@@ -266,10 +274,7 @@ private class LinkedTurns(
                 setFocus(Next(trans, Link.End))
                 return trans
             }
-            else -> {
-                logIState()
-                impossibleCaseOf(focus)
-            }
+            else -> impossibleCaseOf(focus) { logIState() }
         }
     }
 
@@ -284,10 +289,7 @@ private class LinkedTurns(
             scheduledComputings.clear()
             unknowns.clear()
             start.next.reschedule()
-            val shouldDiscoverUnknowns = !runNext()
-            if (shouldDiscoverUnknowns) {
-                discoverUnknowns()
-            }
+            runNextOrDiscover()
         }
     }
 
@@ -302,19 +304,15 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        return tryRequestBotTurnOrAsync {
-            synchronized {
-                tryRequestBotTurnOrAsync {
-                    logIState()
-                    impossibleCaseOf(it)
-                }
-            }
+        logI("requestBotTurnAsync")
+        "requestBotTurnAsync" += "synchronizing"
+        return synchronized { // MAYBE: blocks too long...
+            "requestBotTurnAsync" -= "synchronizing"
+            tryRequestBotTurnOrAsync()
         }
     }
 
-    private inline fun tryRequestBotTurnOrAsync(
-        orElseBlock: (Link.FutureTurn.Bot) -> Deferred<Pair<Pos, Trans>>
-    ): Deferred<Pair<Pos, Trans>> {
+    private fun tryRequestBotTurnOrAsync(): Deferred<Pair<Pos, Trans>> {
         require(focus is Link.FutureTurn.Bot) { "focus = $focus".also { logIState() } }
         return when (val focus = focus as Link.FutureTurn.Bot) {
             is Link.FutureTurn.Bot.Computed -> {
@@ -330,7 +328,12 @@ private class LinkedTurns(
                 require(this@LinkedTurns.focus !is Link.Unknown) { "focus = $focus".also { logIState() } }
                 return@async computed.pos to computed.next.trans
             }
-            else -> orElseBlock(focus)
+            else -> {
+                logIState()
+                ImpossibleCaseOf(focus).printStackTrace()
+                // handle it
+                impossibleCaseOf(focus)
+            }
         }
     }
 

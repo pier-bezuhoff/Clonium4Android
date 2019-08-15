@@ -6,7 +6,10 @@ import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.animation.*
+import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
+import com.pierbezuhoff.clonium.utils.Logger
 import com.pierbezuhoff.clonium.utils.Milliseconds
+import com.pierbezuhoff.clonium.utils.Once
 import kotlin.math.*
 
 interface SpatialBoard {
@@ -101,11 +104,16 @@ class SimpleBoardPresenter(
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board, margin)
     , BoardPresenter
+    , Logger by AndroidLoggerOf<SimpleBoardPresenter>()
 {
     override val boardHighlighting: BoardHighlighting = BoardHighlighting()
     override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
+    private val printOnce by Once(true)
+
     override fun Canvas.drawBoard(board: Board) {
+        if (printOnce)
+            logI("first drawBoard")
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
             drawCell(pos)
