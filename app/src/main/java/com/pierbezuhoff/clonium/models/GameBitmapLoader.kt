@@ -74,7 +74,7 @@ class GreenGameBitmapLoader(assetManager: AssetManager) : CommonGameBitmapLoader
 {
     override fun loadChip(chip: Chip): Bitmap {
         require(chip.level.ordinal in 1..7)
-        require(chip.playerId.id in 0..5) { "Temporary limitation, will be extended to 0..7" }
+        require(chip.playerId.id in 0..7)
         return loadAssetBitmap("green_chip_set/g${i1(chip)}-${i2(chip)}.png")
     }
 

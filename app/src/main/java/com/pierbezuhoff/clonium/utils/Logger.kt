@@ -3,7 +3,6 @@ package com.pierbezuhoff.clonium.utils
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.lang.annotation.ElementType
 import kotlin.reflect.KClass
 
 private typealias Name = String
@@ -42,6 +41,16 @@ interface Logger : StaggeredScoping {
         operator fun SectionName.unaryMinus() =
             milestoneEndOf(this)
     }
+
+    val V: Level
+    val D: Level
+    val I: Level
+    val W: Level
+    val E: Level
+
+    infix fun Level.log(message: Message)
+    infix fun Message.log(level: Level) =
+        level.log(this)
 
     fun logV(message: Message)
     fun logD(message: Message)
@@ -111,16 +120,25 @@ abstract class AbstractLogger(
     private val defaultStaggeredScope: StaggeredScope = StaggeredScope()
     private val staggeredScopes: MutableSet<StaggeredScope> = mutableSetOf()
 
-    private fun log(level: Logger.Level, message: Message) {
+    override val V = Logger.Level.VERBOSE
+    override val D = Logger.Level.DEBUG
+    override val I = Logger.Level.INFO
+    override val W = Logger.Level.WARNING
+    override val E = Logger.Level.DEBUG
+
+    override fun Logger.Level.log(message: Message) =
+        log_(this, message)
+
+    private fun log_(level: Logger.Level, message: Message) {
         if (level >= minLogLevel)
             _log(level, message)
     }
 
-    final override fun logV(message: Message) = log(Logger.Level.VERBOSE, message)
-    final override fun logD(message: Message) = log(Logger.Level.DEBUG, message)
-    final override fun logI(message: Message) = log(Logger.Level.INFO, message)
-    final override fun logW(message: Message) = log(Logger.Level.WARNING, message)
-    final override fun logE(message: Message) = log(Logger.Level.ERROR, message)
+    final override fun logV(message: Message) = log_(Logger.Level.VERBOSE, message)
+    final override fun logD(message: Message) = log_(Logger.Level.DEBUG, message)
+    final override fun logI(message: Message) = log_(Logger.Level.INFO, message)
+    final override fun logW(message: Message) = log_(Logger.Level.WARNING, message)
+    final override fun logE(message: Message) = log_(Logger.Level.ERROR, message)
 
     private inline fun <R> logElapsedTime(
         level: Logger.Level,
@@ -129,12 +147,12 @@ abstract class AbstractLogger(
         block: () -> R
     ): R {
         startMarker?.let {
-            log(level, depthMarker.repeat(measuredCounter) + startMarker)
+            log_(level, depthMarker.repeat(measuredCounter) + startMarker)
         }
         measuredCounter ++
         val (elapsedPretty, result) = measureElapsedTimePretty(block)
         measuredCounter --
-        log(level, depthMarker.repeat(measuredCounter) + (endMarker ?: "") + " $prefix $elapsedPretty $postfix")
+        log_(level, depthMarker.repeat(measuredCounter) + (endMarker ?: "") + " $prefix $elapsedPretty $postfix")
         return result
     }
 
@@ -150,7 +168,7 @@ abstract class AbstractLogger(
         block: Logger.MilestoneScope.() -> R
     ): R {
         startMarker?.takeIf { measureScope }?.let {
-            log(level, "$startMarker $scopeName")
+            log_(level, "$startMarker $scopeName")
         }
         val milestoneScope = object : Logger.MilestoneScope {
             var startTime = System.currentTimeMillis()
@@ -160,7 +178,7 @@ abstract class AbstractLogger(
             override fun milestoneStartOf(name: SectionName) {
                 startTimes[name] = System.currentTimeMillis()
                 startMarker?.let {
-                    log(level, "$milestonePrefix$startMarker")
+                    log_(level, "$milestonePrefix$startMarker")
                 }
             }
 
@@ -168,13 +186,13 @@ abstract class AbstractLogger(
                 val elapsed = System.currentTimeMillis() - (startTimes.remove(name) ?: startTime)
                 val elapsedTime = ElapsedTime(elapsed, Unit)
                 startTime = System.currentTimeMillis()
-                log(level, "$milestonePrefix${endMarker ?: ""} $name: ${elapsedTime.prettyTime()}")
+                log_(level, "$milestonePrefix${endMarker ?: ""} $name: ${elapsedTime.prettyTime()}")
                 previousMilestoneName = name
             }
         }
         val (elapsedPretty, result) = measureElapsedTimePretty { milestoneScope.block() }
         endMarker?.takeIf { measureScope }?.let {
-            log(level, "$endMarker $scopeName: $elapsedPretty")
+            log_(level, "$endMarker $scopeName: $elapsedPretty")
         }
         return result
     }
@@ -196,7 +214,11 @@ abstract class AbstractLogger(
         return r
     }
     override fun staggeredStartOf(scopeName: ScopeName?, sectionName: SectionName) {
-        val scope = staggeredScopes.find { it.scopeName == scopeName } ?: defaultStaggeredScope
+        val scope =
+            if (scopeName == null) defaultStaggeredScope
+            else staggeredScopes.find { it.scopeName == scopeName } ?: run {
+                StaggeredScope(scopeName).also { staggeredScopes += it }
+            }
         scope.sections[sectionName] = System.currentTimeMillis()
         scope.startMarker?.let {
             logI("${scope.prefix}${scope.startMarker}")
@@ -209,7 +231,7 @@ abstract class AbstractLogger(
         val elapsed = time - (scope.sections[sectionName] ?: scope.lastTime)
         scope.sections -= sectionName
         scope.lastTime = time
-        logI("${scope.prefix}${scope.endMarker ?: ""} $sectionName: ${ElapsedTime(elapsed, Unit).prettyTime()}")
+        logI("${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: ${ElapsedTime(elapsed, Unit).prettyTime()}")
     }
 
     private suspend fun sLog(level: Logger.Level, message: Message) {

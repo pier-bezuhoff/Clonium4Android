@@ -304,7 +304,7 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        logI("requestBotTurnAsync")
+        I log "requestBotTurnAsync"
         "requestBotTurnAsync" += "synchronizing"
         return synchronized { // MAYBE: blocks too long...
             "requestBotTurnAsync" -= "synchronizing"
