@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.di
 
+import android.content.res.AssetManager
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.*
 import com.pierbezuhoff.clonium.models.animation.TransitionAnimationsHost
@@ -15,15 +16,11 @@ import org.koin.dsl.module
 
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
-    single<ChipSymmetry> { ChipSymmetry.Two }
     single<Board.Builder> { SimpleBoard.Builder }
     single<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
 
-    single<GameBitmapLoader>(named(NAMES.GREEN)) { GreenGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader>(named(NAMES.STANDARD)) { StandardGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader>(named(NAMES.STAR)) { StarGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader>(named(NAMES.WHITE_STAR)) { WhiteStarGameBitmapLoader(androidContext().assets) }
-    single<GameBitmapLoader> { get(named(NAMES.GREEN)) }
+    factory<AssetManager> { androidContext().assets }
+    single<GameBitmapLoader> { CommonGameBitmapLoader(get()) }
 
     single<Game.Builder> { AsyncGame.Builder }
 
@@ -38,10 +35,4 @@ val gameModule = module {
     single<NewGameBoardGestures> { NewGameBoardGestures(androidContext()) }
 }
 
-object NAMES {
-    const val GREEN = "green"
-    const val STANDARD = "standard"
-    const val STAR = "star"
-    const val WHITE_STAR = "white star"
-}
 

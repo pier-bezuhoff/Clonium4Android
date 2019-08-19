@@ -11,6 +11,8 @@ private typealias ScopeName = Name
 private typealias SectionName = Name
 private typealias Message = String
 
+// MAYBE: mk LoggerHolder interface with val logger: Logger
+
 interface Logger : StaggeredScoping {
     enum class Level {
         VERBOSE, DEBUG, INFO, WARNING, ERROR, INF;

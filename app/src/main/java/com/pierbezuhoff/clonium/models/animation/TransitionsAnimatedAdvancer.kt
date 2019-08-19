@@ -6,6 +6,7 @@ import androidx.core.graphics.rotationMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.models.ChipSymmetry
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GamePresenter
 import kotlin.math.PI

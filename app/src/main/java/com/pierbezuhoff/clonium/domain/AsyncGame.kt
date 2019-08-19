@@ -227,10 +227,6 @@ private class LinkedTurns(
                     // add external unknown (from Computation.run)
                     unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
                     runNextOrDiscover()
-                    val shouldDiscoverUnknowns = !runNext()
-                    if (shouldDiscoverUnknowns) {
-                        discoverUnknowns()
-                    }
                 }
             }
         }
@@ -247,12 +243,15 @@ private class LinkedTurns(
      * `true` otherwise */
     private fun runNext(): Boolean {
         if (computing == null) {
-            scheduledComputings.poll()?.let { scheduledNextAs ->
+            val maybeScheduled = scheduledComputings.poll()
+            if (maybeScheduled == null) {
+                return false // no scheduled => to be discovered
+            } else {
+                val scheduledNextAs: NextAs<Link.FutureTurn.Bot.ScheduledComputing> = maybeScheduled
                 scheduledNextAs.next.startComputing(scheduledNextAs.link.computation)
-                return true
             }
         }
-        return false
+        return true
     }
 
     fun givenHumanTurn(turn: Pos): Trans {
@@ -260,9 +259,11 @@ private class LinkedTurns(
             is Link.FutureTurn.Human.OneOf -> {
                 require(turn in focus.nexts.keys)
                 val next = focus.nexts.getValue(turn)
-                setFocus(next)
                 coroutineScope.launch(Dispatchers.Default) {
-                    rescheduleAll()
+                    synchronized {
+                        setFocus(next)
+                        rescheduleAll()
+                    }
                 }
                 return next.trans
             }
@@ -284,13 +285,11 @@ private class LinkedTurns(
     }
 
     private fun rescheduleAll() {
-        synchronized {
-            computing = null
-            scheduledComputings.clear()
-            unknowns.clear()
-            start.next.reschedule()
-            runNextOrDiscover()
-        }
+        computing = null
+        scheduledComputings.clear()
+        unknowns.clear()
+        start.next.reschedule()
+        runNextOrDiscover()
     }
 
     private fun Next.reschedule() {
