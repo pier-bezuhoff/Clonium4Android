@@ -206,14 +206,14 @@ object MinecraftChipSet : CommonChipSet(
 
     private fun color2dir(colorId: ColorId): String =
         when (colorId) {
-            0 -> "steve"
-            1 -> "fire"
-            2 -> "animals"
+            0 -> "common"
+            1 -> "skelet"
+            2 -> "city"
             3 -> "end"
-            4 -> "common"
-            5 -> "city"
+            4 -> "steve"
+            5 -> "animals"
             6 -> "water"
-            7 -> "skelet"
+            7 -> "fire"
             8 -> "zombie"
             else -> impossibleCaseOf(colorId)
         }
@@ -221,7 +221,7 @@ object MinecraftChipSet : CommonChipSet(
 
 object CircuitChipSet : CommonChipSet(
     name = "circuit",
-    symmetry = ChipSymmetry.Two,
+    symmetry = ChipSymmetry.Four,
     nColors = 8,
     levelRange = 0..7
 ) {
