@@ -143,8 +143,8 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
             colorPrism = MutableMapColorPrism.Builder.of(
                 it.colorPrism ?: chipSet.defaultColorPrism
             )
-            chipAnimation = ChipAnimation.SLIDE //tmp
-            chipSet = MinecraftChipSet //tmp
+            chipAnimation = ChipAnimation.ROTATION //tmp
+            chipSet = CircuitChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
             val index = it.getInt(SimpleBoard.Examples::class.simpleName, 0)

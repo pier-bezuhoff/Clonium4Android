@@ -221,7 +221,7 @@ object MinecraftChipSet : CommonChipSet(
 
 object CircuitChipSet : CommonChipSet(
     name = "circuit",
-    symmetry = ChipSymmetry.Four,
+    symmetry = ChipSymmetry.Two,
     nColors = 8,
     levelRange = 0..7
 ) {
