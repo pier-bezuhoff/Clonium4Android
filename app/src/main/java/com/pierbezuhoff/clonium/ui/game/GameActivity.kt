@@ -9,7 +9,6 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
-import com.pierbezuhoff.clonium.utils.VerticalSpaceItemDecoration
 import kotlinx.android.synthetic.main.activity_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
@@ -21,7 +20,7 @@ class GameActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setupWindow()
+        setupImmersiveMode()
         val binding: ActivityGameBinding =
             DataBindingUtil.setContentView(this, R.layout.activity_game)
         binding.lifecycleOwner = this
@@ -32,7 +31,12 @@ class GameActivity : AppCompatActivity() {
 
         gameViewModel.gameModel.observe(this, Observer { gameModel ->
             if (orderAdapter == null) {
-                val adapter = OrderAdapter(orderItemsOf(gameModel), get())
+                val adapter = OrderAdapter(
+                    orderItemsOf(gameModel),
+                    get(),
+                    gameViewModel.chipsConfig.chipSet,
+                    gameViewModel.chipsConfig.colorPrism
+                )
                 adapter.updateStat(gameModel.game.stat())
                 gameModel.statUpdatingSubscription
                     .subscribeFrom(adapter)
@@ -50,7 +54,7 @@ class GameActivity : AppCompatActivity() {
     }
 
     /** Enforce fullscreen sticky immersive mode */
-    private fun setupWindow() {
+    private fun setupImmersiveMode() {
         window.decorView.apply {
             systemUiVisibility = IMMERSIVE_UI_VISIBILITY
             setOnSystemUiVisibilityChangeListener {

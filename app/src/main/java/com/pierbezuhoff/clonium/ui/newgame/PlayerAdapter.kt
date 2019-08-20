@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.models.ChipSet
+import com.pierbezuhoff.clonium.models.ColorPrism
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.PlayerItem
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
@@ -69,7 +71,9 @@ interface RowManager {
 // TODO: select allied for ally
 class PlayerAdapter(
     private var playerItems: MutableList<PlayerItem>,
-    private val bitmapLoader: GameBitmapLoader
+    private val bitmapLoader: GameBitmapLoader,
+    private val chipSet: ChipSet,
+    private val colorPrism: ColorPrism
 ) : RecyclerView.Adapter<PlayerAdapter.ViewHolder>()
     , RowManager
     , Logger by AndroidLoggerOf<PlayerAdapter>()
@@ -116,7 +120,8 @@ class PlayerAdapter(
                         hidePlayer(playerId)
                 }
             }
-            val chipBitmap = bitmapLoader.loadChip(Chip(playerItem.playerId, Level1))
+            val chipBitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(playerItem.playerId, Level1))
+            // colored_chip -> spinner -> change color prism
             itemView.colored_chip.setImageBitmap(chipBitmap)
             itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
             itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))

@@ -11,11 +11,12 @@ typealias FalloutsStep = TransitionStep.Stateless.Fallouts
 private typealias ProgressingStep = WithProgress<TransitionStep>
 private typealias StepAdvancer = Advancer<ProgressingStep>
 
-object TransitionsAdvancer {
-
-    fun make(transitions: Sequence<Transition>, symmetry: ChipSymmetry): Advancer<List<ProgressingStep>> {
+object AdvancerBuilder {
+    fun of(
+        transitions: Sequence<Transition>,
+        useSwiftRotations: Boolean
+    ): Advancer<List<ProgressingStep>> {
         val list = transitions.toList()
-        val useSwiftRotations = symmetry !is ChipSymmetry.Four
         return when {
             list.isEmpty() -> EmptyAdvancer
             else -> with(Advancers) {
@@ -66,19 +67,19 @@ object TransitionsAdvancer {
 
     /** [TransitionStep]s durations */
     object Duration {
-        const val EXPLOSIONS: Milliseconds = 1_000L
+        const val EXPLOSIONS: Milliseconds = 800L
         const val SWIFT_ROTATION: Milliseconds = 300L
-        const val IDLE: Milliseconds = 500L
+        const val IDLE: Milliseconds = 300L
         const val FALLOUTS: Milliseconds = 7_000L
     }
 }
 
-// it's a lie, BTW, secondary constructors ARE used in TransitionsAdvancer(.explosions, ...) (by aliases)
+// it's a lie, BTW, secondary constructors ARE used in AdvancerBuilder(.explosions, ...) (by aliases)
 @Suppress("unused")
 sealed class TransitionStep : AnimatedStep {
 
     sealed class Stateful(val boardState: Board) : TransitionStep() {
-        override val blocking: Boolean = true
+        final override val blocking: Boolean = true
 
         class Explosions(
             boardState: Board,
@@ -119,16 +120,16 @@ sealed class TransitionStep : AnimatedStep {
     }
 
     sealed class Stateless : TransitionStep() {
-        override val blocking: Boolean = false
+        final override val blocking: Boolean = false
 
         class Fallouts(
-            val places: Map<Pos, PlayerId>
+            val places: Map<Pos, Pair<PlayerId, Direction>>
         ) : Stateless() {
             constructor(transition: Transition) : this(
                 transition.explosions
-                    .flatMap { it.center.neighbors
-                        .filterNot { pos -> transition.interimBoard.hasCell(pos) }
-                        .map { pos -> pos to it.playerId }
+                    .flatMap { it.center.directedNeighbors
+                        .filterValues { pos: Pos -> !transition.interimBoard.hasCell(pos) }
+                        .map { (direction: Direction, pos: Pos) -> pos to (it.playerId to direction) }
                     }.toMap()
             )
         }

@@ -56,7 +56,12 @@ class NewGameActivity : AppCompatActivity()
     }
 
     private fun initPlayerRecyclerView() {
-        val adapter = PlayerAdapter(newGameViewModel.playerItems, get())
+        val adapter = PlayerAdapter(
+            newGameViewModel.playerItems,
+            get(),
+            newGameViewModel.chipSet,
+            newGameViewModel.colorPrism
+        )
         adapter.boardPlayerVisibilitySubscription
             .subscribeFrom(newGameViewModel)
             .unsubscribeOnDestroy(this@NewGameActivity)
@@ -74,8 +79,9 @@ class NewGameActivity : AppCompatActivity()
     }
 
     private fun startGame() {
+        newGameViewModel.saveConfig()
         val intent = Intent(this, GameActivity::class.java)
-        intent.putExtra(GAME_STATE_EXTRA, newGameViewModel.makeGameState())
+        intent.putExtra(GAME_STATE_EXTRA, newGameViewModel.mkGameState())
         startActivityForResult(intent, GAME_REQUEST_CODE)
     }
 
@@ -84,6 +90,11 @@ class NewGameActivity : AppCompatActivity()
         when (requestCode) {
             GAME_REQUEST_CODE -> finish()
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        newGameViewModel.saveConfig()
+        super.onSaveInstanceState(outState)
     }
 
     companion object {

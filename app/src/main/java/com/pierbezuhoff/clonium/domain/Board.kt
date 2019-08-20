@@ -540,11 +540,11 @@ interface EvolvingBoard : Board {
     override fun copy(): EvolvingBoard
 
     @Throws(InvalidTurn::class)
-    /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s */
+    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s */
     fun inc(pos: Pos)
 
     @Throws(InvalidTurn::class)
-    /** Increase [Level] at [pos] by 1, sThenS explode all unstable [Chip]s while recording [Transition]s */
+    /** Increase [Level] at [pos] by 1, then explode all unstable [Chip]s while recording [Transition]s */
     fun incAnimated(pos: Pos): Sequence<Transition>
 
     /** Return new [EvolvingBoard] after [EvolvingBoard.inc] */

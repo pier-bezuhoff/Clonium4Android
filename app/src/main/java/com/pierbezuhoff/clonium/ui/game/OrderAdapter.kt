@@ -6,6 +6,8 @@ import androidx.databinding.*
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.databinding.OrderItemBinding
 import com.pierbezuhoff.clonium.domain.*
+import com.pierbezuhoff.clonium.models.ChipSet
+import com.pierbezuhoff.clonium.models.ColorPrism
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GameModel
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
@@ -43,7 +45,9 @@ internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
 
 class OrderAdapter(
     private var orderItems: List<OrderItem>,
-    private val bitmapLoader: GameBitmapLoader
+    private val bitmapLoader: GameBitmapLoader,
+    private val chipSet: ChipSet,
+    private val colorPrism: ColorPrism
 ) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
     , GameModel.StatHolder
     , GameModel.CurrentPlayerHolder
@@ -65,8 +69,8 @@ class OrderAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = orderItems[position]
         holder.binding.orderItem = item
-        // TODO: use chip without holes
-        val chipBitmap = bitmapLoader.loadChip(Chip(item.player.playerId, Level1))
+        val minLevel = Level(chipSet.levelRange.first) // NOTE: use chip without holes if available
+        val chipBitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(item.player.playerId, minLevel))
         holder.binding.chipView.setImageBitmap(chipBitmap)
     }
 

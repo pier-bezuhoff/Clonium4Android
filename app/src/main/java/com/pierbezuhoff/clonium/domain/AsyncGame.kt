@@ -83,7 +83,7 @@ class AsyncGame(
 }
 
 /**
- *                                            (check next.trans.order.first())
+ *                                            (check selfNext.trans.order.first())
  * discoverUnknowns ---> Next(Unknown).scheduleTurn => * Next(Unknown -> OneOf(Unknown...)) ->|                          (check computing is null)
  *  (use unknowns)  \--> ...                           * ------------------------------------> Next(Unknown).scheduledComputation => * Next(Unknown) to scheduledComputings ->|
  * ^                 \-> ...                                                                  (use computing & scheduledComputings)  * Next(Unknown) to computing ----------->|:~>.
@@ -92,7 +92,7 @@ class AsyncGame(
  * |                                 .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~> (async) |
  * |                                 ^ (async)                                                                                                                                   \|
  * | (may try to interrupt           |                              (check scheduledComputings is empty)         (computing = null; add unknown after computed to unknowns)       |
- * | parent branch => synchronize)   .~~~~~:|<- scheduledComputing to computing * <================= runNext <---------------------- onComputed(Computed) <~~~~~~~~~~~~~~~~~~~~~~~.
+ * | parent branch => synchronize)   .~~~~~:|<- scheduledComputing to computing * <=========== runNextOrDiscover <------------------ onComputed(Computed) <~~~~~~~~~~~~~~~~~~~~~~~.
  * .<-------------------------------------------------------------------------- *    (use computing & scheduledComputings)      (use computing & unknowns)  (<= 1 computing at time)
  * ^                                                                                                    ^                                   \ ^
  *                                                                                                      |                                   //
@@ -146,11 +146,11 @@ private class LinkedTurns(
     private fun discoverUnknowns() {
         while (
             unknowns.isNotEmpty() &&
-            (unknowns.size < SOFT_MAX_N_OF_UKNOWNS || players.getValue(unknowns.element().next.trans.order.first()) is BotPlayer) &&
+            (unknowns.size < SOFT_MAX_N_OF_UKNOWNS || players.getValue(unknowns.element().selfNext.trans.order.first()) is BotPlayer) &&
             (computeDepth(depth = 0)!! <= SOFT_MIN_DEPTH || computeWidth() < SOFT_MAX_WIDTH)
         ) {
             val nextAs = unknowns.remove()
-            nextAs.next.scheduleTurn(nextAs.link.depth)
+            nextAs.selfNext.scheduleTurn(nextAs.link.depth)
         }
     }
 
@@ -188,7 +188,7 @@ private class LinkedTurns(
         val unknown = Link.Unknown(depth)
         val nextAs = NextAs(trans, unknown)
         unknowns.add(nextAs)
-        return nextAs.next
+        return nextAs.selfNext
     }
 
     private fun Next.scheduleComputation(bot: BotPlayer, board: EvolvingBoard, order: List<PlayerId>, depth: Int) {
@@ -222,10 +222,15 @@ private class LinkedTurns(
                 computing == null -> Unit
                 computed.id != computing.link.computation.id -> Unit
                 else -> {
-                    computing.next.link = computed
+                    computing.selfNext.link = computed
                     this.computing = null
                     // add external unknown (from Computation.run)
-                    unknowns.add(NextAs(computed.next, computed.next.link as Link.Unknown))
+                    when (val nextLink = computed.next.link) {
+                        is Link.Unknown ->
+                            unknowns.add(NextAs(computed.next, nextLink))
+                        is Link.End -> Unit
+                        else -> impossibleCaseOf(nextLink)
+                    }
                     runNextOrDiscover()
                 }
             }
@@ -248,7 +253,7 @@ private class LinkedTurns(
                 return false // no scheduled => to be discovered
             } else {
                 val scheduledNextAs: NextAs<Link.FutureTurn.Bot.ScheduledComputing> = maybeScheduled
-                scheduledNextAs.next.startComputing(scheduledNextAs.link.computation)
+                scheduledNextAs.selfNext.startComputing(scheduledNextAs.link.computation)
             }
         }
         return true
@@ -260,7 +265,7 @@ private class LinkedTurns(
                 require(turn in focus.nexts.keys)
                 val next = focus.nexts.getValue(turn)
                 coroutineScope.launch(Dispatchers.Default) {
-                    synchronized {
+                    synchronized { // FIX: enforce get a hold of Lock before subsequent requestBotTurnAsync
                         setFocus(next)
                         rescheduleAll()
                     }
@@ -305,6 +310,7 @@ private class LinkedTurns(
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
         I log "requestBotTurnAsync"
         "requestBotTurnAsync" += "synchronizing"
+        // Q: when 2 are waiting for Lock, who gets it first?!
         return synchronized { // MAYBE: blocks too long...
             "requestBotTurnAsync" -= "synchronizing"
             tryRequestBotTurnOrAsync()
@@ -329,7 +335,7 @@ private class LinkedTurns(
             }
             else -> {
                 logIState()
-                ImpossibleCaseOf(focus).printStackTrace()
+//                ImpossibleCaseOf(focus).printStackTrace()
                 // handle it
                 impossibleCaseOf(focus)
             }
@@ -359,7 +365,6 @@ private class LinkedTurns(
             else -> impossibleCaseOf(link)
         }
 
-    // NOTE: unknowns.size ~ width
     private fun computeWidth(root: Link = focus): Int =
         when (root) {
             is Link.FutureTurn.Bot.Computed -> computeWidth(root.next.link)
@@ -482,23 +487,23 @@ private data class Next(
 }
 
 private class NextAs<out L : Link>(
-    val next: Next,
+    val selfNext: Next,
     newLink: L
 ) {
-    /** Typed next.link */
+    /** Typed selfNext.link */
     val link: L = newLink
     init {
-        next.link = link
+        selfNext.link = link
     }
 
     constructor(trans: Trans, link: L) : this(Next(trans, link), link)
 
     override fun equals(other: Any?) =
-        other is NextAs<*> && next == other.next
+        other is NextAs<*> && selfNext == other.selfNext
     override fun hashCode() =
-        next.hashCode()
+        selfNext.hashCode()
     override fun toString() =
-        next.toString()
+        selfNext.toString()
 }
 
 private data class Trans(

@@ -1,14 +1,14 @@
 package com.pierbezuhoff.clonium.models
 
+import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.pierbezuhoff.clonium.domain.PlayerId
 import com.pierbezuhoff.clonium.domain.PlayerTactic
-
-
-// TODO: add chip set (with symmetry), cell image
+import com.pierbezuhoff.clonium.models.animation.ChipAnimation
 
 /** Bundle of game parameters */
 data class GameConfig(
-    val botMinTime: Long = 300L,
+    val botMinTime: Long = 500L,
     val gameSpeed: Float = 1f
 )
 
@@ -46,3 +46,60 @@ data class PlayersConfig(val playerItems: List<PlayerItem>) {
             }
     }
 }
+
+var SharedPreferences.playersConfig: PlayersConfig
+    get() =
+        PlayersConfig.Builder.fromStringSet(
+            getStringSet(PlayersConfig::class.simpleName, null) ?: mutableSetOf()
+        )
+    set(value) {
+        edit {
+            putStringSet(PlayersConfig::class.simpleName, value.toStringSet())
+        }
+    }
+
+data class ChipsConfig(
+    val chipAnimation: ChipAnimation,
+    val chipSet: ChipSet,
+    val colorPrism: ColorPrism = chipSet.defaultColorPrism
+)
+
+var SharedPreferences.chipAnimation: ChipAnimation
+    get() =
+        getString(ChipAnimation::class.simpleName, null)
+            ?.let(ChipAnimation::valueOf)
+            ?: ChipAnimation.ROTATION
+    set(value) {
+        edit {
+            putString(ChipAnimation::class.simpleName, value.name)
+        }
+    }
+
+var SharedPreferences.chipSet: ChipSet
+    get() =
+        getString(ChipSet::class.simpleName, null)
+            ?.let(CommonChipSet.Builder::of)
+            ?: GreenChipSet
+    set(value) {
+        edit {
+            putString(ChipSet::class.simpleName, value.name)
+        }
+    }
+
+var SharedPreferences.colorPrism: ColorPrism?
+    get() =
+        getString(ColorPrism::class.simpleName, null)
+            ?.let(MutableMapColorPrism.Builder::fromString)
+    set(value) {
+        edit {
+            putString(ColorPrism::class.simpleName, value?.asString())
+        }
+    }
+
+var SharedPreferences.chipsConfig: ChipsConfig
+    get() = ChipsConfig(chipAnimation, chipSet, colorPrism ?: chipSet.defaultColorPrism)
+    set(value) {
+        chipAnimation = value.chipAnimation
+        chipSet = value.chipSet
+        colorPrism = value.colorPrism
+    }

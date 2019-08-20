@@ -16,6 +16,7 @@ import org.koin.core.get
 class GameModel(
     val game: Game,
     private val config: GameConfig,
+    chipsConfig: ChipsConfig,
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
@@ -30,13 +31,8 @@ class GameModel(
     private val currentPlayerHolderConnection = Connection<CurrentPlayerHolder>()
     val currentPlayerUpdatingSubscription = currentPlayerHolderConnection.subscription
 
-    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, margin = 1f)
+    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, chipsConfig, margin = 1f)
     private var continueGameOnce by Once(true)
-
-    init {
-        logV("order = ${game.order.map { it.playerId }.joinToString()}")
-        logV(game.board.asString())
-    }
 
     fun userTap(point: PointF) {
         synchronized(Lock) {
@@ -53,7 +49,7 @@ class GameModel(
                     gamePresenter.unfreezeBoard()
                     continueGameOnce = true
                 }
-            } // if next is human => issue pre-turn
+            } // MAYBE: if selfNext is human => issue pre-turn
         }
     }
 
@@ -79,8 +75,7 @@ class GameModel(
         }
         when {
             game.isEnd() -> {
-                logI("game ended: ${game.currentPlayer} won")
-                // show overall stat
+                // TODO: show overall stat
             }
             game.currentPlayer is BotPlayer -> {
                 gamePresenter.boardHighlighting.showBotPossibleTurns(game.possibleTurns())

@@ -10,6 +10,7 @@ private typealias LevelOrdinal = Int
 private typealias BitmapPath = String
 
 interface ChipSet {
+    val name: String
     /** symmetry of [Chip] with [Level1] */
     val symmetry: ChipSymmetry
     val nColors: Int
@@ -22,7 +23,6 @@ interface ChipSet {
 }
 
 sealed class ChipSymmetry {
-    /** No known symmetries */
     object None : ChipSymmetry()
     /** invariant to 180-rotation */
     object Two : ChipSymmetry()
@@ -30,13 +30,33 @@ sealed class ChipSymmetry {
     object Four : ChipSymmetry()
 }
 
+/** Remapping from player ids to color ids */
 interface ColorPrism {
-    fun player2color(playerId: PlayerId): ColorId?
+    val colors: Map<PlayerId, ColorId>
+
+    fun player2color(playerId: PlayerId): ColorId? =
+        colors[playerId]
+
+    fun asString(): String =
+        colors.entries
+            .joinToString(separator = ", ") { (playerId, colorId) -> "${playerId.id}: $colorId" }
 }
 
-class MapColorPrism(private val map: Map<PlayerId, ColorId>) : ColorPrism {
-    override fun player2color(playerId: PlayerId): ColorId? =
-        map[playerId]
+open class MapColorPrism(override val colors: Map<PlayerId, ColorId>) : ColorPrism
+
+class MutableMapColorPrism(override val colors: MutableMap<PlayerId, ColorId>) : MapColorPrism(colors) {
+    object Builder {
+        fun of(prism: ColorPrism): MutableMapColorPrism =
+            MutableMapColorPrism(prism.colors.toMutableMap())
+
+        fun fromString(s: String): MutableMapColorPrism =
+            MutableMapColorPrism(s.split(", ")
+                .associate {
+                    val (playerPart, colorPart) = it.split(": ")
+                    PlayerId(playerPart.trim().toInt()) to colorPart.trim().toInt()
+                }.toMutableMap()
+            )
+    }
 }
 
 fun colorPrismOf(colorIds: Iterable<ColorId>): MapColorPrism =
@@ -46,7 +66,9 @@ fun colorPrismOf(colorIds: Iterable<ColorId>): MapColorPrism =
             .associate { (i, colorId) -> PlayerId(i) to colorId }
     )
 
+// MAYBE: change into final class + lambdas as params
 abstract class CommonChipSet(
+    final override val name: String,
     final override val symmetry: ChipSymmetry,
     final override val nColors: Int,
     final override val levelRange: IntRange
@@ -104,10 +126,26 @@ abstract class CommonChipSet(
                     PlayerId(i) to colorId
                 }
         )
+
+    object Builder {
+        val variants: Map<String, CommonChipSet> =
+            setOf(
+                StandardChipSet,
+                GreenChipSet,
+                StarChipSet,
+                WhiteStarChipSet,
+                MinecraftChipSet,
+                CircuitChipSet
+            ).associateBy { it.name }
+
+        fun of(name: String) =
+            variants[name] ?: throw IllegalArgumentException("Cannot find ChipSet with name = \"$name\"")
+    }
 }
 
 object StandardChipSet : CommonChipSet(
-    ChipSymmetry.Four,
+    name = "standard",
+    symmetry = ChipSymmetry.Four,
     nColors = 8,
     levelRange = 1..5
 ) {
@@ -116,7 +154,8 @@ object StandardChipSet : CommonChipSet(
 }
 
 object GreenChipSet : CommonChipSet(
-    ChipSymmetry.Two,
+    name = "green",
+    symmetry = ChipSymmetry.Two,
     nColors = 8,
     levelRange = 0..7
 ) {
@@ -127,7 +166,8 @@ object GreenChipSet : CommonChipSet(
 }
 
 object StarChipSet : CommonChipSet(
-    ChipSymmetry.Four,
+    name = "star",
+    symmetry = ChipSymmetry.Four,
     nColors = 8,
     levelRange = 0..7
 ) {
@@ -141,7 +181,8 @@ object StarChipSet : CommonChipSet(
 }
 
 object WhiteStarChipSet : CommonChipSet(
-    ChipSymmetry.Four,
+    name = "white_star",
+    symmetry = ChipSymmetry.Four,
     nColors = 8,
     levelRange = 0..7
 ) {
@@ -155,7 +196,8 @@ object WhiteStarChipSet : CommonChipSet(
 }
 
 object MinecraftChipSet : CommonChipSet(
-    ChipSymmetry.None,
+    name = "minecraft",
+    symmetry = ChipSymmetry.None,
     nColors = 9,
     levelRange = 1..7
 ) {
@@ -165,7 +207,7 @@ object MinecraftChipSet : CommonChipSet(
     private fun color2dir(colorId: ColorId): String =
         when (colorId) {
             0 -> "steve"
-            1 -> "fire_monsters"
+            1 -> "fire"
             2 -> "animals"
             3 -> "end"
             4 -> "common"
@@ -175,4 +217,14 @@ object MinecraftChipSet : CommonChipSet(
             8 -> "zombie"
             else -> impossibleCaseOf(colorId)
         }
+}
+
+object CircuitChipSet : CommonChipSet(
+    name = "circuit",
+    symmetry = ChipSymmetry.Four,
+    nColors = 8,
+    levelRange = 0..7
+) {
+    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
+        mkPathIn("circuit_chip_set", colorId, levelOrdinal)
 }

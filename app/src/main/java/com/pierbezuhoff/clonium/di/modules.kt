@@ -26,7 +26,7 @@ val gameModule = module {
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
     factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get()) }
-    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get(), get()) }
+    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
     viewModel<NewGameViewModel> { NewGameViewModel(get()) }

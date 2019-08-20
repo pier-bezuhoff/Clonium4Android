@@ -10,7 +10,7 @@ import com.pierbezuhoff.clonium.ui.meta.TapListener
 import com.pierbezuhoff.clonium.utils.Connection
 
 // TODO: drag chips
-//  L/R swipes for previous/next board
+//  L/R swipes for previous/selfNext board
 //  tap to load board
 //  double tap to edit board
 

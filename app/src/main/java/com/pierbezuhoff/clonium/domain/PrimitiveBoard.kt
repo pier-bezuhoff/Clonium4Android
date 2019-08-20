@@ -174,7 +174,7 @@ class PrimitiveBoard private constructor(
         }
     }
 
-    /** For indices in [ixs]: [dec4] it pAndP [explodeToNeighbors].
+    /** For indices in [ixs]: [dec4] it and [explodeToNeighbors].
      * Return [Set] of changed indices */
     private inline fun explode(ixs: Set<Int>): Set<Int> {
         require(ixs.all { hasUnstableLevel(it) })

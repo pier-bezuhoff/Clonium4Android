@@ -92,7 +92,12 @@ interface BoardPresenter : SpatialBoard {
     fun Canvas.drawBoard(board: Board)
 
     interface Builder {
-        fun of(board: Board, margin: Float = 0f): BoardPresenter
+        fun of(
+            board: Board,
+            chipSet: ChipSet,
+            colorPrism: ColorPrism = chipSet.defaultColorPrism,
+            margin: Float = 0f
+        ): BoardPresenter
     }
 }
 
@@ -100,6 +105,8 @@ interface BoardPresenter : SpatialBoard {
 class SimpleBoardPresenter(
     override var board: Board,
     private val bitmapLoader: GameBitmapLoader,
+    private val chipSet: ChipSet,
+    private val colorPrism: ColorPrism,
     margin: Float = 0f
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board, margin)
@@ -109,7 +116,7 @@ class SimpleBoardPresenter(
     override val boardHighlighting: BoardHighlighting = BoardHighlighting()
     override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
-    private val printOnce by Once(true)
+    private val printOnce by Once(true) //tmp
 
     override fun Canvas.drawBoard(board: Board) {
         if (printOnce)
@@ -138,7 +145,7 @@ class SimpleBoardPresenter(
     }
 
     private fun Canvas.drawChip(pos: Pos, chip: Chip) {
-        val bitmap = bitmapLoader.loadChip(chip)
+        val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
         val rescaleMatrix = rescaleMatrix(bitmap)
         val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
         val translateMatrix = pos2translationMatrix(pos)
@@ -156,8 +163,8 @@ class SimpleBoardPresenter(
     class Builder(
         private val bitmapLoader: GameBitmapLoader
     ) : BoardPresenter.Builder {
-        override fun of(board: Board, margin: Float): BoardPresenter =
-            SimpleBoardPresenter(board, bitmapLoader, margin)
+        override fun of(board: Board, chipSet: ChipSet, colorPrism: ColorPrism, margin: Float) =
+            SimpleBoardPresenter(board, bitmapLoader, chipSet, colorPrism, margin)
     }
 }
 
@@ -176,18 +183,18 @@ interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     override fun draw(canvas: Canvas)
 
     interface Builder {
-        fun of(game: Game, margin: Float = 0f): GamePresenter
+        fun of(game: Game, chipsConfig: ChipsConfig, margin: Float = 0f): GamePresenter
     }
 }
 
 class SimpleGamePresenter(
     override val game: Game,
     private val bitmapLoader: GameBitmapLoader,
-    private val symmetry: ChipSymmetry,
+    private val chipsConfig: ChipsConfig,
     transitionsHost: TransitionAnimationsHost,
     margin: Float = 1f
 ) : Any()
-    , BoardPresenter by SimpleBoardPresenter(game.board, bitmapLoader, margin)
+    , BoardPresenter by SimpleBoardPresenter(game.board, bitmapLoader, chipsConfig.chipSet, chipsConfig.colorPrism, margin)
     , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
@@ -197,18 +204,14 @@ class SimpleGamePresenter(
         advanceAnimations(timeDelta)
     }
 
-    object Draw
+    @Synchronized
     override fun draw(canvas: Canvas) {
         require(cellSize > 0) { "setSize must be called before draw" }
-        synchronized(Draw) {
-            if (!blocking)
-                canvas.drawBoard(board)
-            drawAnimations(canvas)
-        }
+        if (!blocking)
+            canvas.drawBoard(board)
+        drawAnimations(canvas)
     }
 
-    // BUG: SOMETIMES we can see future of explosion (transition.endBoard) when first turn
-    // BUG: blinking after turn
     override fun freezeBoard() {
         board = game.board.copy()
     }
@@ -222,21 +225,17 @@ class SimpleGamePresenter(
         // MAYBE: use WeakRef
         boardHighlighting.hideInterceptedLastTurns(transitions)
         startAdvancer(
-            TransitionsAnimatedAdvancer(
-                transitions = transitions,
-                symmetry = symmetry,
-                gamePresenter = this,
-                bitmapLoader = bitmapLoader
+            animatedAdvancerOf(
+                chipsConfig, bitmapLoader, this, transitions
             )
         )
     }
 
     class Builder(
         private val bitmapLoader: GameBitmapLoader,
-        private val symmetry: ChipSymmetry,
         private val transitionsHost: TransitionAnimationsHost
     ) : GamePresenter.Builder {
-        override fun of(game: Game, margin: Float): GamePresenter =
-            SimpleGamePresenter(game, bitmapLoader, symmetry, transitionsHost, margin)
+        override fun of(game: Game, chipsConfig: ChipsConfig, margin: Float) =
+            SimpleGamePresenter(game, bitmapLoader, chipsConfig, transitionsHost, margin)
     }
 }
