@@ -4,9 +4,7 @@ import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
-import com.pierbezuhoff.clonium.domain.Chip
-import com.pierbezuhoff.clonium.domain.Highlighting
-import com.pierbezuhoff.clonium.domain.Level1
+import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import java.io.IOException
 
@@ -17,6 +15,7 @@ interface AssetBitmapLoader {
 interface GameBitmapLoader : AssetBitmapLoader {
     fun loadCell(): Bitmap
     fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.defaultColorPrism, chip: Chip): Bitmap
+    fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap
     fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.defaultColorPrism, chip: Chip): Bitmap
     fun loadHighlighting(highlighting: Highlighting): Bitmap
 }
@@ -49,6 +48,9 @@ class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoa
 
     override fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism, chip: Chip): Bitmap =
         loadAssetBitmap(chipSet.pathOfChip(colorPrism, chip))
+
+    override fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap =
+        loadAssetBitmap(chipSet.pathOfChip(chip = Chip(PlayerId(colorId), level)))
 
     override fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism, chip: Chip): Bitmap =
         loadAssetBitmap(chipSet.pathOfChipBottom(colorPrism, chip))

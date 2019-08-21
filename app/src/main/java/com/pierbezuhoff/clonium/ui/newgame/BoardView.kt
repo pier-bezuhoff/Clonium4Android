@@ -20,14 +20,15 @@ import com.pierbezuhoff.clonium.utils.Once
 import org.koin.core.KoinComponent
 import org.koin.core.get
 
+interface BoardViewInvalidator { fun invalidateBoardView() }
+
 // TODO: drag chips on board
 // MAYBE: intercept destroy-like event somehow
 class BoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr)
     , LifecycleOwner
-    , NewGameViewModel.BoardViewInvalidator
-    , Logger by AndroidLoggerOf<BoardView>()
+    , BoardViewInvalidator
     , KoinComponent
 {
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -44,7 +45,6 @@ class BoardView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        logI("onSizeChanged($w, $h, $oldw, $oldh)")
         if (firstSizeChanged) {
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
             viewModel.boardPresenter.observe(this, Observer {

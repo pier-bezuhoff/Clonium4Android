@@ -1,33 +1,28 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.BaseAdapter
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.models.ChipSet
-import com.pierbezuhoff.clonium.models.ColorPrism
-import com.pierbezuhoff.clonium.models.GameBitmapLoader
-import com.pierbezuhoff.clonium.models.PlayerItem
+import com.pierbezuhoff.clonium.models.*
 import com.pierbezuhoff.clonium.ui.meta.ListAdapter
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Connection
 import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.tactic
+import com.pierbezuhoff.clonium.utils.bindTactic
+import kotlinx.android.synthetic.main.colored_chip_item.view.*
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
-import org.jetbrains.anko.layoutInflater
+import org.jetbrains.anko.sdk27.coroutines.onItemSelectedListener
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
     override fun isLongPressDragEnabled() =
-        true
+        false
 
     override fun isItemViewSwipeEnabled() =
         false
@@ -75,7 +70,7 @@ class PlayerAdapter(
     private var playerItems: MutableList<PlayerItem>,
     private val bitmapLoader: GameBitmapLoader,
     private val chipSet: ChipSet,
-    private val colorPrism: ColorPrism
+    private val colorPrism: MutableMapColorPrism
 ) : RecyclerView.Adapter<PlayerAdapter.ViewHolder>()
     , RowManager
     , Logger by AndroidLoggerOf<PlayerAdapter>()
@@ -91,6 +86,9 @@ class PlayerAdapter(
     interface BoardPlayerHighlighter { fun highlightPlayer(playerId: PlayerId); fun unhighlight() }
     private val boardPlayerHighlighting = Connection<BoardPlayerHighlighter>()
     val boardPlayerHighlightingSubscription = boardPlayerHighlighting.subscription
+
+    private val boardViewInvalidating = Connection<BoardViewInvalidator>()
+    val boardViewInvalidatingSubscription = boardViewInvalidating.subscription
 
     private val itemTouchConnection = Connection<ItemTouchHelper>()
     val itemTouchSubscription = itemTouchConnection.subscription
@@ -110,44 +108,91 @@ class PlayerAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val playerItem = playerItems[position]
         holder.playerItem = playerItem
-        with(holder) {
-            itemView.use_player.isChecked = playerItem.participate
-            itemView.use_player.setOnCheckedChangeListener { _, checked ->
-                playerItem.participate = checked
-                val playerId = playerItem.playerId
-                boardPlayerVisibility.send {
-                    if (checked)
-                        showPlayer(playerId)
-                    else
-                        hidePlayer(playerId)
-                }
+        setupUsePlayerCheckBox(holder, playerItem)
+        setupColoredChipsSpinner(holder, playerItem)
+        setupPlayerTacticsSpinner(holder, playerItem)
+        setupDragHandle(holder)
+    }
+
+    private fun setupUsePlayerCheckBox(holder: ViewHolder, playerItem: PlayerItem) {
+        val usePlayerCheckBox = holder.itemView.use_player
+        usePlayerCheckBox.isChecked = playerItem.participate
+        usePlayerCheckBox.setOnCheckedChangeListener { _, checked ->
+            playerItem.participate = checked
+            val playerId = playerItem.playerId
+            boardPlayerVisibility.send {
+                if (checked)
+                    showPlayer(playerId)
+                else
+                    hidePlayer(playerId)
             }
-            val chipBitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(playerItem.playerId, Level1))
-            // colored_chip -> spinner -> change color prism
-//            itemView.colored_chip.setImageBitmap(chipBitmap)
-//            itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
-            itemView.player_tactics.adapter = ListAdapter(
-                    itemView.context, R.layout.player_tactic_item, PLAYER_TACTICS
-                ) { view, tactic ->
-                    tactic(view.tactic_description, tactic)
-                }
-            itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
-            itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onNothingSelected(parent: AdapterView<*>?) { }
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val tactic = itemView.player_tactics.getItemAtPosition(position) as PlayerTactic
-                    if (tactic is PlayerTactic.Bot.AlliedLevelBalancer)
-                        Unit // show dialog
-                    playerItem.tactic = tactic
-                }
-            }
-            itemView.drag_handle.setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_DOWN)
-                    itemTouchConnection.send {
-                        startDrag(holder)
+        }
+    }
+
+    private fun setupColoredChipsSpinner(holder: ViewHolder, playerItem: PlayerItem) {
+        val coloredChipsSpinner = holder.itemView.colored_chips
+        coloredChipsSpinner.adapter = ListAdapter(
+            holder.itemView.context, R.layout.colored_chip_item, chipSet.colorRange.toList()
+        ) { view, colorId ->
+            val chipBitmap = bitmapLoader.loadRawChip(chipSet, colorId, Level1)
+            view.colored_chip.setImageBitmap(chipBitmap)
+        }
+        val initialColorId = colorPrism.player2color(playerItem.playerId) ?: playerItem.playerId.id
+        coloredChipsSpinner.setSelection(initialColorId, false)
+        coloredChipsSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) { }
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val colorId = coloredChipsSpinner.getItemAtPosition(position) as Int
+                val previousColorId = colorPrism.player2color(playerItem.playerId)!!
+                if (previousColorId != colorId) {
+                    val previousColorIdOwners =
+                        playerItems.withIndex()
+                            .filter { (_, playerItem) ->
+                                colorPrism.player2color(playerItem.playerId) == colorId
+                            }
+                    if (previousColorIdOwners.isNotEmpty()) {
+                        for ((i, previousOwner) in previousColorIdOwners) {
+                            colorPrism[previousOwner.playerId] = previousColorId
+                            notifyItemChanged(i)
+                        }
                     }
-                return@setOnTouchListener false
+                    colorPrism[playerItem.playerId] = colorId
+                    boardViewInvalidating.send {
+                        invalidateBoardView()
+                    }
+                }
             }
+        }
+
+    }
+
+    private fun setupPlayerTacticsSpinner(holder: ViewHolder, playerItem: PlayerItem) {
+        val tacticsSpinner = holder.itemView.player_tactics
+        tacticsSpinner.adapter = ListAdapter(
+            holder.itemView.context, R.layout.player_tactic_item, PLAYER_TACTICS
+        ) { view, tactic ->
+            bindTactic(view.tactic_description, tactic)
+        }
+        tacticsSpinner.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic), false)
+        tacticsSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) { }
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val tactic = tacticsSpinner.getItemAtPosition(position) as PlayerTactic
+                if (tactic is PlayerTactic.Bot.AlliedLevelBalancer)
+                    Unit // show dialog
+                playerItem.tactic = tactic
+            }
+        }
+    }
+
+    private fun setupDragHandle(holder: ViewHolder) {
+        val dragHandle = holder.itemView.drag_handle
+        dragHandle.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN)
+                itemTouchConnection.send {
+                    startDrag(holder)
+                }
+            return@setOnTouchListener false
         }
     }
 
@@ -179,27 +224,3 @@ class PlayerAdapter(
         }
     }
 }
-
-class ColoredChipsAdapter()
-
-class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
-    private val tactics = PLAYER_TACTICS
-
-    override fun getItem(position: Int): PlayerTactic =
-        tactics[position]
-
-    override fun getItemId(position: Int): Long =
-        position.toLong()
-
-    override fun getCount(): Int =
-        tactics.size
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View =
-        convertView ?: context.layoutInflater
-            .inflate(R.layout.player_tactic_item, parent, false).apply {
-                val tactic = getItem(position)
-                tactic(tactic_description, tactic)
-            }
-}
-
-

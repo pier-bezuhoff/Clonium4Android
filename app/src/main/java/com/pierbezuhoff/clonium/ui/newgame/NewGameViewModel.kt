@@ -15,11 +15,12 @@ import org.koin.core.get
 class NewGameViewModel(application: Application) : CloniumAndroidViewModel(application)
     , PlayerAdapter.BoardPlayerHider
     , PlayerAdapter.BoardPlayerHighlighter
+    , BoardViewInvalidator
     , Logger by AndroidLoggerOf<NewGameViewModel>()
 {
-    interface BoardViewInvalidator { fun invalidateBoardView() }
     private val boardViewInvalidating = Connection<BoardViewInvalidator>()
     val boardViewInvalidatingSubscription = boardViewInvalidating.subscription
+    override fun invalidateBoardView() { boardViewInvalidating.send { invalidateBoardView() } }
 
     private val _boardPresenter: MutableLiveData<BoardPresenter> = MutableLiveData()
     val boardPresenter: LiveData<BoardPresenter> = _boardPresenter
@@ -144,7 +145,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 it.colorPrism ?: chipSet.defaultColorPrism
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
-            chipSet = CircuitChipSet //tmp
+            chipSet = GreenChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
             val index = it.getInt(SimpleBoard.Examples::class.simpleName, 0)

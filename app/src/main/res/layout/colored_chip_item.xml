@@ -6,17 +6,13 @@
         android:orientation="vertical"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:elevation="4dp"
-        android:clickable="true"
-        android:foreground="?android:attr/selectableItemBackground"
-        android:focusable="true"
+        android:elevation="8dp"
     >
 
     <ImageView
             android:id="@+id/colored_chip"
             android:layout_width="@dimen/colored_chip_size"
             android:layout_height="@dimen/colored_chip_size"
-            android:padding="4dp"
             android:contentDescription="@string/colored_chip_description"
             tools:srcCompat="@tools:sample/avatars[15]"
     />

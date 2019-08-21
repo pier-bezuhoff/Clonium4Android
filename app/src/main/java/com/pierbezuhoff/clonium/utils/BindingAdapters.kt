@@ -8,7 +8,7 @@ import com.pierbezuhoff.clonium.domain.PlayerTactic
 import kotlin.math.roundToInt
 
 @BindingAdapter("tactic")
-fun tactic(textView: TextView, tactic: PlayerTactic) {
+fun bindTactic(textView: TextView, tactic: PlayerTactic) {
     with(textView.context) {
         textView.text = when (tactic) {
             PlayerTactic.Human -> getString(R.string.human)

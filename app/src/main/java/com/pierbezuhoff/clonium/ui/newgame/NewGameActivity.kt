@@ -68,6 +68,9 @@ class NewGameActivity : AppCompatActivity()
         adapter.boardPlayerHighlightingSubscription
             .subscribeFrom(newGameViewModel)
             .unsubscribeOnDestroy(this@NewGameActivity)
+        adapter.boardViewInvalidatingSubscription
+            .subscribeFrom(newGameViewModel)
+            .unsubscribeOnDestroy(this@NewGameActivity)
         players_recycler_view.adapter = adapter
         val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
         val itemTouchHelper = ItemTouchHelper(callback)
@@ -95,6 +98,11 @@ class NewGameActivity : AppCompatActivity()
     override fun onSaveInstanceState(outState: Bundle) {
         newGameViewModel.saveConfig()
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onStop() {
+        newGameViewModel.saveConfig()
+        super.onStop()
     }
 
     companion object {

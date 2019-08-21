@@ -14,6 +14,7 @@ interface ChipSet {
     /** symmetry of [Chip] with [Level1] */
     val symmetry: ChipSymmetry
     val nColors: Int
+    val colorRange: IntRange
     val levelRange: IntRange
     val defaultColorPrism: ColorPrism
 
@@ -44,7 +45,9 @@ interface ColorPrism {
 
 open class MapColorPrism(override val colors: Map<PlayerId, ColorId>) : ColorPrism
 
-class MutableMapColorPrism(override val colors: MutableMap<PlayerId, ColorId>) : MapColorPrism(colors) {
+class MutableMapColorPrism(override val colors: MutableMap<PlayerId, ColorId>) : MapColorPrism(colors)
+    , MutableMap<PlayerId, ColorId> by colors
+{
     object Builder {
         fun of(prism: ColorPrism): MutableMapColorPrism =
             MutableMapColorPrism(prism.colors.toMutableMap())
@@ -73,6 +76,7 @@ abstract class CommonChipSet(
     final override val nColors: Int,
     final override val levelRange: IntRange
 ) : ChipSet {
+    override val colorRange: IntRange = 0 until nColors
     override val defaultColorPrism =
         colorPrismOf(0 until nColors)
 
@@ -119,7 +123,7 @@ abstract class CommonChipSet(
 
     final override fun mkRandomColorPrism(): ColorPrism =
         MapColorPrism(
-            (0 until nColors)
+            colorRange
                 .shuffled()
                 .withIndex()
                 .associate { (i, colorId) ->

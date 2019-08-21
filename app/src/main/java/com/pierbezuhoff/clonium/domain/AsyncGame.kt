@@ -106,7 +106,7 @@ class AsyncGame(
  *                                                        \-> ...           /                                                         //
  *                                    (use computing, scheduledComputings, unknowns)                                                 //
  *                                                                                                                                  //
- *        (focus is Computed | Computing | sync & (Computed | Computing))                                                          //
+ *        (focus is Computed | Computing)                                                                                          //
  *  requestBotTurnAsync -> tryRequestBotTurnOrAsync => * setFocus -> return                                                       //
  *                                                     * ~~~~~~> wait bot -> setFocus -> return                                  //
  *                                                       (async)      \ ^                                                       //
@@ -131,7 +131,8 @@ private class LinkedTurns(
     private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
 
-    private val mutex = Mutex() // NOTE: guaranteed to be fair: FIFO
+    private val lock = Mutex() // NOTE: guaranteed to be fair: FIFO
+    private val humanAfterEffect = Mutex()
 
     init {
         require(order.isNotEmpty())
@@ -269,12 +270,16 @@ private class LinkedTurns(
         when (val focus = focus) {
             is Link.FutureTurn.Human.OneOf -> {
                 require(turn in focus.nexts.keys)
+                runBlocking {
+                    humanAfterEffect.lock()
+                }
                 val next = focus.nexts.getValue(turn)
                 coroutineScope.launch(Dispatchers.Default) {
                     synchronized {
                         setFocus(next)
                         rescheduleAll()
                     }
+                    humanAfterEffect.unlock()
                 }
                 return next.trans
             }
@@ -313,36 +318,29 @@ private class LinkedTurns(
         }
     }
 
-    fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        return coroutineScope.async {
+    fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> = coroutineScope.async {
+        syncronizedAfterHumanTurn {
             synchronized {
-                tryRequestBotTurnOrAsync()
-            }.await()
-        }
-    }
-
-    // TODO: test for the error
-    private fun tryRequestBotTurnOrAsync(): Deferred<Pair<Pos, Trans>> {
-        require(focus is Link.FutureTurn.Bot) { "focus = $focus".also { logIState() } }
-        return when (val focus = focus as Link.FutureTurn.Bot) {
-            is Link.FutureTurn.Bot.Computed -> {
-                setFocus(focus.next)
-                return coroutineScope.async { focus.pos to focus.next.trans }
-            }
-            is Link.FutureTurn.Bot.Computing -> coroutineScope.async {
-                val (elapsedPretty, computed) = measureElapsedTimePretty {
-                    focus.deferred.await()
+                when (val focus = focus as Link.FutureTurn.Bot) {
+                    is Link.FutureTurn.Bot.Computed -> {
+                        setFocus(focus.next)
+                        return@synchronized focus.pos to focus.next.trans
+                    }
+                    is Link.FutureTurn.Bot.Computing -> {
+                        val (elapsedPretty, computed) = measureElapsedTimePretty {
+                            focus.deferred.await()
+                        }
+                        logW("Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n")
+                        setFocus(computed.next)
+                        return@synchronized computed.pos to computed.next.trans
+                    }
+                    else -> {
+                        logIState()
+                        // ImpossibleCaseOf(focus).printStackTrace()
+                        // handle it
+                        impossibleCaseOf(focus)
+                    }
                 }
-                logW("Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n")
-                setFocus(computed.next)
-                require(this@LinkedTurns.focus !is Link.Unknown) { "focus = $focus".also { logIState() } }
-                return@async computed.pos to computed.next.trans
-            }
-            else -> {
-                logIState()
-//                ImpossibleCaseOf(focus).printStackTrace()
-                // handle it
-                impossibleCaseOf(focus)
             }
         }
     }
@@ -384,7 +382,10 @@ private class LinkedTurns(
     }
 
     private suspend inline fun <R> synchronized(block: () -> R): R =
-        mutex.withLock(this, block)
+        lock.withLock(null, block)
+
+    private suspend inline fun <R> syncronizedAfterHumanTurn(block: () -> R): R =
+        humanAfterEffect.withLock(null, block)
 
     companion object {
         private const val SOFT_MAX_WIDTH = 100

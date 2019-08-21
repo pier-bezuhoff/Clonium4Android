@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="new_game_order_vertical_space">4dp</dimen>
-    <dimen name="colored_chip_size">40sp</dimen>
+    <dimen name="colored_chip_size">30sp</dimen>
     <!-- width = 205sp is xp-ed -->
     <dimen name="player_tactics_max_width">205sp</dimen>
 </resources>

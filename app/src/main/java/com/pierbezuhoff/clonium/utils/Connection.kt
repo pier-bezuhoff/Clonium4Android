@@ -33,4 +33,9 @@ class Connection<ListenerInterface> {
     }
 }
 
+interface ConnectionHolder
+
+interface Holder<A> {
+    val a: A
+}
 
