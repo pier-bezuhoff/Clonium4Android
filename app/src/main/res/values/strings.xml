@@ -21,4 +21,5 @@
     <string name="chip_count">chip count</string>
     <string name="player_tactic">player tactic</string>
     <string name="shading">shading</string>
+    <string name="colored_chips_prompt">Choose color of player\'s chips</string>
 </resources>

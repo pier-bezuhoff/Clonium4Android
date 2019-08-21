@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="4dp"
+        android:clickable="true"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:focusable="true"
+    >
+
+    <ImageView
+            android:id="@+id/colored_chip"
+            android:layout_width="@dimen/colored_chip_size"
+            android:layout_height="@dimen/colored_chip_size"
+            android:padding="4dp"
+            android:contentDescription="@string/colored_chip_description"
+            tools:srcCompat="@tools:sample/avatars[15]"
+    />
+</androidx.cardview.widget.CardView>

@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.BaseAdapter
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -15,6 +16,7 @@ import com.pierbezuhoff.clonium.models.ChipSet
 import com.pierbezuhoff.clonium.models.ColorPrism
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.PlayerItem
+import com.pierbezuhoff.clonium.ui.meta.ListAdapter
 import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
 import com.pierbezuhoff.clonium.utils.Connection
 import com.pierbezuhoff.clonium.utils.Logger
@@ -122,8 +124,13 @@ class PlayerAdapter(
             }
             val chipBitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(playerItem.playerId, Level1))
             // colored_chip -> spinner -> change color prism
-            itemView.colored_chip.setImageBitmap(chipBitmap)
-            itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
+//            itemView.colored_chip.setImageBitmap(chipBitmap)
+//            itemView.player_tactics.adapter = PlayerTacticsAdapter(itemView.context)
+            itemView.player_tactics.adapter = ListAdapter(
+                    itemView.context, R.layout.player_tactic_item, PLAYER_TACTICS
+                ) { view, tactic ->
+                    tactic(view.tactic_description, tactic)
+                }
             itemView.player_tactics.setSelection(PLAYER_TACTICS.indexOf(playerItem.tactic))
             itemView.player_tactics.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) { }
@@ -173,6 +180,8 @@ class PlayerAdapter(
     }
 }
 
+class ColoredChipsAdapter()
+
 class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
     private val tactics = PLAYER_TACTICS
 
@@ -192,4 +201,5 @@ class PlayerTacticsAdapter(private val context: Context) : BaseAdapter() {
                 tactic(tactic_description, tactic)
             }
 }
+
 

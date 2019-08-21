@@ -2,6 +2,8 @@ package com.pierbezuhoff.clonium.domain
 
 import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.min
@@ -129,6 +131,8 @@ private class LinkedTurns(
     private val focus: Link get() = start.next.link
     private var nOfTraversedTurns = 0
 
+    private val mutex = Mutex() // NOTE: guaranteed to be fair: FIFO
+
     init {
         require(order.isNotEmpty())
         if (order.size == 1) {
@@ -216,22 +220,24 @@ private class LinkedTurns(
         }
 
     private fun onComputed(computed: Link.FutureTurn.Bot.Computed) {
-        synchronized {
-            val computing = computing
-            when {
-                computing == null -> Unit
-                computed.id != computing.link.computation.id -> Unit
-                else -> {
-                    computing.selfNext.link = computed
-                    this.computing = null
-                    // add external unknown (from Computation.run)
-                    when (val nextLink = computed.next.link) {
-                        is Link.Unknown ->
-                            unknowns.add(NextAs(computed.next, nextLink))
-                        is Link.End -> Unit
-                        else -> impossibleCaseOf(nextLink)
+        coroutineScope.launch {
+            synchronized {
+                val computing = computing
+                when {
+                    computing == null -> Unit
+                    computed.id != computing.link.computation.id -> Unit
+                    else -> {
+                        computing.selfNext.link = computed
+                        this@LinkedTurns.computing = null
+                        // add external unknown (from Computation.run)
+                        when (val nextLink = computed.next.link) {
+                            is Link.Unknown ->
+                                unknowns.add(NextAs(computed.next, nextLink))
+                            is Link.End -> Unit
+                            else -> impossibleCaseOf(nextLink)
+                        }
+                        runNextOrDiscover()
                     }
-                    runNextOrDiscover()
                 }
             }
         }
@@ -265,7 +271,7 @@ private class LinkedTurns(
                 require(turn in focus.nexts.keys)
                 val next = focus.nexts.getValue(turn)
                 coroutineScope.launch(Dispatchers.Default) {
-                    synchronized { // FIX: enforce get a hold of Lock before subsequent requestBotTurnAsync
+                    synchronized {
                         setFocus(next)
                         rescheduleAll()
                     }
@@ -308,15 +314,14 @@ private class LinkedTurns(
     }
 
     fun requestBotTurnAsync(): Deferred<Pair<Pos, Trans>> {
-        I log "requestBotTurnAsync"
-        "requestBotTurnAsync" += "synchronizing"
-        // Q: when 2 are waiting for Lock, who gets it first?!
-        return synchronized { // MAYBE: blocks too long...
-            "requestBotTurnAsync" -= "synchronizing"
-            tryRequestBotTurnOrAsync()
+        return coroutineScope.async {
+            synchronized {
+                tryRequestBotTurnOrAsync()
+            }.await()
         }
     }
 
+    // TODO: test for the error
     private fun tryRequestBotTurnOrAsync(): Deferred<Pair<Pos, Trans>> {
         require(focus is Link.FutureTurn.Bot) { "focus = $focus".also { logIState() } }
         return when (val focus = focus as Link.FutureTurn.Bot) {
@@ -378,10 +383,8 @@ private class LinkedTurns(
             o1.link.depth.compareTo(o2.link.depth)
     }
 
-    private inline fun <R> synchronized(block: () -> R): R =
-        synchronized(Lock, block)
-
-    object Lock
+    private suspend inline fun <R> synchronized(block: () -> R): R =
+        mutex.withLock(this, block)
 
     companion object {
         private const val SOFT_MAX_WIDTH = 100
