@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
+import android.graphics.*
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -11,14 +12,11 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.*
 import com.pierbezuhoff.clonium.ui.meta.ListAdapter
-import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
-import com.pierbezuhoff.clonium.utils.Connection
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.bindTactic
+import com.pierbezuhoff.clonium.utils.*
 import kotlinx.android.synthetic.main.colored_chip_item.view.*
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
-import org.jetbrains.anko.sdk27.coroutines.onItemSelectedListener
+import kotlin.math.roundToInt
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
     override fun isLongPressDragEnabled() =
@@ -135,7 +133,8 @@ class PlayerAdapter(
             holder.itemView.context, R.layout.colored_chip_item, chipSet.colorRange.toList()
         ) { view, colorId ->
             val chipBitmap = bitmapLoader.loadRawChip(chipSet, colorId, Level1)
-            view.colored_chip.setImageBitmap(chipBitmap)
+            val targetSize = holder.itemView.context.resources.getDimensionPixelSize(R.dimen.colored_chip_size)
+            view.colored_chip.setImageBitmap(smoothBitmap(chipBitmap, targetSize))
         }
         val initialColorId = colorPrism.player2color(playerItem.playerId) ?: playerItem.playerId.id
         coloredChipsSpinner.setSelection(initialColorId, false)
@@ -163,7 +162,6 @@ class PlayerAdapter(
                 }
             }
         }
-
     }
 
     private fun setupPlayerTacticsSpinner(holder: ViewHolder, playerItem: PlayerItem) {
