@@ -1,15 +1,13 @@
 package com.pierbezuhoff.clonium.models
 
 import android.graphics.*
+import androidx.annotation.ColorInt
 import androidx.core.graphics.scaleMatrix
 import androidx.core.graphics.times
 import androidx.core.graphics.translationMatrix
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.animation.*
-import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.Milliseconds
-import com.pierbezuhoff.clonium.utils.Once
+import com.pierbezuhoff.clonium.utils.*
 import kotlin.math.*
 
 interface SpatialBoard {
@@ -26,7 +24,11 @@ interface SpatialBoard {
     /** Fallout max depth in [cellSize]s */
     val falloutVerticalSpeed: Float
     /** 360 * (# of full turnaround) */
-    val falloutAngleSpeed: Float
+    val falloutAngularSpeed: Float
+    /** 360 * (# of full turnarounds) */
+    val madeTurnMeanAngularSpeed: Float
+    /** +(it * 100%) per lifetime */
+    val madeTurnGrowth: Float
 
     /** Set target `View` size */
     fun setSize(width: Int, height: Int)
@@ -54,7 +56,7 @@ interface SpatialBoard {
         pos2point(pos).let { translationMatrix(it.x.toFloat(), it.y.toFloat()) }
 }
 
-private class SimpleSpatialBoard(
+private open class SimpleSpatialBoard(
     private val board: Board,
     override val margin: Float
 ) : SpatialBoard {
@@ -73,7 +75,9 @@ private class SimpleSpatialBoard(
     override val zZoom: Double = 0.2 // 20% per [cellSize]
     override val jumpHeight: Float = 1f // in [cellSize]s
     override val falloutVerticalSpeed: Float = 3f
-    override val falloutAngleSpeed: Float = 4f * 360
+    override val falloutAngularSpeed: Float = 4f * 360
+    override val madeTurnGrowth: Float = 0.2f
+    override val madeTurnMeanAngularSpeed: Float = 1 * 360f
 
     override fun setSize(width: Int, height: Int) {
         viewWidth = width
@@ -82,9 +86,8 @@ private class SimpleSpatialBoard(
 }
 
 
-interface BoardPresenter : SpatialBoard {
+interface BoardPresenter : SpatialBoard, BoardHighlighting {
     var board: Board
-    val boardHighlighting: BoardHighlighting
     val bitmapPaint: Paint
     fun draw(canvas: Canvas) {
         canvas.drawBoard(board)
@@ -102,29 +105,30 @@ interface BoardPresenter : SpatialBoard {
 }
 
 // MAYBE: rotate rectangular board along with view
-class SimpleBoardPresenter(
+open class SimpleBoardPresenter(
     override var board: Board,
-    private val bitmapLoader: GameBitmapLoader,
+    private val boardHighlighting: BoardHighlighting,
+    protected val bitmapLoader: GameBitmapLoader,
     private val chipSet: ChipSet,
-    private val colorPrism: ColorPrism,
+    protected val colorPrism: ColorPrism,
     margin: Float = 0f
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board, margin)
     , BoardPresenter
-    , Logger by AndroidLoggerOf<SimpleBoardPresenter>()
+    , BoardHighlighting by boardHighlighting
+    , WithLog by AndroidLogOf<SimpleBoardPresenter>()
 {
-    override val boardHighlighting: BoardHighlighting = BoardHighlighting()
     override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
     private val printOnce by Once(true) //tmp
 
     override fun Canvas.drawBoard(board: Board) {
         if (printOnce)
-            logI("first drawBoard")
+            log i "first drawBoard"
         drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
             drawCell(pos)
-        for ((pos, highlighting) in boardHighlighting.highlightings)
+        for ((pos, highlighting) in highlightings)
             drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
         for ((pos, maybeChip) in board.asPosMap())
             maybeChip?.let { drawChip(pos, it) }
@@ -134,7 +138,7 @@ class SimpleBoardPresenter(
         drawBitmapAt(bitmapLoader.loadCell(), pos)
     }
 
-    private inline fun Canvas.drawBitmapAt(bitmap: Bitmap, pos: Pos) {
+    private fun Canvas.drawBitmapAt(bitmap: Bitmap, pos: Pos) {
         val rescaleMatrix = rescaleMatrix(bitmap)
         val translateMatrix = pos2translationMatrix(pos)
         drawBitmap(
@@ -157,14 +161,15 @@ class SimpleBoardPresenter(
     }
 
     companion object {
-        private const val BACKGROUND_COLOR: Int = Color.BLACK
+        @ColorInt private const val BACKGROUND_COLOR: Int = Color.BLACK
     }
 
     class Builder(
+        private val boardHighlighting: BoardHighlighting,
         private val bitmapLoader: GameBitmapLoader
     ) : BoardPresenter.Builder {
         override fun of(board: Board, chipSet: ChipSet, colorPrism: ColorPrism, margin: Float) =
-            SimpleBoardPresenter(board, bitmapLoader, chipSet, colorPrism, margin)
+            SimpleBoardPresenter(board, boardHighlighting, bitmapLoader, chipSet, colorPrism, margin)
     }
 }
 
@@ -178,7 +183,7 @@ interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     /** Show [game]'s [Board]: immediately reflect any [game] changes */
     fun unfreezeBoard()
     /** Start [Transition]s animations */
-    fun startTransitions(transitions: Sequence<Transition>)
+    fun startTransitions(turn: Pos, transitions: Sequence<Transition>)
     /** Draw current [game] state with animations */
     override fun draw(canvas: Canvas)
 
@@ -189,12 +194,12 @@ interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
 
 class SimpleGamePresenter(
     override val game: Game,
-    private val bitmapLoader: GameBitmapLoader,
+    boardHighlighting: BoardHighlighting,
+    bitmapLoader: GameBitmapLoader,
     private val chipsConfig: ChipsConfig,
     transitionsHost: TransitionAnimationsHost,
     margin: Float = 1f
-) : Any()
-    , BoardPresenter by SimpleBoardPresenter(game.board, bitmapLoader, chipsConfig.chipSet, chipsConfig.colorPrism, margin)
+) : SimpleBoardPresenter(game.board, boardHighlighting, bitmapLoader, chipsConfig.chipSet, chipsConfig.colorPrism, margin)
     , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
@@ -220,22 +225,23 @@ class SimpleGamePresenter(
         board = game.board
     }
 
-    override fun startTransitions(transitions: Sequence<Transition>) {
+    override fun startTransitions(turn: Pos, transitions: Sequence<Transition>) {
         // NOTE: leaky leak of SimpleGamePresenter (circular reference)
         // MAYBE: use WeakRef
-        boardHighlighting.hideInterceptedLastTurns(transitions)
+        hideInterceptedLastTurns(transitions)
         startAdvancer(
             animatedAdvancerOf(
-                chipsConfig, bitmapLoader, this, transitions
+                chipsConfig, bitmapLoader, this, turn, transitions
             )
         )
     }
 
     class Builder(
+        private val boardHighlighting: BoardHighlighting,
         private val bitmapLoader: GameBitmapLoader,
         private val transitionsHost: TransitionAnimationsHost
     ) : GamePresenter.Builder {
         override fun of(game: Game, chipsConfig: ChipsConfig, margin: Float) =
-            SimpleGamePresenter(game, bitmapLoader, chipsConfig, transitionsHost, margin)
+            SimpleGamePresenter(game, boardHighlighting, bitmapLoader, chipsConfig, transitionsHost, margin)
     }
 }

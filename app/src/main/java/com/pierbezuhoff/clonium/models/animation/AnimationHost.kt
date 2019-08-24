@@ -56,7 +56,7 @@ class TransitionAnimationsPool : Any()
 
     override fun startAdvancer(animatedAdvancer: AnimatedAdvancer<*>) {
         synchronized(PoolLock) {
-            require(!blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
+            require(!animatedAdvancer.blocking || !blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
             if (!animatedAdvancer.ended) {
                 pool.add(animatedAdvancer)
                 animatedAdvancer.advance(0L) // emit initial advance result

@@ -12,9 +12,20 @@ sealed class Highlighting {
     object NextTurn : Highlighting()
 }
 
-class BoardHighlighting {
+interface BoardHighlighting {
+    val highlightings: Map<Pos, Highlighting>
+    fun showHumanPossibleTurns(turns: Set<Pos>)
+    fun showBotPossibleTurns(turns: Set<Pos>)
+    fun hidePossibleTurns()
+    fun showLastTurn(turn: Pos, nPlayers: Int)
+    fun hideInterceptedLastTurns(transitions: Sequence<Transition>)
+    fun showNextTurn(turn: Pos)
+    fun hideNextTurn()
+}
+
+class MapBoardHighlighting : BoardHighlighting {
     private val _highlightings: MutableMap<Pos, Highlighting> = mutableMapOf()
-    val highlightings: Map<Pos, Highlighting> = _highlightings
+    override val highlightings: Map<Pos, Highlighting> = _highlightings
     private var possibleTurns: Set<Pos> = emptySet()
     private var nextTurn: Pos? = null
     private var lastMainTurn: Pos? = null
@@ -22,24 +33,24 @@ class BoardHighlighting {
     private val lastTurns: List<Pos>
         get() = listOfNotNull(lastMainTurn) + lastMinorTurns.filterNotNull()
 
-    fun showHumanPossibleTurns(turns: Set<Pos>) {
+    override fun showHumanPossibleTurns(turns: Set<Pos>) {
         _highlightings -= possibleTurns
         possibleTurns = turns
         turns.associateWithTo(_highlightings) { Highlighting.PossibleTurn.Human }
     }
 
-    fun showBotPossibleTurns(turns: Set<Pos>) {
+    override fun showBotPossibleTurns(turns: Set<Pos>) {
         _highlightings -= possibleTurns
         possibleTurns = turns
         turns.associateWithTo(_highlightings) { Highlighting.PossibleTurn.Bot }
     }
 
-    fun hidePossibleTurns() {
+    override fun hidePossibleTurns() {
         _highlightings -= possibleTurns
         possibleTurns = emptySet()
     }
 
-    fun showLastTurn(turn: Pos, nPlayers: Int) {
+    override fun showLastTurn(turn: Pos, nPlayers: Int) {
         _highlightings -= listOfNotNull(lastMainTurn)
         _highlightings -= lastMinorTurns.filterNotNull()
         lastMinorTurns = (listOf(lastMainTurn) + (lastMinorTurns - turn))
@@ -49,7 +60,7 @@ class BoardHighlighting {
         _highlightings[turn] = Highlighting.LastTurn.Main
     }
 
-    fun hideInterceptedLastTurns(transitions: Sequence<Transition>) {
+    override fun hideInterceptedLastTurns(transitions: Sequence<Transition>) {
         val boards = transitions.flatMap { sequenceOf(it.interimBoard, it.endBoard) }
         val interceptedByExplosions = lastTurns.filter { pos -> boards.map { it.chipAt(pos) }.toSet().size > 1 }
         hideInterceptedLastTurns(interceptedByExplosions)
@@ -62,13 +73,13 @@ class BoardHighlighting {
         lastMinorTurns = lastMinorTurns.map { it?.takeUnless { it in intercepted } }
     }
 
-    fun showNextTurn(turn: Pos) {
+    override fun showNextTurn(turn: Pos) {
         _highlightings -= listOfNotNull(nextTurn)
         nextTurn = turn
         _highlightings[turn] = Highlighting.NextTurn
     }
 
-    fun hideNextTurn() {
+    override fun hideNextTurn() {
         _highlightings -= listOfNotNull(nextTurn)
         nextTurn = null
     }

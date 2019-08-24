@@ -18,6 +18,7 @@ interface GameBitmapLoader : AssetBitmapLoader {
     fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap
     fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.defaultColorPrism, chip: Chip): Bitmap
     fun loadHighlighting(highlighting: Highlighting): Bitmap
+    fun loadMadeTurn(): Bitmap
 }
 
 open class CachingAssetBitmapLoader(private val assetManager: AssetManager) : AssetBitmapLoader {
@@ -45,6 +46,9 @@ class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoa
                 Highlighting.NextTurn -> "highlights/next-turn.png"
             }
         )
+
+    override fun loadMadeTurn(): Bitmap =
+        loadAssetBitmap("highlights/made-turn.png")
 
     override fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism, chip: Chip): Bitmap =
         loadAssetBitmap(chipSet.pathOfChip(colorPrism, chip))

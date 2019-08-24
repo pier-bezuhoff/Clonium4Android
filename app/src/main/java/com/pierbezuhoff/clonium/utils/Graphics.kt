@@ -8,6 +8,7 @@ import kotlin.math.roundToInt
 
 /** Partially prevents faults after downscaling */
 fun smoothBitmap(bitmap: Bitmap, targetSize: Int): Bitmap {
+    // MAYBE: try using BitmapDrawable
     val size = (1.5 * targetSize).roundToInt() // xp-ed
     val scaled = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val sx = size.toFloat() / bitmap.width
@@ -20,7 +21,10 @@ fun smoothBitmap(bitmap: Bitmap, targetSize: Int): Bitmap {
         bitmap,
         size/2f - bitmap.width/2f,
         size/2f - bitmap.height/2f,
-        Paint(Paint.FILTER_BITMAP_FLAG)
+        Paint().apply {
+            isFilterBitmap = true
+            isAntiAlias = true
+        }
     )
     return scaled
 }

@@ -1,6 +1,5 @@
 package com.pierbezuhoff.clonium.ui.newgame
 
-import android.graphics.*
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -9,14 +8,19 @@ import android.widget.AdapterView
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.pierbezuhoff.clonium.R
-import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.models.*
+import com.pierbezuhoff.clonium.domain.Level1
+import com.pierbezuhoff.clonium.domain.PLAYER_TACTICS
+import com.pierbezuhoff.clonium.domain.PlayerId
+import com.pierbezuhoff.clonium.domain.PlayerTactic
+import com.pierbezuhoff.clonium.models.ChipSet
+import com.pierbezuhoff.clonium.models.GameBitmapLoader
+import com.pierbezuhoff.clonium.models.MutableMapColorPrism
+import com.pierbezuhoff.clonium.models.PlayerItem
 import com.pierbezuhoff.clonium.ui.meta.ListAdapter
 import com.pierbezuhoff.clonium.utils.*
 import kotlinx.android.synthetic.main.colored_chip_item.view.*
 import kotlinx.android.synthetic.main.player_item.view.*
 import kotlinx.android.synthetic.main.player_tactic_item.view.*
-import kotlin.math.roundToInt
 
 class ItemMoveCallback(private val rowManager: RowManager) : ItemTouchHelper.Callback() {
     override fun isLongPressDragEnabled() =

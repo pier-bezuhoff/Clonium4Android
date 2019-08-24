@@ -8,17 +8,19 @@ typealias ExplosionsStep = TransitionStep.Stateful.Explosions
 typealias SwiftRotationsStep = TransitionStep.Stateful.SwiftRotations
 typealias IdleStep = TransitionStep.Stateful.Idle
 typealias FalloutsStep = TransitionStep.Stateless.Fallouts
+typealias MadeTurnStep = TransitionStep.Stateless.MadeTurn
 private typealias ProgressingStep = WithProgress<TransitionStep>
-private typealias StepAdvancer = Advancer<ProgressingStep>
+private typealias TransitionStepAdvancer = Advancer<ProgressingStep>
 
 object AdvancerBuilder {
     fun of(
+        turn: Pos,
         transitions: Sequence<Transition>,
         useSwiftRotations: Boolean
     ): Advancer<List<ProgressingStep>> {
         val list = transitions.toList()
         return when {
-            list.isEmpty() -> EmptyAdvancer
+            list.isEmpty() -> AdvancerPack(listOf(madeTurn(turn)))
             else -> with(Advancers) {
                 list.dropLast(1)
                     .foldRight(transitionAdvancer(list.last(), useSwiftRotations)) { t, sequence ->
@@ -40,30 +42,20 @@ object AdvancerBuilder {
         }
     }
 
-    private fun explosions(transition: Transition): StepAdvancer =
+    private fun explosions(transition: Transition): TransitionStepAdvancer =
         StepAdvancer(ExplosionsStep(transition), Duration.EXPLOSIONS)
 
-    private fun swiftRotations(transition: Transition): StepAdvancer =
+    private fun swiftRotations(transition: Transition): TransitionStepAdvancer =
         StepAdvancer(SwiftRotationsStep(transition), Duration.SWIFT_ROTATION)
 
-    private fun idle(transition: Transition): StepAdvancer =
+    private fun idle(transition: Transition): TransitionStepAdvancer =
         StepAdvancer(IdleStep(transition), Duration.IDLE)
 
-    private fun fallouts(transition: Transition): StepAdvancer =
+    private fun fallouts(transition: Transition): TransitionStepAdvancer =
         StepAdvancer(FalloutsStep(transition), Duration.FALLOUTS)
 
-    @Suppress("FunctionName")
-    private fun <S : TransitionStep> StepAdvancer(step: S, duration: Long): StepAdvancer =
-        object : Advancer<WithProgress<S>>(
-            duration = duration,
-            blockingDuration = if (step is TransitionStep.Stateful) duration else 0L
-        ) {
-            override val blocking: Boolean = step is TransitionStep.Stateful
-            override fun advance(timeDelta: Milliseconds): WithProgress<S> {
-                elapse(timeDelta)
-                return WithProgress(step, progress)
-            }
-        }
+    private fun madeTurn(pos: Pos): TransitionStepAdvancer =
+        StepAdvancer(MadeTurnStep(pos), Duration.MADE_TURN)
 
     /** [TransitionStep]s durations */
     object Duration {
@@ -71,6 +63,7 @@ object AdvancerBuilder {
         const val SWIFT_ROTATION: Milliseconds = 300L
         const val IDLE: Milliseconds = 300L
         const val FALLOUTS: Milliseconds = 7_000L
+        const val MADE_TURN: Milliseconds = 1_000L
     }
 }
 
@@ -123,21 +116,30 @@ sealed class TransitionStep : AnimatedStep {
         final override val blocking: Boolean = false
 
         class Fallouts(
-            val places: Map<Pos, Pair<PlayerId, Direction>>
+            val places: Map<Pos, Pair<Chip, Direction>>
         ) : Stateless() {
             constructor(transition: Transition) : this(
                 transition.explosions
                     .flatMap { it.center.directedNeighbors
                         .filterValues { pos: Pos -> !transition.interimBoard.hasCell(pos) }
                         .map { (direction: Direction, pos: Pos) -> pos to (it.playerId to direction) }
+                    }.groupBy({ it.first }, { it.second }) // take care of 2 chips falling in the same place
+                    .mapValues { (_, values) ->
+                        val (playerId, aDirection) = values.first()
+                        return@mapValues Chip(playerId, Level(values.size)) to aDirection
                     }.toMap()
             )
         }
+
+        class MadeTurn(
+            val place: Pos
+        ) : Stateless()
     }
 }
 
 data class WithProgress<out A : AnimatedStep>(
     val value: A,
     val progress: Progress
-) : AnimatedStep by value
+) : AnimatedStep by value {
+}
 

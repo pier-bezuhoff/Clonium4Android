@@ -336,3 +336,24 @@ class AndroidLogger(
 @Suppress("FunctionName")
 inline fun <reified C> AndroidLoggerOf(minLogLevel: Logger.Level = Logger.Level.VERBOSE): AndroidLogger =
     AndroidLogger(C::class, minLogLevel)
+
+interface WithLog {
+    val log: Logger
+
+    infix fun Logger.v(message: Message) =
+        logV(message)
+    infix fun Logger.d(message: Message) =
+        logD(message)
+    infix fun Logger.i(message: Message) =
+        logI(message)
+    infix fun Logger.w(message: Message) =
+        logW(message)
+    infix fun Logger.e(message: Message) =
+        logE(message)
+}
+
+data class LogHolder(override val log: Logger) : WithLog
+
+@Suppress("FunctionName")
+inline fun <reified C> AndroidLogOf(minLogLevel: Logger.Level = Logger.Level.VERBOSE): LogHolder =
+    LogHolder(AndroidLoggerOf<C>(minLogLevel))

@@ -1,6 +1,7 @@
 package com.pierbezuhoff.clonium.models.animation
 
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.PointF
 import androidx.core.graphics.*
 import com.pierbezuhoff.clonium.domain.*
@@ -8,6 +9,7 @@ import com.pierbezuhoff.clonium.models.*
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 enum class ChipAnimation {
@@ -18,24 +20,26 @@ fun animatedAdvancerOf(
     chipsConfig: ChipsConfig,
     bitmapLoader: GameBitmapLoader,
     gamePresenter: GamePresenter,
+    turn: Pos,
     transitions: Sequence<Transition>
 ): AnimatedAdvancer<WithProgress<TransitionStep>> {
     val (chipAnimation, chipSet, colorPrism) = chipsConfig
     return when (chipAnimation) {
-        ChipAnimation.ROTATION -> AnimatedRotationAdvancer(transitions, chipSet, colorPrism, gamePresenter, bitmapLoader)
-        ChipAnimation.SLIDE -> AnimatedSlideAdvancer(transitions, chipSet, colorPrism, gamePresenter, bitmapLoader)
+        ChipAnimation.ROTATION -> AnimatedRotationAdvancer(turn, transitions, chipSet, colorPrism, gamePresenter, bitmapLoader)
+        ChipAnimation.SLIDE -> AnimatedSlideAdvancer(turn, transitions, chipSet, colorPrism, gamePresenter, bitmapLoader)
     }
 }
 
 // MAYBE: split AnimatedAdvancer <- how to render (exp, [sr, ]idle, fall) steps
 private class AnimatedRotationAdvancer(
+    turn: Pos,
     transitions: Sequence<Transition>,
     private val chipSet: ChipSet,
     private val colorPrism: ColorPrism,
     private val gamePresenter: GamePresenter,
     private val bitmapLoader: GameBitmapLoader
 ) : AnimatedAdvancer<WithProgress<TransitionStep>>(
-    AdvancerBuilder.of(transitions, useSwiftRotations = chipSet.symmetry !is ChipSymmetry.Four)
+    AdvancerBuilder.of(turn, transitions, useSwiftRotations = chipSet.symmetry !is ChipSymmetry.Four)
 ) {
     private val angles: Map<Direction, Float> = mapOf(
         Direction.Right to 0f,
@@ -45,14 +49,14 @@ private class AnimatedRotationAdvancer(
     )
 
     @Suppress("UNCHECKED_CAST")
-    override fun Canvas.drawOne(output: WithProgress<TransitionStep>) {
-        when(output.value) {
+    override fun Canvas.drawOne(output: WithProgress<TransitionStep>) =
+        when (output.value) {
             is ExplosionsStep -> drawExplosions(output as WithProgress<ExplosionsStep>)
             is SwiftRotationsStep -> drawSwiftRotations(output as WithProgress<SwiftRotationsStep>)
             is IdleStep -> drawIdle(output as WithProgress<IdleStep>)
             is FalloutsStep -> drawFallouts(output as WithProgress<FalloutsStep>)
+            is MadeTurnStep -> drawMadeTurn(output as WithProgress<MadeTurnStep>)
         }
-    }
 
     private fun Canvas.drawExplosions(progressingExplosions: WithProgress<ExplosionsStep>) {
         val (explosions, progress) = progressingExplosions
@@ -134,12 +138,12 @@ private class AnimatedRotationAdvancer(
     private fun Canvas.drawFallouts(progressingFallouts: WithProgress<FalloutsStep>) {
         val (fallouts, progress) = progressingFallouts
         with(gamePresenter) {
-            for ((pos, playerIdAndDirection) in fallouts.places) {
-                val (playerId, direction) = playerIdAndDirection
-                val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(playerId, Level1))
+            for ((pos, chipAndDirection) in fallouts.places) {
+                val (chip, direction) = chipAndDirection
+                val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
                 val rescaleMatrix = rescaleMatrix(bitmap)
                 val translateMatrix = pos2translationMatrix(pos)
-                val phi = (angles.getValue(direction) + falloutAngleSpeed * progress).toFloat()
+                val phi = (angles.getValue(direction) + falloutAngularSpeed * progress).toFloat()
                 val centeredRotateMatrix = centeredRotateMatrix(bitmap, phi)
                 val zScale = 1 - falloutVerticalSpeed * progress * zZoom
                 val centeredScaleMatrix = centeredScaleMatrix(
@@ -154,27 +158,54 @@ private class AnimatedRotationAdvancer(
             }
         }
     }
+
+    private fun Canvas.drawMadeTurn(progressingMadeTurn: WithProgress<MadeTurnStep>) =
+        drawMadeTurn(gamePresenter, bitmapLoader, progressingMadeTurn)
+}
+
+private fun Canvas.drawMadeTurn(gamePresenter: GamePresenter, bitmapLoader: GameBitmapLoader, progressingMadeTurn: WithProgress<MadeTurnStep>) {
+    val (step, progress) = progressingMadeTurn
+    val pos = step.place
+    val madeTurnBitmap = bitmapLoader.loadMadeTurn()
+    with(gamePresenter) {
+        val rescaleMatrix = rescaleMatrix(madeTurnBitmap)
+        val translateMatrix = pos2translationMatrix(pos)
+        val initialAngularSpeed = 2 * madeTurnMeanAngularSpeed
+        val phi = (initialAngularSpeed * (progress - progress * progress / 2f)).toFloat()
+        val centeredRotateMatrix = centeredRotateMatrix(madeTurnBitmap, phi)
+        val scale = (1 + madeTurnGrowth * progress).toFloat()
+        val centeredScaleMatrix = centeredScaleMatrix(madeTurnBitmap, scale)
+        val maxAlpha = 255
+        drawBitmap(
+            madeTurnBitmap,
+            translateMatrix * rescaleMatrix * centeredScaleMatrix * centeredRotateMatrix,
+            Paint(bitmapPaint).apply {
+                alpha = (maxAlpha * (1 - progress)).roundToInt()
+            }
+        )
+    }
 }
 
 
 private class AnimatedSlideAdvancer(
+    turn: Pos,
     transitions: Sequence<Transition>,
     private val chipSet: ChipSet,
     private val colorPrism: ColorPrism,
     private val gamePresenter: GamePresenter,
     private val bitmapLoader: GameBitmapLoader
 ) : AnimatedAdvancer<WithProgress<TransitionStep>>(
-    AdvancerBuilder.of(transitions, useSwiftRotations = false)
+    AdvancerBuilder.of(turn, transitions, useSwiftRotations = false)
 ) {
     @Suppress("UNCHECKED_CAST")
-    override fun Canvas.drawOne(output: WithProgress<TransitionStep>) {
+    override fun Canvas.drawOne(output: WithProgress<TransitionStep>) =
         when(output.value) {
             is ExplosionsStep -> drawExplosions(output as WithProgress<ExplosionsStep>)
             is IdleStep -> drawIdle(output as WithProgress<IdleStep>)
             is FalloutsStep -> drawFallouts(output as WithProgress<FalloutsStep>)
+            is MadeTurnStep -> drawMadeTurn(output as WithProgress<MadeTurnStep>)
             else -> impossibleCaseOf(output.value)
         }
-    }
 
     private fun Canvas.drawExplosions(progressingExplosions: WithProgress<ExplosionsStep>) {
         val (explosions, progress) = progressingExplosions
@@ -222,12 +253,12 @@ private class AnimatedSlideAdvancer(
     private fun Canvas.drawFallouts(progressingFallouts: WithProgress<FalloutsStep>) {
         val (fallouts, progress) = progressingFallouts
         with(gamePresenter) {
-            for ((pos, playerIdAndDirection) in fallouts.places) {
-                val (playerId, _) = playerIdAndDirection
-                val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, Chip(playerId, Level1))
+            for ((pos, chipAndDirection) in fallouts.places) {
+                val (chip, _) = chipAndDirection
+                val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
                 val rescaleMatrix = rescaleMatrix(bitmap)
                 val translateMatrix = pos2translationMatrix(pos)
-                val phi = (falloutAngleSpeed * progress).toFloat()
+                val phi = (falloutAngularSpeed * progress).toFloat()
                 val centeredRotateMatrix = centeredRotateMatrix(bitmap, phi)
                 val zScale = 1 - falloutVerticalSpeed * progress * zZoom
                 val centeredScaleMatrix = centeredScaleMatrix(
@@ -242,4 +273,7 @@ private class AnimatedSlideAdvancer(
             }
         }
     }
+
+    private fun Canvas.drawMadeTurn(progressingMadeTurn: WithProgress<MadeTurnStep>) =
+        drawMadeTurn(gamePresenter, bitmapLoader, progressingMadeTurn)
 }

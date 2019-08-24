@@ -24,9 +24,11 @@ val gameModule = module {
 
     single<Game.Builder> { AsyncGame.Builder }
 
+    factory<BoardHighlighting> { MapBoardHighlighting() }
+
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get()) }
-    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get()) }
+    factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get(), get()) }
+    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
     viewModel<NewGameViewModel> { NewGameViewModel(get()) }

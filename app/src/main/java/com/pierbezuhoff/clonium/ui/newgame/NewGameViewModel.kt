@@ -109,7 +109,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     }
 
     override fun highlightPlayer(playerId: PlayerId) {
-        boardPresenter.value?.boardHighlighting?.showHumanPossibleTurns(board.possOf(playerId))
+        boardPresenter.value?.showHumanPossibleTurns(board.possOf(playerId))
         boardViewInvalidating.send {
             invalidateBoardView()
         }
@@ -117,7 +117,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
     }
 
     override fun unhighlight() {
-        boardPresenter.value?.boardHighlighting?.hidePossibleTurns()
+        boardPresenter.value?.hidePossibleTurns()
         boardViewInvalidating.send {
             invalidateBoardView()
         }
@@ -145,7 +145,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 it.colorPrism ?: chipSet.defaultColorPrism
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
-            chipSet = GreenChipSet //tmp
+            chipSet = CircuitChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
             val index = it.getInt(SimpleBoard.Examples::class.simpleName, 0)

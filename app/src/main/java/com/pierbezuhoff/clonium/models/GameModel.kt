@@ -20,7 +20,7 @@ class GameModel(
     private val coroutineScope: CoroutineScope
 ) : Any()
     , DrawThread.Callback
-    , Logger by AndroidLoggerOf<GameModel>()
+    , WithLog by AndroidLogOf<GameModel>()
     , KoinComponent
 {
     interface StatHolder { fun updateStat(gameStat: GameStat) }
@@ -35,21 +35,20 @@ class GameModel(
     private var continueGameOnce by Once(true)
 
     fun userTap(point: PointF) {
-        synchronized(Lock) {
+        log i "useTap $point"
+        synchronized {
             if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
                 val pos = gamePresenter.pointf2pos(point)
                 if (pos in game.possibleTurns()) {
-                    gamePresenter.boardHighlighting.hidePossibleTurns()
+                    gamePresenter.hidePossibleTurns()
                     gamePresenter.freezeBoard()
-                    if (game.isEnd())
-                        game.board
                     val transitions = game.humanTurn(pos)
-                    gamePresenter.boardHighlighting.showLastTurn(pos, game.nPlayers)
-                    gamePresenter.startTransitions(transitions)
+                    gamePresenter.showLastTurn(pos, game.nPlayers)
+                    gamePresenter.startTransitions(pos, transitions)
                     gamePresenter.unfreezeBoard()
                     continueGameOnce = true
                 }
-            } // MAYBE: if selfNext is human => issue pre-turn
+            } // MAYBE: if next is human => issue pre-turn
         }
     }
 
@@ -57,12 +56,12 @@ class GameModel(
         gamePresenter.setSize(width, height)
 
     override fun draw(canvas: Canvas) =
-        synchronized(Lock) {
+        synchronized {
             gamePresenter.draw(canvas)
         }
 
     override fun advance(timeDelta: Long) {
-        synchronized(Lock) {
+        synchronized {
             gamePresenter.advance((config.gameSpeed * timeDelta).toLong())
             if (!gamePresenter.blocking && continueGameOnce)
                 continueGame()
@@ -75,10 +74,10 @@ class GameModel(
         }
         when {
             game.isEnd() -> {
-                // TODO: show overall stat
+                // TODO: show overall stat, restart, to main menu
             }
             game.currentPlayer is BotPlayer -> {
-                gamePresenter.boardHighlighting.showBotPossibleTurns(game.possibleTurns())
+                gamePresenter.showBotPossibleTurns(game.possibleTurns())
                 currentPlayerHolderConnection.send {
                     updateCurrentPlayer(game.currentPlayer)
                 }
@@ -86,10 +85,10 @@ class GameModel(
                 coroutineScope.launch {
                     delay(config.botMinTime)
                     val (turn, transitions) = game.botTurn()
-                    synchronized(Lock) {
-                        gamePresenter.boardHighlighting.hidePossibleTurns()
-                        gamePresenter.boardHighlighting.showLastTurn(turn, game.nPlayers)
-                        gamePresenter.startTransitions(transitions)
+                    synchronized {
+                        gamePresenter.hidePossibleTurns()
+                        gamePresenter.showLastTurn(turn, game.nPlayers)
+                        gamePresenter.startTransitions(turn, transitions)
                         gamePresenter.unfreezeBoard()
                         continueGameOnce = true
                     }
@@ -97,7 +96,7 @@ class GameModel(
             }
             else -> {
                 // before human's turn:
-                gamePresenter.boardHighlighting.showHumanPossibleTurns(game.possibleTurns())
+                gamePresenter.showHumanPossibleTurns(game.possibleTurns())
                 currentPlayerHolderConnection.send {
                     updateCurrentPlayer(game.currentPlayer)
                 }
@@ -105,5 +104,7 @@ class GameModel(
         }
     }
 
-    object Lock
+    private inline fun synchronized(block: () -> Unit) =
+        synchronized(this, block)
 }
+
