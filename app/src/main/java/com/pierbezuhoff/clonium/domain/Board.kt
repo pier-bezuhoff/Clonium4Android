@@ -15,7 +15,7 @@ data class Pos(val x: Int, val y: Int) : Serializable {
     val down: Pos get() = Pos(x, y + 1)
     val neighbors: Set<Pos> get() = setOf(right, up, left, down)
     val directedNeighbors: Map<Direction, Pos> get() =
-        Direction.DIRECTIONS.associateWith { neighborAt(it) }
+        DIRECTIONS.associateWith { neighborAt(it) }
 
     fun neighborAt(direction: Direction): Pos =
         when (direction) {
@@ -302,96 +302,96 @@ interface Board : EmptyBoard {
    fun levelOf(playerId: PlayerId): Int =
         possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }
 
-    /** [Set] of transitive [Level3] neighbors */
-    fun chains(): Set<Set<Pos>> {
-        val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
-        val chains = mutableSetOf<MutableSet<Pos>>()
-        val chained = mutableSetOf<Pos>()
-        for (pos in level3poss) {
-            val chainedNeighbors = neighbors(pos).intersect(chained)
-            val neighborChains = chains.filter { it.intersect(chainedNeighbors).isNotEmpty() }
-            if (neighborChains.isEmpty()) {
-                chains.add(mutableSetOf(pos))
-            } else {
-                val mainChain = neighborChains.first()
-                mainChain.add(pos)
-                if (neighborChains.size > 1) {
-                    for (chain in neighborChains.drop(1)) {
-                        chains.remove(chain)
-                        mainChain.addAll(chain)
-                    }
-                }
-            }
-            chained.add(pos)
-        }
-        return chains
-    }
+   /** [Set] of transitive [Level3] neighbors */
+   fun chains(): Set<Set<Pos>> {
+       val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
+       val chains = mutableSetOf<MutableSet<Pos>>()
+       val chained = mutableSetOf<Pos>()
+       for (pos in level3poss) {
+           val chainedNeighbors = neighbors(pos).intersect(chained)
+           val neighborChains = chains.filter { it.intersect(chainedNeighbors).isNotEmpty() }
+           if (neighborChains.isEmpty()) {
+               chains.add(mutableSetOf(pos))
+           } else {
+               val mainChain = neighborChains.first()
+               mainChain.add(pos)
+               if (neighborChains.size > 1) {
+                   for (chain in neighborChains.drop(1)) {
+                       chains.remove(chain)
+                       mainChain.addAll(chain)
+                   }
+               }
+           }
+           chained.add(pos)
+       }
+       return chains
+   }
 
-    /** Transitive [Level3] neighbors of [pos] if [pos] has at least [Level3] else `null` */
-    fun chainOf(pos: Pos): Set<Pos>? =
-        if (levelAt(pos)?.let { it < Level3 } ?: true)
-            null
-        else
-            chains().first { pos in it }
+   /** Transitive [Level3] neighbors of [pos] if [pos] has at least [Level3] else `null` */
+   fun chainOf(pos: Pos): Set<Pos>? =
+       if (levelAt(pos)?.let { it < Level3 } ?: true)
+           null
+       else
+           chains().first { pos in it }
 
-    /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
-    fun distinctTurnsOf(playerId: PlayerId): Set<Pos> {
-        val chains = chains()
-        fun chainIdOf(pos: Pos): Int =
-            chains.indexOfFirst { pos in it }
-        val poss = possOf(playerId)
-        val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
-        return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
-    }
+   /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
+   fun distinctTurnsOf(playerId: PlayerId): Set<Pos> {
+       val chains = chains()
+       fun chainIdOf(pos: Pos): Int =
+           chains.indexOfFirst { pos in it }
+       val poss = possOf(playerId)
+       val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
+       return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
+   }
 
-    fun groupedDistinctTurns(playerId: PlayerId): Set<Set<Pos>> {
-        val chains = chains()
-        fun chainIdOf(pos: Pos): Int =
-            chains.indexOfFirst { pos in it }
-        val poss = possOf(playerId)
-        val (stable, unstable) = poss.partition { levelAt(it)!! < Level3 }
-        return stable.map { setOf(it) }.toSet() + unstable.groupBy { chainIdOf(it) }.values.map { it.toSet() }
-    }
+   fun groupedDistinctTurns(playerId: PlayerId): Set<Set<Pos>> {
+       val chains = chains()
+       fun chainIdOf(pos: Pos): Int =
+           chains.indexOfFirst { pos in it }
+       val poss = possOf(playerId)
+       val (stable, unstable) = poss.partition { levelAt(it)!! < Level3 }
+       return stable.map { setOf(it) }.toSet() + unstable.groupBy { chainIdOf(it) }.values.map { it.toSet() }
+   }
 
-    /** Cyclically shift [order] removing dead players */
-    fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
-        if (order.isEmpty())
-            return order
-        val filteredOrder = order.filter { isAlive(it) }
-        return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
-    }
+   /** Cyclically shift [order] removing dead players */
+   fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
+       if (order.isEmpty())
+           return order
+       val filteredOrder = order.filter { isAlive(it) }
+       return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
+   }
 
-    override fun pos2str(pos: Pos): String =
-        when {
-            !hasCell(pos) -> "  "
-            !hasChip(pos) -> "□ "
-            else -> {
-                val (player, level) = chipAt(pos)!!
-                val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
-                val playerChar =
-                    if (player.id <= 9)
-                        playerChars[player.id]
-                    else
-                        playerChars.last()
-                "${level.ordinal}$playerChar"
-            }
-        }
+   override fun pos2str(pos: Pos): String =
+       when {
+           !hasCell(pos) -> "  "
+           !hasChip(pos) -> "□ "
+           else -> {
+               val (player, level) = chipAt(pos)!!
+               val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
+               val playerChar =
+                   if (player.id <= 9)
+                       playerChars[player.id]
+                   else
+                       playerChars.last()
+               "${level.ordinal}$playerChar"
+           }
+       }
 
-    override fun copy(): Board =
-        SimpleBoard(width, height, asPosMap().toMutableMap())
+   override fun copy(): Board =
+       SimpleBoard(width, height, asPosMap().toMutableMap())
 
-    interface Builder : EmptyBoard.Builder {
-        fun of(emptyBoard: EmptyBoard): Board
+   interface Builder : EmptyBoard.Builder {
+       fun of(emptyBoard: EmptyBoard): Board
 
-        override fun fromString(s: String): Board
+       override fun fromString(s: String): Board
 
-        /** Scan 2 chars of asString() repr and return Pair(has cell, chip) */
-        fun readChip(c1: Char, c2: Char): Pair<Boolean, Chip?> =
-            if (c2 == ' ')
-                Pair(readCell(c1, c2), null)
-            else
-                Pair(true, Chip(PlayerId("⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ".indexOf(c2)), Level("$c1".toInt())))
-    }
+       /** Scan 2 chars of asString() repr and return Pair(has cell, chip) */
+       fun readChip(c1: Char, c2: Char): Pair<Boolean, Chip?> =
+           if (c2 == ' ')
+               Pair(readCell(c1, c2), null)
+           else
+               Pair(true, Chip(PlayerId("⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ".indexOf(c2)), Level("$c1".toInt())))
+   }
 }
 
 class SimpleBoard(
@@ -493,11 +493,17 @@ sealed class Direction {
     object Right : Direction()
     object Down : Direction()
     object Left : Direction()
-
-    companion object {
-        val DIRECTIONS = listOf(Up, Right, Down, Left)
-    }
 }
+
+// NOTE: referencing subclass in superclass static method/field on JVM
+//  may lead to deadlock in multi-thread environment
+//  (a thread tries loading superclass, while the other one tries loading subclass)
+val DIRECTIONS: List<Direction> = listOf(
+    Direction.Up,
+    Direction.Right,
+    Direction.Down,
+    Direction.Left
+)
 
 /** Single-chip effect of [EvolvingBoard.inc]: [Chip] at [center] decrease [Level] by 4 and
  * 4 transient [Chip]s with [Level1] explode to [up], [right], [down] and [left] */

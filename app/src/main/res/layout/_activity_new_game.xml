@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--suppress AndroidDomInspection -->
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+>
+    <androidx.viewpager.widget.ViewPager
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+    >
+        <com.google.android.material.tabs.TabLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+        >
+            <com.google.android.material.tabs.TabItem android:text="Players"/>
+            <com.google.android.material.tabs.TabItem android:text="Boards"/>
+            <com.google.android.material.tabs.TabItem android:text="Chips"/>
+            <com.google.android.material.tabs.TabItem android:text="Time"/>
+            <com.google.android.material.tabs.TabItem android:text="Game settings"/>
+        </com.google.android.material.tabs.TabLayout>
+    </androidx.viewpager.widget.ViewPager>
+
+</LinearLayout>
