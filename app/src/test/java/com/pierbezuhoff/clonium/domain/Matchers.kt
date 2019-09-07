@@ -1,7 +1,7 @@
 package com.pierbezuhoff.clonium.domain
 
 import io.kotlintest.Matcher
-import io.kotlintest.Result
+import io.kotlintest.MatcherResult
 import io.kotlintest.matchers.Diff
 import io.kotlintest.should
 
@@ -12,7 +12,7 @@ fun matchBoard(expected: Board): Matcher<Board> =
     BoardMatcher(expected)
 
 private class BoardMatcher(private val expected: Board) : Matcher<Board> {
-    override fun test(value: Board): Result {
+    override fun test(value: Board): MatcherResult {
         val diff = Diff.create(value.asPosMap(), expected.asPosMap())
         val failureMessage = """
             |
@@ -32,7 +32,7 @@ private class BoardMatcher(private val expected: Board) : Matcher<Board> {
             |but equals
             |
         """.trimMargin()
-        return Result(
+        return MatcherResult(
             value.asString() == expected.asString(),
             failureMessage, negatedFailureMessage
         )

@@ -2,7 +2,7 @@ package com.pierbezuhoff.clonium.models.animation
 
 import com.pierbezuhoff.clonium.utils.Milliseconds
 import io.kotlintest.Matcher
-import io.kotlintest.Result
+import io.kotlintest.MatcherResult
 import io.kotlintest.should
 
 fun <A> Advancer<A>.shouldAdvanceTo(
@@ -16,7 +16,7 @@ private class AdvanceToMatcher<A>(
     private val expected: A? = null,
     private val blocking: Boolean? = null, private val ended: Boolean? = null
 ) : Matcher<Advancer<A>> {
-    override fun test(value: Advancer<A>): Result {
+    override fun test(value: Advancer<A>): MatcherResult {
         val actual = value.advance(timeDelta)
         val resultMatches = expected?.let { actual == it } ?: true
         val resultFailureMessage = if (!resultMatches)
@@ -40,7 +40,7 @@ private class AdvanceToMatcher<A>(
             |or ended should not be ${value.ended}
             |
         """.trimMargin()
-        return Result(
+        return MatcherResult(
             resultMatches && blockingMatches && endedMatches,
             failureMessage, negatedFailureMessage
         )

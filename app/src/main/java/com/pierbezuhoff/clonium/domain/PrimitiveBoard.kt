@@ -10,7 +10,7 @@ class PrimitiveBoard private constructor(
     private val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
 
-    @Suppress("RemoveRedundantQualifierName")
+    @Suppress("RemoveRedundantQualifierName") // Q: why?
     constructor(board: Board) : this(
         board.width, board.height,
         IntArray(board.width * board.height).apply {
@@ -71,9 +71,9 @@ class PrimitiveBoard private constructor(
             value == NO_CELL || value == NO_CHIP ->
                 null
             value < -2 ->
-                throw IllegalArgumentException("Impossible to decode $value < -2 to Chip? at board $this")
+                throw IllegalArgumentException("Impossible to decode $value < -2 to Chip?")
             value % MAX_LEVEL_ORDINAL == 0 ->
-                throw IllegalArgumentException("Impossible to decode $value with level = 0 to Chip? at board $this")
+                throw IllegalArgumentException("Impossible to decode $value with level = 0 to Chip?")
             else ->
                 Chip(int2playerId(value), int2level(value))
         }
