@@ -139,7 +139,8 @@ abstract class CommonChipSet(
                 StarChipSet,
                 WhiteStarChipSet,
                 MinecraftChipSet,
-                CircuitChipSet
+                CircuitChipSet,
+                FlowerChipSet
             ).associateBy { it.name }
 
         fun of(name: String) =
@@ -231,4 +232,14 @@ object CircuitChipSet : CommonChipSet(
 ) {
     override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
         mkPathIn("circuit_chip_set", colorId, levelOrdinal)
+}
+
+object FlowerChipSet : CommonChipSet(
+    name = "flower",
+    symmetry = ChipSymmetry.Four,
+    nColors = 8,
+    levelRange = 0..8
+) {
+    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
+        mkPathIn("flower_chip_set", colorId, levelOrdinal)
 }

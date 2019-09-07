@@ -145,7 +145,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 it.colorPrism ?: chipSet.defaultColorPrism
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
-            chipSet = CircuitChipSet //tmp
+            chipSet = FlowerChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
             val index = it.getInt(SimpleBoard.Examples::class.simpleName, 0)

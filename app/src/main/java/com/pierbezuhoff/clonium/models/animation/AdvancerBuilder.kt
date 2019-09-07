@@ -32,7 +32,7 @@ object AdvancerBuilder {
 
     private fun transitionAdvancer(transition: Transition, useSwiftRotations: Boolean): AdvancerSequence<ProgressingStep> {
         val explosions = explosions(transition)
-        val swiftRotations = swiftRotations(transition)
+        val swiftRotations by lazy { swiftRotations(transition) }
         val fallouts = fallouts(transition)
         return with(Advancers) {
             if (useSwiftRotations)
