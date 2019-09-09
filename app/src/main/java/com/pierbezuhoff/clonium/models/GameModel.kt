@@ -3,13 +3,22 @@ package com.pierbezuhoff.clonium.models
 import android.graphics.Canvas
 import android.graphics.PointF
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.ui.game.DrawThread
-import com.pierbezuhoff.clonium.utils.*
+import com.pierbezuhoff.clonium.utils.AndroidLogOf
+import com.pierbezuhoff.clonium.utils.Connection
+import com.pierbezuhoff.clonium.utils.Once
+import com.pierbezuhoff.clonium.utils.WithLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 import org.koin.core.get
+
+/** call order: advance; draw */
+interface AdvanceableDrawable {
+    // NOTE: virtual time => we can pause, accelerate and decelerate game easily
+    fun advance(timeDelta: Long)
+    fun draw(canvas: Canvas)
+}
 
 // MAYBE: non-significant explosions are non-blocking
 // MAYBE: issue pre-turn (BoardPresenter.boardHighlighting.showNextTurn)
@@ -19,7 +28,7 @@ class GameModel(
     chipsConfig: ChipsConfig,
     private val coroutineScope: CoroutineScope
 ) : Any()
-    , DrawThread.Callback
+    , AdvanceableDrawable
     , WithLog by AndroidLogOf<GameModel>()
     , KoinComponent
 {

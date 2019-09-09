@@ -64,6 +64,16 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
+    override fun onRestart() {
+        game_view.onRestart()
+        super.onRestart()
+    }
+
+    override fun onStop() {
+        game_view.onStop()
+        super.onStop()
+    }
+
     companion object {
         /** Distraction free mode */
         private const val IMMERSIVE_UI_VISIBILITY =

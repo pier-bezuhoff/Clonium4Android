@@ -10,7 +10,7 @@ class PrimitiveBoard private constructor(
     private val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
 
-    @Suppress("RemoveRedundantQualifierName") // Q: why?
+    @Suppress("RemoveRedundantQualifierName") // cannot exec this@PrimitiveBoard.run { ... } before primary constructor init
     constructor(board: Board) : this(
         board.width, board.height,
         IntArray(board.width * board.height).apply {
@@ -20,7 +20,7 @@ class PrimitiveBoard private constructor(
             for ((pos, maybeChip) in board.asPosMap())
                 this[proto.pos2ix(pos)] = proto.chip2int(maybeChip)
         },
-        kotlin.run {
+        kotlin.run { // context-less
             val proto = PrimitiveBoard(board.width, board.height, intArrayOf(), mutableMapOf())
             return@run board.players().associateWith {
                 board.possOf(it).map { proto.pos2ix(it) }.toMutableSet() }

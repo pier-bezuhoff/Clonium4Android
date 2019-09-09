@@ -14,14 +14,13 @@ import com.pierbezuhoff.clonium.domain.PlayerId3
 import com.pierbezuhoff.clonium.domain.PrimitiveBoard
 import com.pierbezuhoff.clonium.ui.game.GameActivity
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
-import com.pierbezuhoff.clonium.utils.AndroidLogger
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
+import com.pierbezuhoff.clonium.ui.newgame.NewGameTabbedActivity
+import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity()
-    , Logger by AndroidLogger("MainActivity")
+    , WithLog by AndroidLogOf<MainActivity>()
 {
     interface Callbacks {
         fun onTutorial(view: View)
@@ -30,14 +29,14 @@ class MainActivity : AppCompatActivity()
     }
     private val callbacks = object : Callbacks {
         override fun onTutorial(view: View) {
-            logI("onTutorial")
+            log i "onTutorial"
         }
         override fun onNewGame(view: View) {
             // TODO: optimize new game action: skipping ~30 frames!
             navigateToNewGameActivity()
         }
         override fun onBoardEditor(view: View) {
-            logI("onBoardEditor")
+            log i "onBoardEditor"
         }
     }
 
@@ -55,13 +54,15 @@ class MainActivity : AppCompatActivity()
     }
 
     private fun navigateToNewGameActivity() {
-        val intent = Intent(this, NewGameActivity::class.java)
+        val intent = Intent(this, NewGameTabbedActivity::class.java)
+//        val intent = Intent(this, NewGameActivity::class.java)
         startActivityForResult(intent, NEW_GAME_REQUEST_CODE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (resultCode) {
-            NEW_GAME_REQUEST_CODE -> logI("from GameActivity")
+            NEW_GAME_REQUEST_CODE ->
+                log i "from GameActivity"
         }
         super.onActivityResult(requestCode, resultCode, data)
     }

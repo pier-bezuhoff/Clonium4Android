@@ -67,7 +67,12 @@ interface EmptyBoard {
                 appendln()
                 append((0 until width)
                     .joinToString(prefix = "$y|", separator = "", postfix = "|$y") { x ->
-                        try { pos2str(Pos(x, y)) } catch (_: IllegalArgumentException) { "! " }
+                        runCatching {
+                            pos2str(Pos(x, y))
+                        }.getOrElse {
+                            it.printStackTrace()
+                            return@getOrElse "! "
+                        }
                     })
             }
             appendln()

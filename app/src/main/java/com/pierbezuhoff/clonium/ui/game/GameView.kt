@@ -3,122 +3,115 @@ package com.pierbezuhoff.clonium.ui.game
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
-import android.view.SurfaceHolder
-import android.view.SurfaceView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.Observer
+import android.view.View
+import androidx.lifecycle.*
 import com.pierbezuhoff.clonium.models.GameModel
+import com.pierbezuhoff.clonium.utils.AndroidLogOf
+import com.pierbezuhoff.clonium.utils.Milliseconds
 import com.pierbezuhoff.clonium.utils.Once
+import com.pierbezuhoff.clonium.utils.WithLog
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 import org.koin.core.get
-import java.lang.IllegalArgumentException
-import java.lang.IllegalStateException
+import java.lang.Exception
+import kotlin.concurrent.fixedRateTimer
 
+// MAYBE: invalidate every once in a while
 class GameView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : SurfaceView(context, attrs, defStyleAttr), KoinComponent {
-    lateinit var viewModel: GameViewModel // inject via data binding
-
-    init {
-        holder.addCallback(SurfaceManager { viewModel.gameModel } )
-        get<GameGestures>().registerAsOnTouchListenerFor(this)
-    }
-}
-
-class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>) : Any()
-    , SurfaceHolder.Callback
+) : View(context, attrs, defStyleAttr)
     , LifecycleOwner
+    , KoinComponent
+    , WithLog by AndroidLogOf<GameView>()
 {
+    lateinit var viewModel: GameViewModel // inject via data binding
+    private val liveGameModel: LiveData<GameModel> by lazy { viewModel.gameModel }
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     override fun getLifecycle(): Lifecycle = lifecycleRegistry
 
-    private lateinit var drawThread: DrawThread
-    private val firstSurfaceChange by Once(true)
     private lateinit var size: Pair<Int, Int>
-    private val gameModel: LiveData<GameModel> by lazy(liveGameModelInitializer)
+    private val firstSizeChanged by Once(true)
+
+    private var ended = false
+    private var lastUpdateTime: Long = 0L
 
     init {
+        get<GameGestures>().registerAsOnTouchListenerFor(this)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-        drawThread = DrawThread(gameModel, holder).apply {
-            start()
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        log i "onSizeChanged($w, $h, $oldw, $oldh)"
+        size = Pair(width, height)
+        if (firstSizeChanged) {
+            onFirstRun()
         }
     }
 
-    override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-        Log.i("SurfaceManager", "surfaceChanged($holder, $format, $width, $height)")
-        size = Pair(width, height)
-        if (firstSurfaceChange)
-            gameModel.observe(this, Observer {
-                it.setSize(size.first, size.second)
-            })
+    private fun onFirstRun() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        liveGameModel.observe(this, Observer {
+            it.setSize(size.first, size.second)
+        })
+        scheduleUpdates()
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder?) {
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        drawThread.ended = true
-        drawThread.join() // NOTE: may throw some exceptions
+    private fun scheduleUpdates() {
+        fixedRateTimer(period = UPDATE_TIME_DELTA) {
+            postInvalidate()
+            log i "postInvalidate"
+            if (ended)
+                cancel()
+        }
+//        viewModel.viewModelScope.launch {
+//            while (isActive && !ended) {
+//                postInvalidate()
+//                delay(UPDATE_TIME_DELTA)
+//            }
+//        }
     }
-}
 
-// MAYBE: it can be cancellable coroutine
-// MAYBE: rewrap LiveData into Connection
-class DrawThread(
-    private val liveCallback: LiveData<out Callback>,
-    private val surfaceHolder: SurfaceHolder
-) : Thread() {
-    /** order: advance; draw */
-    interface Callback {
-        // NOTE: virtual time => we can pause, accelerate and decelerate game easily
-        fun advance(timeDelta: Long)
-        fun draw(canvas: Canvas)
-    }
-    var ended = false
-    private var lastUpdateTime: Long = 0L
-
-    override fun run() {
-        var maybeCanvas: Canvas? = null
-        while (!ended) {
-            val currentTime = System.currentTimeMillis()
-            val timeDelta = currentTime - lastUpdateTime
-            if (timeDelta >= UPDATE_TIME_DELTA) {
-                if (lastUpdateTime != 0L)
-                    liveCallback.value?.advance(timeDelta)
-                lastUpdateTime = currentTime
-            }
+    override fun onDraw(canvas: Canvas) {
+        log i "onDraw"
+        super.onDraw(canvas)
+        if (!ended) {
+            advance()
             try {
-                surfaceHolder.lockCanvas()?.also { canvas: Canvas ->
-                    maybeCanvas = canvas
-                    synchronized(surfaceHolder) {
-                        liveCallback.value?.draw(canvas)
-                    }
-                }
-            } catch (e: IllegalArgumentException) { // surface already locked
+                liveGameModel.value?.draw(canvas)
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.w("DrawThread", "include exception $e into silent catch")
-            } finally {
-                maybeCanvas?.let {
-                    try {
-                        surfaceHolder.unlockCanvasAndPost(it)
-                    } catch (e: IllegalStateException) { // surface was not locked
-                    } finally {
-                        maybeCanvas = null
-                    }
-                }
+                log w "include exception $e into silent catch"
             }
         }
+    }
+
+    private fun advance() {
+        val currentTime = System.currentTimeMillis()
+        val timeDelta = currentTime - lastUpdateTime
+        if (timeDelta >= UPDATE_TIME_DELTA) {
+            if (lastUpdateTime != 0L)
+                liveGameModel.value?.advance(timeDelta)
+            lastUpdateTime = currentTime
+        }
+    }
+
+    fun onStop() {
+        ended = true
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+    }
+
+    fun onRestart() {
+        ended = false
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        scheduleUpdates()
     }
 
     companion object {
         private const val FPS = 60
-        private const val UPDATE_TIME_DELTA: Long = 1000L / FPS
+        private const val UPDATE_TIME_DELTA: Milliseconds = 1_000L / FPS
     }
 }

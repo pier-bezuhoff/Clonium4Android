@@ -27,7 +27,6 @@ class NewGameActivity : AppCompatActivity()
 //            FIX: ~200ms on setContentView!
             val binding: ActivityNewGameBinding =
                 DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)
-//            setContentView(R.layout.activity_new_game)
             - "setContentView"
             binding.lifecycleOwner = this@NewGameActivity
             binding.viewModel = newGameViewModel

@@ -170,14 +170,16 @@ object GreenChipSet : CommonChipSet(
         mkBottomPathIn("green_chip_set", colorId)
 }
 
+private val HIGH_CONTRAST_COLOR_PRISM_8 =
+    colorPrismOf(setOf(7, 2, 5, 6, 1, 3, 0, 4))
+
 object StarChipSet : CommonChipSet(
     name = "star",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
     levelRange = 0..7
 ) {
-    override val defaultColorPrism =
-        colorPrismOf(setOf(7, 2, 5, 6, 1, 3, 0, 4))
+    override val defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
 
     override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
         mkPathIn("star_chip_set", colorId, levelOrdinal)
@@ -191,8 +193,7 @@ object WhiteStarChipSet : CommonChipSet(
     nColors = 8,
     levelRange = 0..7
 ) {
-    override val defaultColorPrism =
-        colorPrismOf(setOf(7, 2, 5, 6, 1, 3, 0, 4))
+    override val defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
 
     override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
         mkPathIn("star_white_chip_set", colorId, levelOrdinal)
