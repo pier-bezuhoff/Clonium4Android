@@ -30,7 +30,7 @@ data class ElapsedTime<A>(val inNanoseconds: Nanoseconds, val result: A) {
                 "${milliseconds}ms "
             else "%.3f".format(milliseconds + nanoseconds * 1e-6f) + "ms "
         } else ""
-        val ns = if (showNanoseconds) "${nanoseconds}ns " else ""
+        val ns = if (showNanoseconds) "${nanoseconds * 1e-6f}ms " else ""
         return m + s + ms + ns
     }
 }

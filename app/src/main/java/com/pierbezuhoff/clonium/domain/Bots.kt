@@ -1,9 +1,7 @@
 package com.pierbezuhoff.clonium.domain
 
 import android.util.Rational
-import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.measureElapsedTimePretty
+import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
@@ -102,7 +100,7 @@ abstract class MaximizerBot(
     protected val depth: Int
 ): Any()
     , BotPlayer
-    , Logger by AndroidLoggerOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
+    , WithLog by AndroidLogOf<MaximizerBot>(minLogLevel = Logger.Level.INFO)
 {
 
     suspend fun makeTurnTimed(
@@ -111,7 +109,7 @@ abstract class MaximizerBot(
         val (pretty, bestTurn) = measureElapsedTimePretty {
             makeTurn(board, order)
         }
-        sLogI("$difficultyName thought $pretty")
+        log i s("$difficultyName thought $pretty")
         return bestTurn
     }
 

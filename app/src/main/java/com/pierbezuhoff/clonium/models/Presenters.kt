@@ -126,12 +126,19 @@ open class SimpleBoardPresenter(
         if (printOnce)
             log i "first drawBoard"
         drawColor(BACKGROUND_COLOR)
-        for (pos in board.asPosSet())
-            drawCell(pos)
-        for ((pos, highlighting) in highlightings)
-            drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
-        for ((pos, maybeChip) in board.asPosMap())
-            maybeChip?.let { drawChip(pos, it) }
+        + ":drawBoard"
+        log i withMilestoneScope("drawBoard") {
+            for (pos in board.asPosSet())
+                drawCell(pos)
+            - "draw cells"
+            for ((pos, highlighting) in highlightings)
+                drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
+            - "draw highlightings"
+            for ((pos, maybeChip) in board.asPosMap())
+                maybeChip?.let { drawChip(pos, it) }
+            - "draw chips"
+        }
+        - ":drawBoard"
     }
 
     private fun Canvas.drawCell(pos: Pos) {
@@ -214,9 +221,7 @@ class SimpleGamePresenter(
         require(cellSize > 0) { "setSize must be called before draw" }
         if (!blocking)
             canvas.drawBoard(board)
-        log i elapsedTime("drawAnimation:") {
-            drawAnimations(canvas)
-        }
+        drawAnimations(canvas)
     }
 
     override fun freezeBoard() {

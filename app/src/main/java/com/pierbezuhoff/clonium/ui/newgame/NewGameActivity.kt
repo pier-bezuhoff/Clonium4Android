@@ -9,21 +9,20 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityNewGameBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
-import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
-import com.pierbezuhoff.clonium.utils.Logger
+import com.pierbezuhoff.clonium.utils.*
 import kotlinx.android.synthetic.main.activity_new_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
 class NewGameActivity : AppCompatActivity()
-    , Logger by AndroidLoggerOf<NewGameActivity>()
+    , WithLog by AndroidLogOf<NewGameActivity>()
 {
     private val newGameViewModel: NewGameViewModel by viewModel()
     private lateinit var playerAdapter: PlayerAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
-        logMilestoneScope("onCreate", measureScope = true) {
+        log i withMilestoneScope("onCreate", measureScope = true) {
 //            FIX: ~200ms on setContentView!
             val binding: ActivityNewGameBinding =
                 DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)

@@ -7,6 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
 
+// TODO: document WithLog operators and Logger.Command's constructors
+
 private typealias Name = String
 private typealias Tag = Name
 private typealias ScopeName = Name
@@ -100,12 +102,11 @@ interface Logger : StaggeredScoping {
     @Suppress("UNCHECKED_CAST")
     fun <R> perform(level: Level, command: Command<R>): R =
         when (command) {
-            is s -> log(level, command.message) as R
             is elapsedTime -> with(command) { logElapsedTime(level, prefix, postfix, depthMarker, startMarker, endMarker, block) }
-            is milestoneScope -> with(command) { logMilestoneScope(level, scopeName, milestonePrefix, startMarker, endMarker, measureScope, block) }
+            is withMilestoneScope -> with(command) { logMilestoneScope(level, scopeName, milestonePrefix, startMarker, endMarker, measureScope, block) }
             is withStaggeredScope -> with(command) { logStaggeredScope(level, scopeName, prefix, startMarker, endMarker, measureScope, block) }
-            is staggeredStartOf -> with(command) { staggeredStartOf(level, scopeName, sectionName) } as R
-            is staggeredEndOf -> with(command) { staggeredEndOf(scopeName, sectionName) } as R
+            is staggeredStartOf -> staggeredStartOf(level, command.scopeName, command.sectionName) as R
+            is staggeredEndOf -> staggeredEndOf(command.scopeName, command.sectionName) as R
             else -> impossibleCaseOf(command)
         }
 }
@@ -309,9 +310,10 @@ inline fun <reified C> AndroidLoggerOf(minLogLevel: Logger.Level = Logger.Level.
     AndroidLogger(C::class, minLogLevel)
 
 
+/** log [message] on main thread */
 data class s(
     val message: Message
-) : Logger.Command<Unit>
+)
 
 data class elapsedTime<R>(
     val prefix: String = "elapsed:",
@@ -322,7 +324,7 @@ data class elapsedTime<R>(
     val block: () -> R
 ) : Logger.Command<R>
 
-data class milestoneScope<R>(
+data class withMilestoneScope<R>(
     val scopeName: ScopeName = "MilestoneScope",
     val milestonePrefix: String = "*",
     val startMarker: String? = null,
@@ -365,6 +367,17 @@ interface WithLog {
         log(Logger.Level.WARNING, message)
     infix fun Logger.e(message: Message) =
         log(Logger.Level.ERROR, message)
+
+    suspend infix fun Logger.v(s: s) =
+        sLog(Logger.Level.VERBOSE, s.message)
+    suspend infix fun Logger.d(s: s) =
+        sLog(Logger.Level.DEBUG, s.message)
+    suspend infix fun Logger.i(s: s) =
+        sLog(Logger.Level.INFO, s.message)
+    suspend infix fun Logger.w(s: s) =
+        sLog(Logger.Level.WARNING, s.message)
+    suspend infix fun Logger.e(s: s) =
+        sLog(Logger.Level.ERROR, s.message)
 
     infix fun <R> Logger.v(command: Logger.Command<R>): R =
         perform(Logger.Level.VERBOSE, command)

@@ -3,7 +3,6 @@ package com.pierbezuhoff.clonium.ui.game
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.lifecycle.Lifecycle
@@ -13,11 +12,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import com.pierbezuhoff.clonium.models.AdvanceableDrawable
 import com.pierbezuhoff.clonium.models.GameModel
-import com.pierbezuhoff.clonium.utils.AndroidLogOf
-import com.pierbezuhoff.clonium.utils.Milliseconds
-import com.pierbezuhoff.clonium.utils.Once
-import com.pierbezuhoff.clonium.utils.WithLog
-import kotlinx.coroutines.*
+import com.pierbezuhoff.clonium.utils.*
 import org.koin.core.KoinComponent
 import org.koin.core.get
 import java.lang.IllegalArgumentException
@@ -103,9 +98,7 @@ internal class DrawThread(
             val timeDelta = currentTime - lastUpdateTime
             if (timeDelta >= UPDATE_TIME_DELTA) {
                 if (lastUpdateTime != 0L) {
-                    log.logIElapsedTime("on advance:") {
-                        liveCallback.value?.advance(timeDelta)
-                    }
+                    liveCallback.value?.advance(timeDelta)
                     log i "timeDelta = $timeDelta"
                 }
                 lastUpdateTime = currentTime
@@ -115,7 +108,9 @@ internal class DrawThread(
                     maybeCanvas = canvas
                     synchronized(surfaceHolder) {
                         // FIX: draw takes 25ms - 100ms >> 16ms for 60 FPS!
-                        liveCallback.value?.draw(canvas)
+                        log i elapsedTime(prefix = "on draw:", startMarker = null) {
+                            liveCallback.value?.draw(canvas)
+                        }
                     }
                 }
             } catch (e: IllegalArgumentException) { // surface already locked

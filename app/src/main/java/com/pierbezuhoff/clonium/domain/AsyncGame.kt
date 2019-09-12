@@ -18,7 +18,7 @@ class AsyncGame(
     override val coroutineScope: CoroutineScope
 ) : Any()
     , Game
-    , Logger by AndroidLogger("AsyncGame")
+    , WithLog by AndroidLogOf<AsyncGame>()
 {
     override val players: Map<PlayerId, Player>
     override val order: List<Player>
@@ -45,6 +45,7 @@ class AsyncGame(
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
         val threadFactory = ThreadFactory { Thread(it).apply { priority = Thread.MIN_PRIORITY } }
+        log i Runtime.getRuntime().availableProcessors().toString()
         val nThreads = 4 //Runtime.getRuntime().availableProcessors()
         val threadPool = Executors.newFixedThreadPool(nThreads, threadFactory)
 //        val threadPool = Executors.newCachedThreadPool(threadFactory)
@@ -128,7 +129,7 @@ private class LinkedTurns(
     private val players: Map<PlayerId, Player>,
     private val coroutineScope: CoroutineScope
 ) : Any()
-    , Logger by AndroidLogger("LinkedTurns", Logger.Level.INFO)
+    , WithLog by AndroidLogOf<LinkedTurns>(Logger.Level.INFO)
 {
     private var computing: NextAs<Link.FutureTurn.Bot.Computing>? = null
     private val scheduledComputings: AbstractQueue<NextAs<Link.FutureTurn.Bot.ScheduledComputing>> =
@@ -338,7 +339,7 @@ private class LinkedTurns(
                         val (elapsedPretty, computed) = measureElapsedTimePretty {
                             focus.deferred.await()
                         }
-                        logW("Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n")
+                        log w "Slow bot ${players.getValue(computed.playerId)}: $elapsedPretty\n"
                         setFocus(computed.next)
                         return@synchronized computed.pos to computed.next.trans
                     }
@@ -354,7 +355,7 @@ private class LinkedTurns(
     }
 
     private fun logIState() {
-        logI(
+        log i (
             """focus = $focus,
             |computing = $computing
             |scheduledComputings = ${scheduledComputings.toPrettyString()}
