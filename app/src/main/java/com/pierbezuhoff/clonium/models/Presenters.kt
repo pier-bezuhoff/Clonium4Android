@@ -126,8 +126,7 @@ open class SimpleBoardPresenter(
         if (printOnce)
             log i "first drawBoard"
         drawColor(BACKGROUND_COLOR)
-        + ":drawBoard"
-        log i withMilestoneScope("drawBoard") {
+        log i withMilestoneScope("drawBoard", measureScope = true) {
             for (pos in board.asPosSet())
                 drawCell(pos)
             - "draw cells"
@@ -138,7 +137,6 @@ open class SimpleBoardPresenter(
                 maybeChip?.let { drawChip(pos, it) }
             - "draw chips"
         }
-        - ":drawBoard"
     }
 
     private fun Canvas.drawCell(pos: Pos) {
@@ -148,9 +146,10 @@ open class SimpleBoardPresenter(
     private fun Canvas.drawBitmapAt(bitmap: Bitmap, pos: Pos) {
         val rescaleMatrix = rescaleMatrix(bitmap)
         val translateMatrix = pos2translationMatrix(pos)
-        drawBitmap(
+        val matrix = translateMatrix * rescaleMatrix
+        drawBitmap( // most time-consuming (~0.5ms)
             bitmap,
-            translateMatrix * rescaleMatrix,
+            matrix,
             bitmapPaint
         )
     }

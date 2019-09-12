@@ -27,20 +27,38 @@ data class ElapsedTime<A>(val inNanoseconds: Nanoseconds, val result: A) {
         val s = if (showSeconds) "${seconds}s " else ""
         val ms = if (showMilliseconds) {
             if (showSeconds || milliseconds >= 100)
-                "${milliseconds}ms "
-            else "%.3f".format(milliseconds + nanoseconds * 1e-6f) + "ms "
+                "${milliseconds}ms"
+            else "%.3f".format(milliseconds + nanoseconds * 1e-6f) + "ms"
         } else ""
-        val ns = if (showNanoseconds) "${nanoseconds * 1e-6f}ms " else ""
+        val ns = if (showNanoseconds) "${nanoseconds * 1e-6f}ms" else ""
         return m + s + ms + ns
     }
 }
 
-data class PrettyTimeAndResult<A>(val prettyTime: String, val result: A)
+data class PrettyTimeAndResult<A>(val prettyTime: String, val result: A, val inNanoseconds: Nanoseconds)
 
 inline fun <A> measureElapsedTimePretty(block: () -> A): PrettyTimeAndResult<A> {
     val startTime = System.nanoTime()
     val result = block()
     val inNanoseconds = System.nanoTime() - startTime
     val elapsedTime = ElapsedTime(inNanoseconds, result)
-    return PrettyTimeAndResult(elapsedTime.toString(), elapsedTime.result)
+    return PrettyTimeAndResult(elapsedTime.toString(), elapsedTime.result, inNanoseconds)
+}
+
+class AverageTime {
+    private var sum: Nanoseconds = 0 // NOTE: can it overflow?
+    var n: Int = 0
+        private set
+    val time: ElapsedTime<Unit>?
+        get() =
+            if (n == 0) ElapsedTime(sum, Unit)
+            else ElapsedTime(sum / n, Unit)
+
+    operator fun plusAssign(nextTime: Nanoseconds) {
+        sum += nextTime
+        n += 1
+    }
+
+    fun toModestString(): String =
+        if (n > 1) " (average ${time})" else ""
 }

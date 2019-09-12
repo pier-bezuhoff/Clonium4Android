@@ -155,6 +155,10 @@ abstract class AbstractLogger(
     private val defaultStaggeredScope: StaggeredScope = StaggeredScope()
     private val staggeredScopes: MutableSet<StaggeredScope> = mutableSetOf()
 
+    private val elapsedTimeAverages: MutableMap<String, AverageTime> = mutableMapOf()
+    private val milestoneScopeAverages: MutableMap<Pair<ScopeName, SectionName>, AverageTime> = mutableMapOf()
+    private val staggeredScopeAverages: MutableMap<Pair<ScopeName?, SectionName>, AverageTime> = mutableMapOf()
+
     override fun log(level: Logger.Level, message: Message) {
         if (level >= minLogLevel)
             _log(level, message)
@@ -181,9 +185,12 @@ abstract class AbstractLogger(
             log(level, depthMarker.repeat(measuredCounter) + startMarker)
         }
         measuredCounter ++
-        val (elapsedPretty, result) = measureElapsedTimePretty(block)
+        val (elapsedPretty, result, inNanoseconds) = measureElapsedTimePretty(block)
+        val average = elapsedTimeAverages.getOrPut(prefix + postfix) { AverageTime() }
+        average += inNanoseconds
         measuredCounter --
-        log(level, depthMarker.repeat(measuredCounter) + (endMarker ?: "") + " $prefix $elapsedPretty $postfix")
+        val depthIndent = depthMarker.repeat(measuredCounter)
+        log(level, depthIndent + (endMarker ?: "") + " $prefix $elapsedPretty $postfix" + average.toModestString())
         return result
     }
 
@@ -213,14 +220,18 @@ abstract class AbstractLogger(
             override fun milestoneEndOf(name: SectionName) {
                 val elapsed = System.nanoTime() - (startTimes.remove(name) ?: startTime)
                 val elapsedTime = ElapsedTime(elapsed, Unit)
+                val average = milestoneScopeAverages.getOrPut(scopeName to name) { AverageTime() }
+                average += elapsedTime.inNanoseconds
+                log(level, "$milestonePrefix${endMarker ?: ""} $name: $elapsedTime" + average.toModestString())
                 startTime = System.nanoTime()
-                log(level, "$milestonePrefix${endMarker ?: ""} $name: $elapsedTime")
                 previousMilestoneName = name
             }
         }
-        val (elapsedPretty, result) = measureElapsedTimePretty { milestoneScope.block() }
+        val (elapsedPretty, result, inNanoseconds) = measureElapsedTimePretty { milestoneScope.block() }
         endMarker?.takeIf { measureScope }?.let {
-            log(level, "$endMarker $scopeName: $elapsedPretty")
+            val average = milestoneScopeAverages.getOrPut(scopeName to scopeName) { AverageTime() }
+            average += inNanoseconds
+            log(level, "$endMarker $scopeName: $elapsedPretty" + average.toModestString())
         }
         return result
     }
@@ -231,10 +242,12 @@ abstract class AbstractLogger(
             log(level, "$startMarker $scopeName")
         }
         staggeredScopes += scope
-        val (elapsedPretty, r) = measureElapsedTimePretty(block)
+        val (elapsedPretty, r, inNanoseconds) = measureElapsedTimePretty(block)
         staggeredScopes -= scope
         endMarker?.takeIf { measureScope }?.let {
-            log(level, "$endMarker $scopeName: $elapsedPretty")
+            val average = staggeredScopeAverages.getOrPut(scopeName to scopeName) { AverageTime() }
+            average += inNanoseconds
+            log(level, "$endMarker $scopeName: $elapsedPretty" + average.toModestString())
         }
         return r
     }
@@ -256,7 +269,10 @@ abstract class AbstractLogger(
         val elapsed = time - (scope.sections[sectionName] ?: scope.lastTime)
         scope.sections -= sectionName
         scope.lastTime = time
-        log(scope.level, "${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: ${ElapsedTime(elapsed, Unit)}")
+        val elapsedTime = ElapsedTime(elapsed, Unit)
+        val average = staggeredScopeAverages.getOrPut(scope.scopeName to sectionName) { AverageTime() }
+        average += elapsedTime.inNanoseconds
+        log(scope.level, "${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: $elapsedTime" + average.toModestString())
     }
 }
 
