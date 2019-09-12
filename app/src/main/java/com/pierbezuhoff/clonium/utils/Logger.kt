@@ -357,3 +357,7 @@ data class LogHolder(override val log: Logger) : WithLog
 @Suppress("FunctionName")
 inline fun <reified C> AndroidLogOf(minLogLevel: Logger.Level = Logger.Level.VERBOSE): LogHolder =
     LogHolder(AndroidLoggerOf<C>(minLogLevel))
+
+@Suppress("FunctionName")
+fun AndroidLogOf(logTag: Tag, minLogLevel: Logger.Level = Logger.Level.VERBOSE): LogHolder =
+    LogHolder(AndroidLogger(logTag, minLogLevel))

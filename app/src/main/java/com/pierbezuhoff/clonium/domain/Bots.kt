@@ -116,6 +116,7 @@ abstract class MaximizerBot(
     }
 
     override suspend fun makeTurn(board: Board, order: List<PlayerId>): Pos =
+
         withContext(Dispatchers.Default) {
             val distinctTurns = board.distinctTurnsOf(playerId)
             require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
@@ -135,31 +136,6 @@ abstract class MaximizerBot(
                 )
             }
             return@withContext estimations.maxBy { it.second.await() }!!.first
-        }
-
-    // TODO: measure other possible impls
-    suspend fun makeTurnAsync_(board: Board, order: List<PlayerId>): Pos =
-        withContext(Dispatchers.Default) {
-            val distinctTurns = board.distinctTurnsOf(playerId)
-            require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
-            if (distinctTurns.size == 1)
-                return@withContext distinctTurns.first()
-            val evolvingBoard = PrimitiveBoard(board)
-//            Semaphore(nThreads)
-//            CyclicBarrier(nThreads)
-//            flowOf(distinctTurns).broadcastIn(this).openSubscription()
-//            val scope = CoroutineScope(Executors.newFixedThreadPool(nThreads).asCoroutineDispatcher())
-            val (prettyElapsed, bestTurn) = measureElapsedTimePretty {
-                distinctTurns
-                    .maxBy { turn ->
-                        MaximizingStrategy.estimateTurn(
-                            turn, depth, estimator,
-                            playerId, order, evolvingBoard
-                        )
-                    }!!
-            }
-            sLogI("$difficultyName thought $prettyElapsed")
-            return@withContext bestTurn
         }
 
     override fun toString(): String =

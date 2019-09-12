@@ -17,7 +17,7 @@ import org.koin.core.KoinComponent
 import org.koin.core.get
 import java.lang.Exception
 import kotlin.concurrent.fixedRateTimer
-
+// BUG: hangs on after 1-st turn
 // MAYBE: invalidate every once in a while
 class GameView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0

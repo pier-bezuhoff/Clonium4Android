@@ -13,7 +13,7 @@
             android:background="@color/dark_background"
             tools:context=".ui.game.GameActivity"
     >
-        <com.pierbezuhoff.clonium.ui.game.GameView
+        <com.pierbezuhoff.clonium.ui.game.GameSurfaceView
                 android:id="@+id/game_view"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
