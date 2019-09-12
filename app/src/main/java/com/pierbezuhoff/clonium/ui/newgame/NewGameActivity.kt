@@ -23,7 +23,7 @@ class NewGameActivity : AppCompatActivity()
 
     override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
-        withMilestoneScope("onCreate", measureScope = true) {
+        logMilestoneScope("onCreate", measureScope = true) {
 //            FIX: ~200ms on setContentView!
             val binding: ActivityNewGameBinding =
                 DataBindingUtil.setContentView(this@NewGameActivity, R.layout.activity_new_game)
