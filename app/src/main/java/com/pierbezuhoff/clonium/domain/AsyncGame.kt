@@ -8,6 +8,7 @@ import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.PriorityBlockingQueue
+import java.util.concurrent.ThreadFactory
 import kotlin.math.min
 
 class AsyncGame(
@@ -43,9 +44,10 @@ class AsyncGame(
         lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }.toMutableMap()
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
-        val threadPool = Executors.newCachedThreadPool { r: Runnable ->
-            Thread(r).apply { priority = Thread.MIN_PRIORITY }
-        }
+        val threadFactory = ThreadFactory { Thread(it).apply { priority = Thread.MIN_PRIORITY } }
+        val nThreads = 4 //Runtime.getRuntime().availableProcessors()
+        val threadPool = Executors.newFixedThreadPool(nThreads, threadFactory)
+//        val threadPool = Executors.newCachedThreadPool(threadFactory)
         val constrainedCoroutineScope = coroutineScope + threadPool.asCoroutineDispatcher()
         linkedTurns = LinkedTurns(board, order.map { it.playerId }, players, constrainedCoroutineScope)
     }

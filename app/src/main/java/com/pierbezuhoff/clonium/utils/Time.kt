@@ -1,30 +1,46 @@
 package com.pierbezuhoff.clonium.utils
 
-typealias Milliseconds = Long
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
-data class ElapsedTime<A>(val elapsed: Milliseconds, val result: A) {
-    val elapsedSeconds = elapsed / 1_000f
-    val elapsedMinutes = elapsedSeconds / 60f
-    fun prettyTime(): String {
-        val elapsedSeconds = (elapsed / 1_000) % 60
-        val elapsedMinutes = elapsed / 60_000
-        val m = if (elapsedMinutes > 0) "${elapsedMinutes}m " else ""
-        val s = if (elapsedSeconds > 0) "${elapsedSeconds}s " else ""
-        val ms = "${elapsed % 1_000}ms"
-        return m + s + ms
+typealias Minutes = Int
+typealias Seconds = Int
+typealias Milliseconds = Long
+typealias Nanoseconds = Long
+
+data class ElapsedTime<A>(val inNanoseconds: Nanoseconds, val result: A) {
+    // milli, micro, nano
+    val inMilliseconds: Milliseconds = (inNanoseconds / 1e6f).roundToLong()
+    val inSeconds: Seconds = (inNanoseconds / 1e9f).roundToInt()
+    val inMinutes: Minutes = (inNanoseconds / 60e9f).roundToInt()
+
+    override fun toString(): String {
+        val nanoseconds: Nanoseconds = inNanoseconds % 1_000_000
+        val milliseconds: Milliseconds = inMilliseconds % 1000
+        val seconds: Seconds = inSeconds % 60
+        val minutes: Minutes = inMinutes
+        val showMinutes = minutes > 0
+        val showSeconds = seconds > 0 || showMinutes
+        val showMilliseconds = !showMinutes && milliseconds > 0
+        val showNanoseconds = !showMinutes && !showSeconds && !showMilliseconds
+        val m = if (showMinutes) "${minutes}m " else ""
+        val s = if (showSeconds) "${seconds}s " else ""
+        val ms = if (showMilliseconds) {
+            if (showSeconds || milliseconds >= 100)
+                "${milliseconds}ms "
+            else "%.3f".format(milliseconds + nanoseconds * 1e-6f) + "ms "
+        } else ""
+        val ns = if (showNanoseconds) "${nanoseconds}ns " else ""
+        return m + s + ms + ns
     }
 }
 
-inline fun <A> measureElapsedTime(block: () -> A): ElapsedTime<A> {
-    val startTime = System.currentTimeMillis()
+data class PrettyTimeAndResult<A>(val prettyTime: String, val result: A)
+
+inline fun <A> measureElapsedTimePretty(block: () -> A): PrettyTimeAndResult<A> {
+    val startTime = System.nanoTime()
     val result = block()
-    val elapsed = System.currentTimeMillis() - startTime
-    return ElapsedTime(elapsed, result)
-}
-
-data class PrettyElapsedTime<A>(val prettyElapsed: String, val result: A)
-
-inline fun <A> measureElapsedTimePretty(block: () -> A): PrettyElapsedTime<A> {
-    val elapsedTime = measureElapsedTime(block)
-    return PrettyElapsedTime(elapsedTime.prettyTime(), elapsedTime.result)
+    val inNanoseconds = System.nanoTime() - startTime
+    val elapsedTime = ElapsedTime(inNanoseconds, result)
+    return PrettyTimeAndResult(elapsedTime.toString(), elapsedTime.result)
 }

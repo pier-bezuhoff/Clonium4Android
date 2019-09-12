@@ -103,8 +103,10 @@ internal class DrawThread(
             val timeDelta = currentTime - lastUpdateTime
             if (timeDelta >= UPDATE_TIME_DELTA) {
                 if (lastUpdateTime != 0L) {
-                    liveCallback.value?.advance(timeDelta)
-//                    log i "timeDelta = $timeDelta"
+                    log.logIElapsedTime("on advance:") {
+                        liveCallback.value?.advance(timeDelta)
+                    }
+                    log i "timeDelta = $timeDelta"
                 }
                 lastUpdateTime = currentTime
             }

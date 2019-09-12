@@ -188,7 +188,7 @@ abstract class AbstractLogger(
                 val elapsed = System.currentTimeMillis() - (startTimes.remove(name) ?: startTime)
                 val elapsedTime = ElapsedTime(elapsed, Unit)
                 startTime = System.currentTimeMillis()
-                log_(level, "$milestonePrefix${endMarker ?: ""} $name: ${elapsedTime.prettyTime()}")
+                log_(level, "$milestonePrefix${endMarker ?: ""} $name: ${elapsedTime.toString()}")
                 previousMilestoneName = name
             }
         }
@@ -233,7 +233,7 @@ abstract class AbstractLogger(
         val elapsed = time - (scope.sections[sectionName] ?: scope.lastTime)
         scope.sections -= sectionName
         scope.lastTime = time
-        logI("${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: ${ElapsedTime(elapsed, Unit).prettyTime()}")
+        logI("${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: ${ElapsedTime(elapsed, Unit).toString()}")
     }
 
     private suspend fun sLog(level: Logger.Level, message: Message) {
@@ -337,6 +337,15 @@ class AndroidLogger(
 inline fun <reified C> AndroidLoggerOf(minLogLevel: Logger.Level = Logger.Level.VERBOSE): AndroidLogger =
     AndroidLogger(C::class, minLogLevel)
 
+data class elapsedTime<R>(
+    val prefix: String = "elapsed:",
+    val postfix: String = "",
+    val depthMarker: String = "-",
+    val startMarker: String? = "[",
+    val endMarker: String? = if (startMarker != null) "]" else null,
+    val block: () -> R
+)
+
 interface WithLog {
     val log: Logger
 
@@ -350,6 +359,10 @@ interface WithLog {
         logW(message)
     infix fun Logger.e(message: Message) =
         logE(message)
+    infix fun <R> Logger.i(elapsedTimeArg: elapsedTime<R>): R {
+        val (prefix, postfix, depthMarker, startMarker, endMarker, block) = elapsedTimeArg
+        return logIElapsedTime(prefix, postfix, depthMarker, startMarker, endMarker, block)
+    }
 }
 
 data class LogHolder(override val log: Logger) : WithLog

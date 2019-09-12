@@ -214,7 +214,9 @@ class SimpleGamePresenter(
         require(cellSize > 0) { "setSize must be called before draw" }
         if (!blocking)
             canvas.drawBoard(board)
-        drawAnimations(canvas)
+        log i elapsedTime("drawAnimation:") {
+            drawAnimations(canvas)
+        }
     }
 
     override fun freezeBoard() {
