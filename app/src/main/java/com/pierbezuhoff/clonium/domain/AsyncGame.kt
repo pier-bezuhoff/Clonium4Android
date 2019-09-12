@@ -4,7 +4,9 @@ import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.lang.Runnable
 import java.util.*
+import java.util.concurrent.Executors
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.min
 
@@ -41,7 +43,11 @@ class AsyncGame(
         lives = order.associateWith { board.possOf(it.playerId).isNotEmpty() }.toMutableMap()
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
-        linkedTurns = LinkedTurns(board, order.map { it.playerId }, players, coroutineScope)
+        val threadPool = Executors.newCachedThreadPool { r: Runnable ->
+            Thread(r).apply { priority = Thread.MIN_PRIORITY }
+        }
+        val constrainedCoroutineScope = coroutineScope + threadPool.asCoroutineDispatcher()
+        linkedTurns = LinkedTurns(board, order.map { it.playerId }, players, constrainedCoroutineScope)
     }
 
     constructor(gameState: Game.State, coroutineScope: CoroutineScope) : this(

@@ -48,8 +48,6 @@ private class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>
     override fun getLifecycle(): Lifecycle = lifecycleRegistry
 
     private lateinit var drawThread: DrawThread
-//    private val supervisorJob = Job()
-//    private val supervisorScope = CoroutineScope(supervisorJob)
 
     private val firstSurfaceChange by Once(true)
     private lateinit var size: Pair<Int, Int>
@@ -64,9 +62,6 @@ private class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>
         drawThread = DrawThread(gameModel, holder).apply {
             start()
         }
-//        supervisorScope.launch(Dispatchers.Default) {
-//            startDrawing(gameModel, holder)
-//        }
     }
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
@@ -80,7 +75,6 @@ private class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>
 
     override fun surfaceDestroyed(holder: SurfaceHolder?) {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-//        supervisorJob.cancel()
         drawThread.ended = true
         drawThread.join() // NOTE: may throw some exceptions
     }
@@ -98,11 +92,8 @@ internal class DrawThread(
     private var lastUpdateTime: Long = 0L
 
     init {
-        log i "thread: $this"
-        log i "priority: $MIN_PRIORITY <= {$priority} <= ${threadGroup.maxPriority} <= $MAX_PRIORITY"
         // NOTE: changing priority yield next to none improvements
-        priority = MAX_PRIORITY // should dominate async game/bots threads
-        // also see ThreadGroup, stackSize
+        priority = threadGroup.maxPriority // should dominate async game/bots threads
     }
 
     override fun run() {
@@ -113,7 +104,7 @@ internal class DrawThread(
             if (timeDelta >= UPDATE_TIME_DELTA) {
                 if (lastUpdateTime != 0L) {
                     liveCallback.value?.advance(timeDelta)
-                    log i "timeDelta = $timeDelta"
+//                    log i "timeDelta = $timeDelta"
                 }
                 lastUpdateTime = currentTime
             }
@@ -121,6 +112,7 @@ internal class DrawThread(
                 surfaceHolder.lockCanvas()?.also { canvas: Canvas ->
                     maybeCanvas = canvas
                     synchronized(surfaceHolder) {
+                        // FIX: draw takes 25ms - 100ms >> 16ms for 60 FPS!
                         liveCallback.value?.draw(canvas)
                     }
                 }
@@ -139,52 +131,8 @@ internal class DrawThread(
                 }
             }
         }
-    }
-
-    companion object {
-        private const val FPS = 60
-        private const val UPDATE_TIME_DELTA: Milliseconds = 1000L / FPS
     }
 }
 
 private const val FPS = 60
 private const val UPDATE_TIME_DELTA: Milliseconds = 1000L / FPS
-
-private suspend fun CoroutineScope.startDrawing(
-    liveCallback: LiveData<out AdvanceableDrawable>,
-    surfaceHolder: SurfaceHolder
-) {
-    with(AndroidLogOf("suspend-startDrawing")) {
-        var lastUpdateTime: Milliseconds = System.currentTimeMillis()
-        var maybeCanvas: Canvas? = null
-        while (isActive) {
-            val currentTime = System.currentTimeMillis()
-            val timeDelta = currentTime - lastUpdateTime
-            liveCallback.value?.advance(timeDelta)
-            lastUpdateTime = currentTime
-            log i "timeDelta = $timeDelta"
-            try {
-                surfaceHolder.lockCanvas()?.also { canvas: Canvas ->
-                    maybeCanvas = canvas
-                    synchronized(surfaceHolder) {
-                        liveCallback.value?.draw(canvas)
-                    }
-                }
-            } catch (e: IllegalArgumentException) { // surface already locked
-            } catch (e: Exception) {
-                e.printStackTrace()
-                log w "include exception $e into silent catch"
-            } finally {
-                maybeCanvas?.let {
-                    try {
-                        surfaceHolder.unlockCanvasAndPost(it)
-                    } catch (e: IllegalStateException) { // surface was not locked
-                    } finally {
-                        maybeCanvas = null
-                    }
-                }
-            }
-            delay(UPDATE_TIME_DELTA)
-        }
-    }
-}
