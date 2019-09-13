@@ -93,13 +93,16 @@ internal class DrawThread(
 
     override fun run() {
         var maybeCanvas: Canvas? = null
+        val averageTimeDelta = AverageLong()
         while (!ended) {
             val currentTime = System.currentTimeMillis()
             val timeDelta = currentTime - lastUpdateTime
             if (timeDelta >= UPDATE_TIME_DELTA) {
                 if (lastUpdateTime != 0L) {
                     liveCallback.value?.advance(timeDelta)
-                    log i "timeDelta = $timeDelta"
+                    averageTimeDelta += timeDelta
+                    val averagePart = averageTimeDelta.value?.let { " (average ${averageTimeDelta.value})" } ?: ""
+                    log i "timeDelta = $timeDelta$averagePart"
                 }
                 lastUpdateTime = currentTime
             }

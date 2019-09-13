@@ -44,6 +44,12 @@ interface Logger : StaggeredScoping {
         /** Synonym to [milestoneEndOf], log elapsed time from previous [milestoneEndOf] or [milestoneStartOf] of [this] */
         operator fun SectionName.unaryMinus() =
             milestoneEndOf(this)
+        operator fun <R> SectionName.invoke(block: () -> R): R {
+            milestoneStartOf(this)
+            val r = block()
+            milestoneEndOf(this)
+            return r
+        }
     }
     interface Command<R>
 
@@ -410,6 +416,12 @@ interface WithLog {
         log.staggeredStartOf(sectionName = this)
     operator fun SectionName.unaryMinus() =
         log.staggeredEndOf(sectionName = this)
+    operator fun <R> SectionName.invoke(block: () -> R): R {
+        log.staggeredStartOf(sectionName = this)
+        val r = block()
+        log.staggeredEndOf(sectionName = this)
+        return r
+    }
     operator fun ScopeName.plusAssign(sectionName: SectionName) =
         log.staggeredStartOf(scopeName = this, sectionName = sectionName)
     operator fun ScopeName.minusAssign(sectionName: SectionName) =

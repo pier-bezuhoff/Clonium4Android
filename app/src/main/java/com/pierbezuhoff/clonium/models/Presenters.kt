@@ -120,6 +120,11 @@ open class SimpleBoardPresenter(
 {
     override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
+    private var cellsBitmapSnapshot: Bitmap? = null
+    private var boardSnapshot: Board? = null
+    private var highlightingsSnapshot: Map<Pos, Highlighting>? = null
+    private var chipsAndHighlightinsBitmapSnapshot: Bitmap? = null
+
     private val printOnce by Once(true) //tmp
 
     override fun Canvas.drawBoard(board: Board) {
@@ -127,16 +132,54 @@ open class SimpleBoardPresenter(
             log i "first drawBoard"
         drawColor(BACKGROUND_COLOR)
         log i withMilestoneScope("drawBoard", measureScope = true) {
-            for (pos in board.asPosSet())
-                drawCell(pos)
+            drawCells(board)
             - "draw cells"
-            for ((pos, highlighting) in highlightings)
-                drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
-            - "draw highlightings"
-            for ((pos, maybeChip) in board.asPosMap())
-                maybeChip?.let { drawChip(pos, it) }
-            - "draw chips"
+            drawHighlightingsAndChips(board)
+            - "draw highlightings and chips"
         }
+    }
+
+    private fun Canvas.drawCells(board: Board) {
+        // NOTE: assuming board as EmptyBoard does not change
+        val bitmapSnapshot =
+            cellsBitmapSnapshot ?:
+            invalidateCellsBitmapSnapshot(board, width, height)
+        drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
+    }
+
+    private fun invalidateCellsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
+        val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(snapshot)
+        for (pos in board.asPosSet())
+            canvas.drawCell(pos)
+        cellsBitmapSnapshot = snapshot
+        return snapshot
+    }
+
+    private fun Canvas.drawHighlightingsAndChips(board: Board) {
+        val shouldBeInvalidated = "check h&c diff" {
+            highlightingsSnapshot != highlightings || boardSnapshot != board
+        }
+        if (shouldBeInvalidated) invalidateCellsBitmapSnapshot(board, width, height)
+        val bitmapSnapshot =
+            chipsAndHighlightinsBitmapSnapshot ?:
+            invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
+        "draw h&c bitmap" {
+            drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint)
+        }
+    }
+
+    private fun invalidateChipsAndHighlightingsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
+        boardSnapshot = board.copy()
+        highlightingsSnapshot = highlightings.toMap()
+        val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(snapshot)
+        for ((pos, highlighting) in highlightings)
+            canvas.drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
+        for ((pos, maybeChip) in board.asPosMap())
+            maybeChip?.let { canvas.drawChip(pos, it) }
+        chipsAndHighlightinsBitmapSnapshot = snapshot
+        return snapshot
     }
 
     private fun Canvas.drawCell(pos: Pos) {
