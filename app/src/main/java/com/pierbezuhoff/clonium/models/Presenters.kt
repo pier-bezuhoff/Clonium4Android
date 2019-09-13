@@ -130,13 +130,8 @@ open class SimpleBoardPresenter(
     override fun Canvas.drawBoard(board: Board) {
         if (printOnce)
             log i "first drawBoard"
-        drawColor(BACKGROUND_COLOR)
-        log i withMilestoneScope("drawBoard", measureScope = true) {
-            drawCells(board)
-            - "draw cells"
-            drawHighlightingsAndChips(board)
-            - "draw highlightings and chips"
-        }
+        drawCells(board)
+        drawHighlightingsAndChips(board)
     }
 
     private fun Canvas.drawCells(board: Board) {
@@ -150,6 +145,7 @@ open class SimpleBoardPresenter(
     private fun invalidateCellsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
         val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(snapshot)
+        canvas.drawColor(BACKGROUND_COLOR)
         for (pos in board.asPosSet())
             canvas.drawCell(pos)
         cellsBitmapSnapshot = snapshot
@@ -157,16 +153,11 @@ open class SimpleBoardPresenter(
     }
 
     private fun Canvas.drawHighlightingsAndChips(board: Board) {
-        val shouldBeInvalidated = "check h&c diff" {
-            highlightingsSnapshot != highlightings || boardSnapshot != board
-        }
-        if (shouldBeInvalidated) invalidateCellsBitmapSnapshot(board, width, height)
-        val bitmapSnapshot =
-            chipsAndHighlightinsBitmapSnapshot ?:
-            invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
-        "draw h&c bitmap" {
-            drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint)
-        }
+        val shouldBeInvalidated =
+            highlightingsSnapshot != highlightings || boardSnapshot != board // ~1.9ms
+        if (shouldBeInvalidated) invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
+        val bitmapSnapshot = chipsAndHighlightinsBitmapSnapshot!! // previous invalidate made it non-null
+        drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
     }
 
     private fun invalidateChipsAndHighlightingsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
