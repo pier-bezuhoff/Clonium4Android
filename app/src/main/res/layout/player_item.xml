@@ -6,34 +6,30 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
 >
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
             android:id="@+id/player_layout"
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
     >
+        <!-- Q: takes ~300ms -->
         <CheckBox
                 android:id="@+id/use_player"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:layout_marginStart="8dp"
                 tools:checked="true"
         />
         <!-- NOTE: bg = null remove spinner's arrow -->
+        <!-- Q: takes 400ms -->
         <Spinner
                 android:id="@+id/colored_chips"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@null"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/use_player"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:layout_marginStart="8dp"
@@ -42,14 +38,12 @@
                 android:prompt="@string/colored_chips_prompt"
                 tools:listitem="@layout/colored_chip_item"
         />
+        <!-- Q: takes 300ms -->
         <Spinner
                 android:id="@+id/player_tactics"
                 android:layout_width="@dimen/player_tactics_max_width"
                 android:layout_height="wrap_content"
                 android:background="@null"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/colored_chips"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:layout_marginStart="8dp"
@@ -62,17 +56,12 @@
                 android:id="@+id/drag_handle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/player_tactics"
-                app:layout_constraintEnd_toEndOf="parent"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
                 app:srcCompat="@drawable/ic_reorder"
                 android:contentDescription="@string/drag_handle"
-                app:layout_constraintHorizontal_bias="0.0"
         />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 </androidx.cardview.widget.CardView>

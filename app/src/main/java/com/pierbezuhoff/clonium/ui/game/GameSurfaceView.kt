@@ -113,10 +113,10 @@ internal class DrawThread(
                 surfaceHolder.lockCanvas()?.also { canvas: Canvas ->
                     maybeCanvas = canvas
                     synchronized(surfaceHolder) {
-                        // FIX: draw takes 25ms - 100ms >> 16ms for 60 FPS!
-//                        log i elapsedTime(prefix = "on draw:", startMarker = null) {
+                        // FIX: draw takes ~30ms > 16ms for 60 FPS!
+                        log i elapsedTime(prefix = "on draw:", startMarker = null) {
                             liveCallback.value?.draw(canvas)
-//                        }
+                        }
                     }
                 }
             } catch (e: IllegalArgumentException) { // surface already locked

@@ -93,6 +93,7 @@ interface BoardPresenter : SpatialBoard, BoardHighlighting {
         canvas.drawBoard(board)
     }
     fun Canvas.drawBoard(board: Board)
+    fun invalidateBoard()
 
     interface Builder {
         fun of(
@@ -106,7 +107,7 @@ interface BoardPresenter : SpatialBoard, BoardHighlighting {
 
 // MAYBE: rotate rectangular board along with view
 open class SimpleBoardPresenter(
-    override var board: Board,
+    board: Board,
     private val boardHighlighting: BoardHighlighting,
     protected val bitmapLoader: GameBitmapLoader,
     private val chipSet: ChipSet,
@@ -118,10 +119,16 @@ open class SimpleBoardPresenter(
     , BoardHighlighting by boardHighlighting
     , WithLog by AndroidLogOf<SimpleBoardPresenter>()
 {
+    final override var board: Board = board
+        set(value) {
+            invalidateBoard = true
+            field = value
+        }
+
     override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
     private var cellsBitmapSnapshot: Bitmap? = null
-    private var boardSnapshot: Board? = null
+    private var invalidateBoard: Boolean = false
     private var highlightingsSnapshot: Map<Pos, Highlighting>? = null
     private var chipsAndHighlightinsBitmapSnapshot: Bitmap? = null
 
@@ -154,14 +161,13 @@ open class SimpleBoardPresenter(
 
     private fun Canvas.drawHighlightingsAndChips(board: Board) {
         val shouldBeInvalidated =
-            highlightingsSnapshot != highlightings || boardSnapshot?.asPosMap() != board.asPosMap()
+            invalidateBoard || highlightingsSnapshot != highlightings
         if (shouldBeInvalidated) invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
         val bitmapSnapshot = chipsAndHighlightinsBitmapSnapshot!! // previous invalidate made it non-null
         drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
     }
 
     private fun invalidateChipsAndHighlightingsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
-        boardSnapshot = board.copy()
         highlightingsSnapshot = highlightings.toMap()
         val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(snapshot)
@@ -198,6 +204,11 @@ open class SimpleBoardPresenter(
             translateMatrix * rescaleMatrix * centeredScaleMatrix,
             bitmapPaint
         )
+    }
+
+    override fun invalidateBoard() {
+        invalidateBoard = true
+        highlightingsSnapshot = null
     }
 
     companion object {
@@ -243,7 +254,6 @@ class SimpleGamePresenter(
     , TransitionAnimationsHost by transitionsHost
     , GamePresenter
 {
-    override var board: Board = game.board
 
     override fun advance(timeDelta: Milliseconds) {
         advanceAnimations(timeDelta)

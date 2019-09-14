@@ -20,7 +20,10 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
 {
     private val boardViewInvalidating = Connection<BoardViewInvalidator>()
     val boardViewInvalidatingSubscription = boardViewInvalidating.subscription
-    override fun invalidateBoardView() { boardViewInvalidating.send { invalidateBoardView() } }
+    override fun invalidateBoardView() {
+        _boardPresenter.value?.invalidateBoard()
+        boardViewInvalidating.send { invalidateBoardView() }
+    }
 
     private val _boardPresenter: MutableLiveData<BoardPresenter> = MutableLiveData()
     val boardPresenter: LiveData<BoardPresenter> = _boardPresenter
@@ -38,7 +41,8 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         private set
 
     init {
-        loadConfig()
+        // FIX: load cfg and init SimpleBoard.Examples take ~300ms
+        loadConfig() // ~150ms after "New game" button press
     }
 
     fun nextBoard() {
@@ -68,9 +72,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
             chipSet, colorPrism,
             margin = 0.01f // experimental value for visually equal margins from all sides
         )
-        boardViewInvalidating.send {
-            invalidateBoardView()
-        }
+        invalidateBoardView()
         playerItems
             .filterNot { it.participate }
             .forEach {
@@ -92,9 +94,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 posMap[pos] = null
         }
         _boardPresenter.value?.board = board
-        boardViewInvalidating.send {
-            invalidateBoardView()
-        }
+        invalidateBoardView()
     }
 
     override fun showPlayer(playerId: PlayerId) {
@@ -103,24 +103,18 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 posMap[pos] = initialBoard.chipAt(pos)
         }
         _boardPresenter.value?.board = board
-        boardViewInvalidating.send {
-            invalidateBoardView()
-        }
+        invalidateBoardView()
     }
 
     override fun highlightPlayer(playerId: PlayerId) {
         boardPresenter.value?.showHumanPossibleTurns(board.possOf(playerId))
-        boardViewInvalidating.send {
-            invalidateBoardView()
-        }
+        invalidateBoardView()
         useRandomOrder.value = false // dragging started => not random order
     }
 
     override fun unhighlight() {
         boardPresenter.value?.hidePossibleTurns()
-        boardViewInvalidating.send {
-            invalidateBoardView()
-        }
+        invalidateBoardView()
     }
 
     fun mkGameState(): Game.State {
@@ -145,7 +139,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 it.colorPrism ?: chipSet.defaultColorPrism
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
-            chipSet = GreenChipSet //tmp
+            chipSet = CircuitChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
             val index = it.getInt(SimpleBoard.Examples::class.simpleName, 0)
