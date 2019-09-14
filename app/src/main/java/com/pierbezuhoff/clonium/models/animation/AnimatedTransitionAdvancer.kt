@@ -6,6 +6,8 @@ import android.graphics.PointF
 import androidx.core.graphics.*
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.*
+import com.pierbezuhoff.clonium.utils.AndroidLogOf
+import com.pierbezuhoff.clonium.utils.elapsedTime
 import com.pierbezuhoff.clonium.utils.impossibleCaseOf
 import kotlin.math.PI
 import kotlin.math.cos
@@ -107,7 +109,11 @@ private fun Canvas.drawFlippingExplosions(params: AnimationParams, progressingEx
                 // we construct right explosion, then rotate it by theta
                 val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
                 val rotateMatrix =
-                    rotationMatrix(theta, startPoint.x + cellSize / 2f, startPoint.y + cellSize / 2f)
+                    rotationMatrix(
+                        theta,
+                        startPoint.x + cellSize / 2f,
+                        startPoint.y + cellSize / 2f
+                    )
                 val centeredScaleMatrix = centeredScaleMatrix(
                     bitmap,
                     (horizontalSqueeze * chipCellRatio * zScale).toFloat(),

@@ -45,7 +45,6 @@ class AsyncGame(
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
         val threadFactory = ThreadFactory { Thread(it).apply { priority = Thread.MIN_PRIORITY } }
-        log i Runtime.getRuntime().availableProcessors().toString()
         val nThreads = 4 //Runtime.getRuntime().availableProcessors()
         val threadPool = Executors.newFixedThreadPool(nThreads, threadFactory)
 //        val threadPool = Executors.newCachedThreadPool(threadFactory)
@@ -66,7 +65,7 @@ class AsyncGame(
         require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
         lastTurn = turn
         val transitions = board.incAnimated(turn)
-        require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" }
+//        require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" }
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         require(trans.order.size == nPlayers)

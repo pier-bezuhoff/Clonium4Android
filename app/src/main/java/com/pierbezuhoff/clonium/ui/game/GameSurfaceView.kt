@@ -75,6 +75,7 @@ private class SurfaceManager(liveGameModelInitializer: () -> LiveData<GameModel>
     }
 }
 
+// TODO: profile and found cause of animation delay at the end of Sequence<Transition>
 // MAYBE: it can be cancellable coroutine
 // MAYBE: rewrap LiveData into Connection
 internal class DrawThread(
@@ -103,6 +104,8 @@ internal class DrawThread(
                     averageTimeDelta += timeDelta
                     val averagePart = averageTimeDelta.value?.let { " (average ${averageTimeDelta.value})" } ?: ""
                     log i "timeDelta = $timeDelta$averagePart"
+                    if (timeDelta > MAX_UPDATE_TIME_DELTA)
+                        log w "FPS < 24! (timeDelta = $timeDelta)"
                 }
                 lastUpdateTime = currentTime
             }
@@ -111,9 +114,9 @@ internal class DrawThread(
                     maybeCanvas = canvas
                     synchronized(surfaceHolder) {
                         // FIX: draw takes 25ms - 100ms >> 16ms for 60 FPS!
-                        log i elapsedTime(prefix = "on draw:", startMarker = null) {
+//                        log i elapsedTime(prefix = "on draw:", startMarker = null) {
                             liveCallback.value?.draw(canvas)
-                        }
+//                        }
                     }
                 }
             } catch (e: IllegalArgumentException) { // surface already locked
@@ -135,4 +138,6 @@ internal class DrawThread(
 }
 
 private const val FPS = 60
+private const val MIN_FPS = 24
 private const val UPDATE_TIME_DELTA: Milliseconds = 1000L / FPS
+private const val MAX_UPDATE_TIME_DELTA: Milliseconds = 1000L / MIN_FPS

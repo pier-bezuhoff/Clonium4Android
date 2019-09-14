@@ -154,7 +154,7 @@ open class SimpleBoardPresenter(
 
     private fun Canvas.drawHighlightingsAndChips(board: Board) {
         val shouldBeInvalidated =
-            highlightingsSnapshot != highlightings || boardSnapshot != board // ~1.9ms
+            highlightingsSnapshot != highlightings || boardSnapshot?.asPosMap() != board.asPosMap()
         if (shouldBeInvalidated) invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
         val bitmapSnapshot = chipsAndHighlightinsBitmapSnapshot!! // previous invalidate made it non-null
         drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
@@ -178,10 +178,10 @@ open class SimpleBoardPresenter(
     }
 
     private fun Canvas.drawBitmapAt(bitmap: Bitmap, pos: Pos) {
-        val rescaleMatrix = rescaleMatrix(bitmap)
-        val translateMatrix = pos2translationMatrix(pos)
-        val matrix = translateMatrix * rescaleMatrix
-        drawBitmap( // most time-consuming (~0.5ms)
+        val rescaleMatrix = rescaleMatrix(bitmap) // ~0.05ms
+        val translateMatrix = pos2translationMatrix(pos) // ~0.05ms
+        val matrix = translateMatrix * rescaleMatrix // ~0.03ms
+        drawBitmap( // ~1.9ms
             bitmap,
             matrix,
             bitmapPaint
@@ -191,7 +191,7 @@ open class SimpleBoardPresenter(
     private fun Canvas.drawChip(pos: Pos, chip: Chip) {
         val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
         val rescaleMatrix = rescaleMatrix(bitmap)
-        val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
+        val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio) // ~0.04ms
         val translateMatrix = pos2translationMatrix(pos)
         drawBitmap(
             bitmap,
