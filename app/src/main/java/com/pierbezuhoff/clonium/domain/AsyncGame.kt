@@ -7,6 +7,7 @@ import kotlinx.coroutines.sync.withLock
 import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.Executors
+import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.ThreadFactory
 import kotlin.math.min
@@ -45,9 +46,11 @@ class AsyncGame(
         require(lives.values.any()) { "Someone should be alive" }
         currentPlayer = order.first { isAlive(it) }
         val threadFactory = ThreadFactory { Thread(it).apply { priority = Thread.MIN_PRIORITY } }
-        val nThreads = 4 //Runtime.getRuntime().availableProcessors()
-        val threadPool = Executors.newFixedThreadPool(nThreads, threadFactory)
-//        val threadPool = Executors.newCachedThreadPool(threadFactory)
+//        val nThreads = 4 //Runtime.getRuntime().availableProcessors()
+//        val threadPool = ForkJoinPool(nThreads, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+//        val threadPool = Executors.newFixedThreadPool(nThreads, threadFactory)
+        // NOTE: there are different pools, though I hardly see any difference
+        val threadPool = Executors.newCachedThreadPool(threadFactory)
         val constrainedCoroutineScope = coroutineScope + threadPool.asCoroutineDispatcher()
         linkedTurns = LinkedTurns(board, order.map { it.playerId }, players, constrainedCoroutineScope)
     }
@@ -65,7 +68,7 @@ class AsyncGame(
         require(turn in possibleTurns()) { "turn $turn of $currentPlayer is not possible on board $board" }
         lastTurn = turn
         val transitions = board.incAnimated(turn)
-//        require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" }
+        // require(board == trans.board) { "game board = $board,\ntrans board = ${trans.board}" } // only for testing, too time-consuming
         lives.clear()
         order.associateWithTo(lives) { board.possOf(it.playerId).isNotEmpty() }
         require(trans.order.size == nPlayers)

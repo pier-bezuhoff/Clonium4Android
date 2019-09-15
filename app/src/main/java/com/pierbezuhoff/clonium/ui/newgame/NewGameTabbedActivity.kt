@@ -31,6 +31,7 @@ class NewGameTabbedActivity : AppCompatActivity()
         val tabAdapter = TabFragmentAdapter(supportFragmentManager)
         view_pager.adapter = tabAdapter
         tabs.setupWithViewPager(view_pager)
+        tabs.newTab().text = "Players"
         cancel_button.setOnClickListener {
             onBackPressed()
         }

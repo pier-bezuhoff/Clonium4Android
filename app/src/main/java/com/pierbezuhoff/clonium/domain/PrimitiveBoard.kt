@@ -6,8 +6,8 @@ import kotlin.IllegalArgumentException
 class PrimitiveBoard private constructor(
     override val width: Int,
     override val height: Int,
-    private val chips: IntArray,
-    private val ownedIxs: Map<PlayerId, MutableSet<Int>>
+    val chips: IntArray,
+    val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
 
     @Suppress("RemoveRedundantQualifierName") // cannot exec this@PrimitiveBoard.run { ... } before primary constructor init
@@ -285,7 +285,8 @@ class PrimitiveBoard private constructor(
         asString()
 
     override fun equals(other: Any?): Boolean =
-        other is Board && other.asString() == asString()
+        other is Board &&
+                (other is PrimitiveBoard && other.chips.contentEquals(chips) || other.asString() == asString())
 
     override fun hashCode(): Int =
         asString().hashCode()

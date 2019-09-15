@@ -74,22 +74,26 @@ abstract class CommonChipSet(
     final override val name: String,
     final override val symmetry: ChipSymmetry,
     final override val nColors: Int,
-    final override val levelRange: IntRange
+    final override val levelRange: IntRange,
+    val hasBottoms: Boolean,
+    override val defaultColorPrism: ColorPrism =
+        colorPrismOf(0 until nColors)
 ) : ChipSet {
     override val colorRange: IntRange = 0 until nColors
-    override val defaultColorPrism =
-        colorPrismOf(0 until nColors)
+    private val dirPath: String = "chip_sets/$name"
 
-    abstract fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath
+    private fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
+        mkPathIn(dirPath, colorId, levelOrdinal)
 
-    protected fun mkPathIn(dirName: String, colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        "$dirName/$colorId-$levelOrdinal.png"
+    private fun mkPathIn(dirPath: String, colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
+        "$dirPath/$colorId-$levelOrdinal.png"
 
-    open fun mkBottomPath(colorId: ColorId): BitmapPath =
-        mkPath(colorId, 1)
+    private fun mkBottomPath(colorId: ColorId): BitmapPath =
+        if (hasBottoms) mkBottomPathIn(dirPath, colorId)
+        else mkPath(colorId, 1)
 
-    protected fun mkBottomPathIn(dirName: String, colorId: ColorId): BitmapPath =
-        "$dirName/$colorId-bottom.png"
+    private fun mkBottomPathIn(dirPath: String, colorId: ColorId): BitmapPath =
+        "$dirPath/$colorId-bottom.png"
 
     final override fun pathOfChip(colorPrism: ColorPrism, chip: Chip): BitmapPath {
         val (playerId, level) = chip
@@ -152,23 +156,17 @@ object StandardChipSet : CommonChipSet(
     name = "standard",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
-    levelRange = 1..5
-) {
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("standard_chip_set", colorId, levelOrdinal)
-}
+    levelRange = 1..5,
+    hasBottoms = false
+)
 
 object GreenChipSet : CommonChipSet(
     name = "green",
     symmetry = ChipSymmetry.Two,
     nColors = 8,
-    levelRange = 0..7
-) {
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("green_chip_set", colorId, levelOrdinal)
-    override fun mkBottomPath(colorId: ColorId): BitmapPath =
-        mkBottomPathIn("green_chip_set", colorId)
-}
+    levelRange = 0..7,
+    hasBottoms = true
+)
 
 private val HIGH_CONTRAST_COLOR_PRISM_8 =
     colorPrismOf(setOf(7, 2, 5, 6, 1, 3, 0, 4))
@@ -177,70 +175,51 @@ object StarChipSet : CommonChipSet(
     name = "star",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
-    levelRange = 0..7
-) {
-    override val defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
-
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("star_chip_set", colorId, levelOrdinal)
-    override fun mkBottomPath(colorId: ColorId): BitmapPath =
-        mkBottomPathIn("star_chip_set", colorId)
-}
+    levelRange = 0..7,
+    hasBottoms = true,
+    defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
+)
 
 object WhiteStarChipSet : CommonChipSet(
     name = "white_star",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
-    levelRange = 0..7
-) {
-    override val defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
-
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("star_white_chip_set", colorId, levelOrdinal)
-    override fun mkBottomPath(colorId: ColorId): BitmapPath =
-        mkBottomPathIn("star_white_chip_set", colorId)
-}
+    levelRange = 0..7,
+    hasBottoms = true,
+    defaultColorPrism = HIGH_CONTRAST_COLOR_PRISM_8
+)
 
 object MinecraftChipSet : CommonChipSet(
     name = "minecraft",
     symmetry = ChipSymmetry.None,
     nColors = 9,
-    levelRange = 1..7
-) {
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        "minecraft_chip_set/${color2dir(colorId)}/$levelOrdinal.png"
-
-    private fun color2dir(colorId: ColorId): String =
-        when (colorId) {
-            0 -> "common"
-            1 -> "skelet"
-            2 -> "city"
-            3 -> "end"
-            4 -> "steve"
-            5 -> "animals"
-            6 -> "water"
-            7 -> "fire"
-            8 -> "zombie"
-            else -> impossibleCaseOf(colorId)
-        }
-}
+    levelRange = 1..7,
+    hasBottoms = false,
+    defaultColorPrism = colorPrismOf(listOf(
+        0, //common
+        1, //skelet
+        2, //city
+        3, //end
+        4, //steve
+        5, //animals
+        6, //water
+        7, //fire
+        8 //zombie
+    ))
+)
 
 object CircuitChipSet : CommonChipSet(
     name = "circuit",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
-    levelRange = 0..7
-) {
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("circuit_chip_set", colorId, levelOrdinal)
-}
+    levelRange = 0..7,
+    hasBottoms = false
+)
 
 object FlowerChipSet : CommonChipSet(
     name = "flower",
     symmetry = ChipSymmetry.Four,
     nColors = 8,
-    levelRange = 0..8
-) {
-    override fun mkPath(colorId: ColorId, levelOrdinal: LevelOrdinal): BitmapPath =
-        mkPathIn("flower_chip_set", colorId, levelOrdinal)
-}
+    levelRange = 0..8,
+    hasBottoms = false
+)

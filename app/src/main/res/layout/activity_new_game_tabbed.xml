@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--suppress AndroidDomInspection -->
 <androidx.constraintlayout.widget.ConstraintLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,7 +22,6 @@
             app:tabIndicatorHeight="4dp"
             app:tabMode="fixed"
     >
-<!--        <com.google.android.material.tabs.TabItem android:text="Rules"/>-->
     </com.google.android.material.tabs.TabLayout>
     <androidx.viewpager.widget.ViewPager
             android:id="@+id/view_pager"
