@@ -3,12 +3,25 @@ package com.pierbezuhoff.clonium.domain
 import kotlin.IllegalArgumentException
 
 @Suppress("NOTHING_TO_INLINE")
-class PrimitiveBoard private constructor(
+class PrimitiveBoard(
     override val width: Int,
     override val height: Int,
     val chips: IntArray,
     val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
+
+    constructor(width: Int, height: Int, chips: IntArray) : this(
+        width, height, chips,
+        kotlin.run { // context-less
+            val proto = PrimitiveBoard(width, height, chips, emptyMap())
+            return@run proto.asInhabitedPosMap()
+                .entries
+                .groupBy(
+                    { (_, chip) -> chip.playerId },
+                    { (pos, _) -> proto.pos2ix(pos) }
+                ).mapValues { (_, ixs) -> ixs.toMutableSet() }
+        }
+    )
 
     @Suppress("RemoveRedundantQualifierName") // cannot exec this@PrimitiveBoard.run { ... } before primary constructor init
     constructor(board: Board) : this(
@@ -299,14 +312,16 @@ class PrimitiveBoard private constructor(
         private const val MAX_LEVEL_ORDINAL = Level.MAX_LEVEL_ORDINAL
     }
 
-    object Builder : Board.Builder, EvolvingBoard.Builder {
+    object Factory : Board.Factory, EvolvingBoard.Factory {
         override fun of(emptyBoard: EmptyBoard): PrimitiveBoard =
-            PrimitiveBoard(SimpleBoard(emptyBoard))
+            if (emptyBoard is PrimitiveBoard) emptyBoard
+            else PrimitiveBoard(SimpleBoard(emptyBoard))
 
         override fun of(board: Board): PrimitiveBoard =
-            PrimitiveBoard(board)
+            if (board is PrimitiveBoard) board
+            else PrimitiveBoard(board)
 
         override fun fromString(s: String): PrimitiveBoard =
-            of(SimpleBoard.Builder.fromString(s))
+            of(SimpleBoard.Factory.fromString(s))
     }
 }

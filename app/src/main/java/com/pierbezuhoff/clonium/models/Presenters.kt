@@ -95,11 +95,11 @@ interface BoardPresenter : SpatialBoard, BoardHighlighting {
     fun Canvas.drawBoard(board: Board)
     fun invalidateBoard()
 
-    interface Builder {
+    interface Factory {
         fun of(
             board: Board,
             chipSet: ChipSet,
-            colorPrism: ColorPrism = chipSet.defaultColorPrism,
+            colorPrism: ColorPrism = chipSet.getDefaultColorPrism(),
             margin: Float = 0f
         ): BoardPresenter
     }
@@ -211,10 +211,10 @@ open class SimpleBoardPresenter(
         @ColorInt private const val BACKGROUND_COLOR: Int = Color.BLACK
     }
 
-    class Builder(
+    class Factory(
         private val boardHighlighting: BoardHighlighting,
         private val bitmapLoader: GameBitmapLoader
-    ) : BoardPresenter.Builder {
+    ) : BoardPresenter.Factory {
         override fun of(board: Board, chipSet: ChipSet, colorPrism: ColorPrism, margin: Float) =
             SimpleBoardPresenter(board, boardHighlighting, bitmapLoader, chipSet, colorPrism, margin)
     }
@@ -234,7 +234,7 @@ interface GamePresenter : BoardPresenter, TransitionAnimationsHost {
     /** Draw current [game] state with animations */
     override fun draw(canvas: Canvas)
 
-    interface Builder {
+    interface Factory {
         fun of(game: Game, chipsConfig: ChipsConfig, margin: Float = 0f): GamePresenter
     }
 }
@@ -282,11 +282,11 @@ class SimpleGamePresenter(
         )
     }
 
-    class Builder(
+    class Factory(
         private val boardHighlighting: BoardHighlighting,
         private val bitmapLoader: GameBitmapLoader,
         private val transitionsHost: TransitionAnimationsHost
-    ) : GamePresenter.Builder {
+    ) : GamePresenter.Factory {
         override fun of(game: Game, chipsConfig: ChipsConfig, margin: Float) =
             SimpleGamePresenter(game, boardHighlighting, bitmapLoader, chipsConfig, transitionsHost, margin)
     }

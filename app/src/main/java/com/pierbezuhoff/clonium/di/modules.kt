@@ -11,24 +11,23 @@ import com.pierbezuhoff.clonium.ui.newgame.NewGameBoardGestures
 import com.pierbezuhoff.clonium.ui.newgame.NewGameViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.viewmodel.dsl.viewModel
-import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 @Suppress("RemoveExplicitTypeArguments")
 val gameModule = module {
-    single<Board.Builder> { SimpleBoard.Builder }
-    single<EvolvingBoard.Builder> { PrimitiveBoard.Builder }
+    single<Board.Factory> { SimpleBoard.Factory }
+    single<EvolvingBoard.Factory> { PrimitiveBoard.Factory }
 
     factory<AssetManager> { androidContext().assets }
     single<GameBitmapLoader> { CommonGameBitmapLoader(get()) }
 
-    single<Game.Builder> { AsyncGame.Builder }
+    single<Game.Factory> { AsyncGame.Factory }
 
     factory<BoardHighlighting> { MapBoardHighlighting() }
 
     factory<TransitionAnimationsHost> { TransitionAnimationsPool() }
-    factory<BoardPresenter.Builder> { SimpleBoardPresenter.Builder(get(), get()) }
-    factory<GamePresenter.Builder> { SimpleGamePresenter.Builder(get(), get(), get()) }
+    factory<BoardPresenter.Factory> { SimpleBoardPresenter.Factory(get(), get()) }
+    factory<GamePresenter.Factory> { SimpleGamePresenter.Factory(get(), get(), get()) }
 
     viewModel<GameViewModel> { GameViewModel(get()) }
     viewModel<NewGameViewModel> { NewGameViewModel(get()) }

@@ -7,7 +7,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.models.*
-import com.pierbezuhoff.clonium.models.animation.ChipAnimation
 import com.pierbezuhoff.clonium.ui.meta.CloniumAndroidViewModel
 import com.pierbezuhoff.clonium.ui.meta.TapListener
 import com.pierbezuhoff.clonium.utils.Once
@@ -33,7 +32,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     fun newGame(gameState: Game.State) {
         if (firstNewGame) {
             newGame(
-                get<Game.Builder>().of(gameState, viewModelScope),
+                get<Game.Factory>().of(gameState, viewModelScope),
                 GameConfig()//botMinTime = 100L, gameSpeed = 5f)
             )
         }
@@ -42,7 +41,7 @@ class GameViewModel(application: Application) : CloniumAndroidViewModel(applicat
     fun newGame() {
         if (firstNewGame) {
             newGame(
-                get<Game.Builder>().of(Game.State.example, viewModelScope),
+                get<Game.Factory>().of(Game.State.example, viewModelScope),
                 GameConfig()
             )
         }

@@ -61,7 +61,7 @@ var SharedPreferences.playersConfig: PlayersConfig
 data class ChipsConfig(
     val chipAnimation: ChipAnimation,
     val chipSet: ChipSet,
-    val colorPrism: ColorPrism = chipSet.defaultColorPrism
+    val colorPrism: ColorPrism = chipSet.getDefaultColorPrism()
 )
 
 var SharedPreferences.chipAnimation: ChipAnimation
@@ -78,7 +78,7 @@ var SharedPreferences.chipAnimation: ChipAnimation
 var SharedPreferences.chipSet: ChipSet
     get() =
         getString(ChipSet::class.simpleName, null)
-            ?.let(CommonChipSet.Builder::of)
+            ?.let(ChipSet.Builder::of)
             ?: GreenChipSet
     set(value) {
         edit {
@@ -89,7 +89,7 @@ var SharedPreferences.chipSet: ChipSet
 var SharedPreferences.colorPrism: ColorPrism?
     get() =
         getString(ColorPrism::class.simpleName, null)
-            ?.let(MutableMapColorPrism.Builder::fromString)
+            ?.let(MutableMapColorPrism.Factory::fromString)
     set(value) {
         edit {
             putString(ColorPrism::class.simpleName, value?.asString())
@@ -97,7 +97,7 @@ var SharedPreferences.colorPrism: ColorPrism?
     }
 
 var SharedPreferences.chipsConfig: ChipsConfig
-    get() = ChipsConfig(chipAnimation, chipSet, colorPrism ?: chipSet.defaultColorPrism)
+    get() = ChipsConfig(chipAnimation, chipSet, colorPrism ?: chipSet.getDefaultColorPrism())
     set(value) {
         chipAnimation = value.chipAnimation
         chipSet = value.chipSet

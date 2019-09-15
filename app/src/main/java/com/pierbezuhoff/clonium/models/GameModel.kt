@@ -40,7 +40,7 @@ class GameModel(
     private val currentPlayerHolderConnection = Connection<CurrentPlayerHolder>()
     val currentPlayerUpdatingSubscription = currentPlayerHolderConnection.subscription
 
-    private val gamePresenter: GamePresenter = get<GamePresenter.Builder>().of(game, chipsConfig, margin = 1f)
+    private val gamePresenter: GamePresenter = get<GamePresenter.Factory>().of(game, chipsConfig, margin = 1f)
     private var continueGameOnce by Once(true)
 
     fun userTap(point: PointF) {

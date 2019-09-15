@@ -3,10 +3,7 @@ package com.pierbezuhoff.clonium.models
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
 import com.pierbezuhoff.clonium.domain.*
-import com.pierbezuhoff.clonium.utils.impossibleCaseOf
-import java.io.IOException
 
 interface AssetBitmapLoader {
     fun loadAssetBitmap(path: String): Bitmap
@@ -14,9 +11,9 @@ interface AssetBitmapLoader {
 
 interface GameBitmapLoader : AssetBitmapLoader {
     fun loadCell(): Bitmap
-    fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.defaultColorPrism, chip: Chip): Bitmap
+    fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.customColorPrism, chip: Chip): Bitmap
     fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap
-    fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.defaultColorPrism, chip: Chip): Bitmap
+    fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.customColorPrism, chip: Chip): Bitmap
     fun loadHighlighting(highlighting: Highlighting): Bitmap
     fun loadMadeTurn(): Bitmap
 }

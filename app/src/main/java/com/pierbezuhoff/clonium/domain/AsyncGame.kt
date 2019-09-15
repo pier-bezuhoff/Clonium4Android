@@ -4,10 +4,8 @@ import com.pierbezuhoff.clonium.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.Executors
-import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.ThreadFactory
 import kotlin.math.min
@@ -89,7 +87,7 @@ class AsyncGame(
         return turn to makeTurn(turn, trans)
     }
 
-    object Builder : Game.Builder {
+    object Factory : Game.Factory {
         override fun of(gameState: Game.State, coroutineScope: CoroutineScope): Game =
             AsyncGame(gameState, coroutineScope)
     }

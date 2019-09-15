@@ -6,7 +6,6 @@ for dir in $dir_order
 do
     if [ -d $dir ]
     then
-        echo 1
         for filename in $(ls $dir)
         do
             level=${filename%.$extension}
@@ -14,6 +13,6 @@ do
             new_path=$color_id-$level.$extension
             mv $path $new_path
         done
-        $(( color_id++ ))
+        color_id=$(( color_id + 1 ))
     fi
 done

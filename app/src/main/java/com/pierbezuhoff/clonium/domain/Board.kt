@@ -81,7 +81,7 @@ interface EmptyBoard {
         }
     }
 
-    interface Builder {
+    interface Factory {
         /** ```
          * "1234\n5678" ->
          * Triple(width = 2, height = 2, xMap = mapOf(
@@ -148,7 +148,7 @@ class SimpleEmptyBoard(
     override fun hashCode(): Int =
         asString().hashCode()
 
-    object Builder : EmptyBoard.Builder {
+    object Factory : EmptyBoard.Factory {
         fun square(size: Int): SimpleEmptyBoard =
             rectangular(size, size)
 
@@ -179,26 +179,26 @@ class SimpleEmptyBoard(
     }
 
     object Examples {
-        val SMALL_TOWER = Builder.rectangular(6, 6).apply {
+        val SMALL_TOWER = Factory.rectangular(6, 6).apply {
             symmetricRemove(0, 1)
             symmetricRemove(1, 0)
             symmetricRemove(0, 2)
             symmetricRemove(2, 0)
         }
-        val TOWER = Builder.rectangular(8, 8).apply {
+        val TOWER = Factory.rectangular(8, 8).apply {
             for (i in 1..3) {
                 symmetricRemove(0, i)
                 symmetricRemove(i, 0)
             }
         }
         // Default empty boards from BGC/Clonium
-        val DEFAULT_1 = Builder.rectangular(8, 8)
-        val DEFAULT_2 = Builder.rectangular(6, 6)
-        val DEFAULT_3 = Builder.roundedRectangular(8, 8).apply {
+        val DEFAULT_1 = Factory.rectangular(8, 8)
+        val DEFAULT_2 = Factory.rectangular(6, 6)
+        val DEFAULT_3 = Factory.roundedRectangular(8, 8).apply {
             symmetricRemove(3, 3)
         }
-        val DEFAULT_4 = Builder.roundedRectangular(8, 8)
-        val DEFAULT_5 = Builder.rectangular(8, 8).apply {
+        val DEFAULT_4 = Factory.roundedRectangular(8, 8)
+        val DEFAULT_5 = Factory.rectangular(8, 8).apply {
             symmetricRemove(0, 3)
             symmetricRemove(3, 0)
         }
@@ -385,7 +385,7 @@ interface Board : EmptyBoard {
    override fun copy(): Board =
        SimpleBoard(width, height, asPosMap().toMutableMap())
 
-   interface Builder : EmptyBoard.Builder {
+   interface Factory : EmptyBoard.Factory {
        fun of(emptyBoard: EmptyBoard): Board
 
        override fun fromString(s: String): Board
@@ -458,7 +458,7 @@ class SimpleBoard(
         spawn4symmetricPlayers(margin, margin)
     }
 
-    object Builder : Board.Builder {
+    object Factory : Board.Factory {
         override fun of(emptyBoard: EmptyBoard): SimpleBoard =
             SimpleBoard(emptyBoard)
 
@@ -477,14 +477,14 @@ class SimpleBoard(
     }
 
     object Examples {
-        val TOWER = Builder.spawn4players(SimpleEmptyBoard.Examples.TOWER)
-        val SMALL_TOWER = Builder.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
+        val TOWER = Factory.spawn4players(SimpleEmptyBoard.Examples.TOWER)
+        val SMALL_TOWER = Factory.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
         // Default boards from BGC/Clonium
-        val DEFAULT_1 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_1)
-        val DEFAULT_2 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_2)
-        val DEFAULT_3 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_3)
-        val DEFAULT_4 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_4)
-        val DEFAULT_5 = Builder.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_5)
+        val DEFAULT_1 = Factory.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_1)
+        val DEFAULT_2 = Factory.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_2)
+        val DEFAULT_3 = Factory.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_3)
+        val DEFAULT_4 = Factory.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_4)
+        val DEFAULT_5 = Factory.spawn4players(SimpleEmptyBoard.Examples.DEFAULT_5)
         val ALL = listOf(
             TOWER, SMALL_TOWER,
             DEFAULT_1, DEFAULT_2, DEFAULT_3, DEFAULT_4, DEFAULT_5
@@ -563,7 +563,7 @@ interface EvolvingBoard : Board {
     fun afterInc(pos: Pos): EvolvingBoard =
         copy().apply { inc(pos) }
 
-    interface Builder : Board.Builder {
+    interface Factory : Board.Factory {
         fun of(board: Board): EvolvingBoard
         override fun fromString(s: String): EvolvingBoard
     }

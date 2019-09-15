@@ -67,7 +67,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
                 .map { PlayerItem(it, PlayerTactic.Bot.RandomPicker, true) }
             (oldPlayerItems + newPlayerItems).toMutableList()
         }
-        _boardPresenter.value = get<BoardPresenter.Builder>().of(
+        _boardPresenter.value = get<BoardPresenter.Factory>().of(
             newBoard,
             chipSet, colorPrism,
             margin = 0.01f // experimental value for visually equal margins from all sides
@@ -135,8 +135,8 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         context.defaultSharedPreferences.let {
             chipAnimation = it.chipAnimation
             chipSet = it.chipSet
-            colorPrism = MutableMapColorPrism.Builder.of(
-                it.colorPrism ?: chipSet.defaultColorPrism
+            colorPrism = MutableMapColorPrism.Factory.of(
+                it.colorPrism ?: chipSet.customColorPrism
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
             chipSet = CircuitChipSet //tmp

@@ -15,7 +15,7 @@ interface Game {
     ) : Serializable {
         companion object {
             val example = run {
-                val board = SimpleBoard.Builder.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
+                val board = SimpleBoard.Factory.spawn4players(SimpleEmptyBoard.Examples.SMALL_TOWER)
                 val bots: Map<PlayerId, PlayerTactic.Bot> =
                     mapOf(
                         PlayerId1 to PlayerTactic.Bot.RandomPicker,
@@ -83,7 +83,7 @@ interface Game {
 
     suspend fun botTurn(): Pair<Pos, Sequence<Transition>>
 
-    interface Builder {
+    interface Factory {
         fun of(gameState: State, coroutineScope: CoroutineScope): Game
     }
 }
@@ -149,7 +149,7 @@ class SimpleGame(
         return turn to makeTurn(turn)
     }
 
-    object Builder : Game.Builder {
+    object Factory : Game.Factory {
         override fun of(gameState: Game.State, coroutineScope: CoroutineScope): Game =
             SimpleGame(gameState, coroutineScope)
     }

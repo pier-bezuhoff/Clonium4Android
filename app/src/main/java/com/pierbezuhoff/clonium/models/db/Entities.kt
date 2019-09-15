@@ -2,29 +2,28 @@ package com.pierbezuhoff.clonium.models.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.pierbezuhoff.clonium.domain.Board
+import com.pierbezuhoff.clonium.models.ChipSet
+import com.pierbezuhoff.clonium.models.ChipSymmetry
+import com.pierbezuhoff.clonium.models.ColorPrism
+import com.pierbezuhoff.clonium.models.animation.ChipAnimation
 
 @Entity
 data class BoardEntity(
     @PrimaryKey val name: String,
-    val width: Int,
-    val height: Int,
-    val chips: IntArray
-) {
-    override fun equals(other: Any?): Boolean =
-        this === other ||
-                other is BoardEntity &&
-                name == other.name &&
-                width == other.width && height == other.height &&
-                chips.contentEquals(other.chips)
+    val board: Board
+) : Board by board
 
-    override fun hashCode(): Int { // autogen
-        var result = name.hashCode()
-        result = 31 * result + width
-        result = 31 * result + height
-        result = 31 * result + chips.contentHashCode()
-        return result
-    }
-}
+// also: cell type
+@Entity
+data class ChipSetEntity(
+    @PrimaryKey override val name: String,
+    override val symmetry: ChipSymmetry,
+    override val nColors: Int,
+    override val levelRange: IntRange,
+    override val hasBottoms: Boolean,
+    override val customColorPrism: ColorPrism?,
+    val chipAnimation: ChipAnimation
+) : ChipSet
 
-// TODO: add chip set entity
 // TODO: add entity "save"
