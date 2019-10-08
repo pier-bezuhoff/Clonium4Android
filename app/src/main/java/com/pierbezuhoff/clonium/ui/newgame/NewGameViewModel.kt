@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.core.content.edit
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.map
+import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.*
 import com.pierbezuhoff.clonium.models.animation.ChipAnimation
@@ -34,7 +36,19 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         private set
     val useRandomOrder: MutableLiveData<Boolean> = MutableLiveData(true)
 
-    private lateinit var chipAnimation: ChipAnimation
+    private val chipAnimationNames: Map<ChipAnimation, String> =
+        context.resources.getStringArray(R.array.chip_animations_names)
+            .let { mapOf(
+                ChipAnimation.ROTATION to it[0],
+                ChipAnimation.SLIDE to it[1]
+            ) }
+    val chipAnimationName: MutableLiveData<String> = MutableLiveData()
+    private val chipAnimation: LiveData<ChipAnimation> =
+        chipAnimationName.map { name ->
+            chipAnimationNames.entries
+                .single { it.value == name }
+                .key
+        }
     lateinit var chipSet: ChipSet
         private set
     lateinit var colorPrism: MutableMapColorPrism
@@ -136,7 +150,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
             chipAnimation = it.chipAnimation
             chipSet = it.chipSet
             colorPrism = MutableMapColorPrism.Factory.of(
-                it.colorPrism ?: chipSet.customColorPrism
+                it.colorPrism ?: chipSet.getDefaultColorPrism()
             )
             chipAnimation = ChipAnimation.ROTATION //tmp
             chipSet = CircuitChipSet //tmp

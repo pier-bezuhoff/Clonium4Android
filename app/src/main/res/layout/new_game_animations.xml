@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+>
+
+    <data>
+        <variable name="viewModel" type="com.pierbezuhoff.clonium.ui.newgame.NewGameViewModel"/>
+    </data>
+
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="top|start"
+        >
+
+        <Spinner
+                android:id="@+id/chip_animation_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:entries="@array/chip_animations_names"
+                android:spinnerMode="dropdown"
+                android:selectedItemPosition="@={}"
+        />
+
+    </LinearLayout>
+</layout>
