@@ -17,6 +17,10 @@ class Connection<ListenerInterface> {
             this@Connection.listener = WeakReference(listener)
             return Output()
         }
+
+        fun passTo(lifecycleOwner: LifecycleOwner, listener: ListenerInterface) {
+            subscribeFrom(listener).unsubscribeOnDestroy(lifecycleOwner)
+        }
     }
 
     inner class Output internal constructor() {

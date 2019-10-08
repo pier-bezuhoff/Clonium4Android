@@ -36,19 +36,18 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         private set
     val useRandomOrder: MutableLiveData<Boolean> = MutableLiveData(true)
 
-    private val chipAnimationNames: Map<ChipAnimation, String> =
+    private val chipAnimations: Map<String, ChipAnimation> =
         context.resources.getStringArray(R.array.chip_animations_names)
             .let { mapOf(
-                ChipAnimation.ROTATION to it[0],
-                ChipAnimation.SLIDE to it[1]
+                it[0] to ChipAnimation.ROTATION,
+                it[1] to ChipAnimation.SLIDE
             ) }
-    val chipAnimationName: MutableLiveData<String> = MutableLiveData()
-    private val chipAnimation: LiveData<ChipAnimation> =
-        chipAnimationName.map { name ->
-            chipAnimationNames.entries
-                .single { it.value == name }
-                .key
+    private val chipAnimation: MutableLiveData<ChipAnimation> = MutableLiveData()
+    val chipAnimationName: LiveData<String> =
+        chipAnimation.map { animation ->
+            chipAnimations.entries.single { it.value == animation }.key
         }
+    // TODO: mk chipSet LiveData
     lateinit var chipSet: ChipSet
         private set
     lateinit var colorPrism: MutableMapColorPrism
@@ -147,12 +146,12 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
 
     private fun loadConfig() {
         context.defaultSharedPreferences.let {
-            chipAnimation = it.chipAnimation
+            chipAnimation.value = it.chipAnimation
             chipSet = it.chipSet
             colorPrism = MutableMapColorPrism.Factory.of(
                 it.colorPrism ?: chipSet.getDefaultColorPrism()
             )
-            chipAnimation = ChipAnimation.ROTATION //tmp
+            chipAnimation.value = ChipAnimation.SLIDE //tmp
             chipSet = CircuitChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
@@ -169,7 +168,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
         }
         context.defaultSharedPreferences.let {
             it.playersConfig = PlayersConfig(playerItems)
-            it.chipAnimation = chipAnimation
+            it.chipAnimation = chipAnimation.value!! // should have been set from loadConfig
             it.chipSet = chipSet
             it.colorPrism = colorPrism
         }

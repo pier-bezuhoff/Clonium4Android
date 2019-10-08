@@ -14,6 +14,7 @@ import kotlinx.android.synthetic.main.activity_new_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
+// NOTE: deprecated, moving to NewGameTabbedActivity
 class NewGameActivity : AppCompatActivity()
     , WithLog by AndroidLogOf<NewGameActivity>()
 {

@@ -94,21 +94,13 @@ class PlayersFragment : Fragment()
             newGameViewModel.chipSet,
             newGameViewModel.colorPrism
         )
-        adapter.boardPlayerVisibilitySubscription
-            .subscribeFrom(newGameViewModel)
-            .unsubscribeOnDestroy(this)
-        adapter.boardPlayerHighlightingSubscription
-            .subscribeFrom(newGameViewModel)
-            .unsubscribeOnDestroy(this)
-        adapter.boardViewInvalidatingSubscription
-            .subscribeFrom(newGameViewModel)
-            .unsubscribeOnDestroy(this)
+        adapter.boardPlayerVisibilitySubscription.passTo(this, newGameViewModel)
+        adapter.boardPlayerHighlightingSubscription.passTo(this, newGameViewModel)
+        adapter.boardViewInvalidatingSubscription.passTo(this, newGameViewModel)
         root.players_recycler_view.adapter = adapter // <- most time consuming
         val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
         val itemTouchHelper = ItemTouchHelper(callback)
-        adapter.itemTouchSubscription
-            .subscribeFrom(itemTouchHelper)
-            .unsubscribeOnDestroy(this)
+        adapter.itemTouchSubscription.passTo(this, itemTouchHelper)
         itemTouchHelper.attachToRecyclerView(root.players_recycler_view)
         playerAdapter = adapter
     }

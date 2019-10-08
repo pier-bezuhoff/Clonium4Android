@@ -11,9 +11,9 @@ interface AssetBitmapLoader {
 
 interface GameBitmapLoader : AssetBitmapLoader {
     fun loadCell(): Bitmap
-    fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.customColorPrism, chip: Chip): Bitmap
+    fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.getDefaultColorPrism(), chip: Chip): Bitmap
     fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap
-    fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.customColorPrism, chip: Chip): Bitmap
+    fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism = chipSet.getDefaultColorPrism(), chip: Chip): Bitmap
     fun loadHighlighting(highlighting: Highlighting): Bitmap
     fun loadMadeTurn(): Bitmap
 }
@@ -48,10 +48,10 @@ class CommonGameBitmapLoader(assetManager: AssetManager) : CachingAssetBitmapLoa
         loadAssetBitmap("highlights/made-turn.png")
 
     override fun loadChip(chipSet: ChipSet, colorPrism: ColorPrism, chip: Chip): Bitmap =
-        loadAssetBitmap(chipSet.pathOfChip(colorPrism, chip))
+        loadAssetBitmap(chipSet.pathOfChip(chip, colorPrism))
 
     override fun loadRawChip(chipSet: ChipSet, colorId: Int, level: Level): Bitmap =
-        loadAssetBitmap(chipSet.pathOfChip(chip = Chip(PlayerId(colorId), level)))
+        loadAssetBitmap(chipSet.pathOfChip(Chip(PlayerId(colorId), level)))
 
     override fun loadBottomOfChip(chipSet: ChipSet, colorPrism: ColorPrism, chip: Chip): Bitmap =
         loadAssetBitmap(chipSet.pathOfChipBottom(colorPrism, chip))

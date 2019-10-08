@@ -134,7 +134,7 @@ class PlayerAdapter(
     private fun setupColoredChipsSpinner(holder: ViewHolder, playerItem: PlayerItem) {
         val coloredChipsSpinner = holder.itemView.colored_chips
         coloredChipsSpinner.adapter = ListAdapter(
-            holder.itemView.context, R.layout.colored_chip_item, chipSet.colorRange.toList()
+            holder.itemView.context, R.layout.colored_chip_item, chipSet.getColorRange().toList()
         ) { view, colorId ->
             val chipBitmap = bitmapLoader.loadRawChip(chipSet, colorId, Level1)
             val targetSize = holder.itemView.context.resources.getDimensionPixelSize(R.dimen.colored_chip_size)

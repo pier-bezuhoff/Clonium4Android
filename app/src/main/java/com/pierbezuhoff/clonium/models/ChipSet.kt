@@ -39,7 +39,7 @@ interface ChipSet {
     private fun mkBottomPathIn(dirPath: String, colorId: ColorId): BitmapPath =
         "$dirPath/$colorId-bottom.png"
 
-    fun pathOfChip(colorPrism: ColorPrism, chip: Chip): BitmapPath {
+    fun pathOfChip(chip: Chip, colorPrism: ColorPrism = getDefaultColorPrism()): BitmapPath {
         val (playerId, level) = chip
         val maybeColorId = colorPrism.player2color(playerId)
         when {
