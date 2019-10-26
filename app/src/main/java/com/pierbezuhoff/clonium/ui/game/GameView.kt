@@ -2,21 +2,16 @@ package com.pierbezuhoff.clonium.ui.game
 
 import android.content.Context
 import android.graphics.Canvas
+import android.os.Handler
 import android.util.AttributeSet
 import android.view.View
 import androidx.lifecycle.*
 import com.pierbezuhoff.clonium.models.GameModel
-import com.pierbezuhoff.clonium.utils.AndroidLogOf
-import com.pierbezuhoff.clonium.utils.Milliseconds
-import com.pierbezuhoff.clonium.utils.Once
-import com.pierbezuhoff.clonium.utils.WithLog
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import com.pierbezuhoff.clonium.utils.*
 import org.koin.core.KoinComponent
 import org.koin.core.get
-import java.lang.Exception
 import kotlin.concurrent.fixedRateTimer
+
 // BUG: hangs on after 1-st turn
 // MAYBE: invalidate every once in a while
 class GameView @JvmOverloads constructor(
@@ -35,6 +30,7 @@ class GameView @JvmOverloads constructor(
     private lateinit var size: Pair<Int, Int>
     private val firstSizeChanged by Once(true)
 
+    private val uiHandler = Handler()
     private var ended = false
     private var lastUpdateTime: Long = 0L
 
@@ -61,9 +57,22 @@ class GameView @JvmOverloads constructor(
     }
 
     private fun scheduleUpdates() {
+        val invalidator = object : Runnable {
+            override fun run() {
+                onTick()
+                if (!ended) {
+                    uiHandler.postDelayed(this, UPDATE_TIME_DELTA)
+                } else {
+                    uiHandler.removeCallbacks(this)
+                }
+            }
+        }
+        uiHandler.post(invalidator)
+    }
+
+    private fun _scheduleUpdates() {
         fixedRateTimer(period = UPDATE_TIME_DELTA) {
-            postInvalidate()
-            log i "postInvalidate"
+            onTick()
             if (ended)
                 cancel()
         }
@@ -75,17 +84,26 @@ class GameView @JvmOverloads constructor(
 //        }
     }
 
+    private inline fun onTick() {
+        postInvalidate()
+//        log i "postInvalidate"
+    }
+
     override fun onDraw(canvas: Canvas) {
-        log i "onDraw"
+//        log i "onDraw"
         super.onDraw(canvas)
         if (!ended) {
-            advance()
-            try {
-                liveGameModel.value?.draw(canvas)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                log w "include exception $e into silent catch"
+            log i elapsedTime("advance", startMarker = null) {
+                advance()
             }
+        }
+        try {
+            log i elapsedTime("draw", startMarker = null) {
+                liveGameModel.value?.draw(canvas)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            log w "include exception $e into silent catch"
         }
     }
 

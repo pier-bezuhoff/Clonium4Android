@@ -140,6 +140,5 @@ sealed class TransitionStep : AnimatedStep {
 data class WithProgress<out A : AnimatedStep>(
     val value: A,
     val progress: Progress
-) : AnimatedStep by value {
-}
+) : AnimatedStep by value
 

@@ -3,7 +3,7 @@ package com.pierbezuhoff.clonium.models.animation
 import com.pierbezuhoff.clonium.utils.Milliseconds
 import kotlin.math.*
 
-typealias Progress = Double
+typealias Progress = Float
 
 interface Advanceable<out T> {
     val duration: Milliseconds
@@ -23,14 +23,14 @@ abstract class Advancer<out A>(
     /** Should be non-increasing (once it's `false` it will not become `true`) */
     abstract override val blocking: Boolean
     private var elapsed: Milliseconds = 0L
-    override var progress: Progress = 0.0
+    override var progress: Progress = 0f
     override val ended: Boolean
         get() = elapsed >= duration
 
     /** Should be called in overridden [advance] */
     protected fun elapse(timeDelta: Milliseconds) {
         elapsed += timeDelta
-        progress = min(1.0, elapsed.toDouble() / duration)
+        progress = min(1f, elapsed.toFloat() / duration)
     }
 
     override fun toString(): String =

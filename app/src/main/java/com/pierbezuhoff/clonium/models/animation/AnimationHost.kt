@@ -2,7 +2,9 @@ package com.pierbezuhoff.clonium.models.animation
 
 import android.graphics.Canvas
 import com.pierbezuhoff.clonium.domain.Game
+import com.pierbezuhoff.clonium.utils.AndroidLogOf
 import com.pierbezuhoff.clonium.utils.Milliseconds
+import com.pierbezuhoff.clonium.utils.WithLog
 
 interface AnimationsHost {
     /** Whether animations are blocking user input (i.e. [Game.humanTurn]) */
@@ -19,6 +21,7 @@ interface TransitionAnimationsHost : AnimationsHost {
 
 class TransitionAnimationsPool : Any()
     , TransitionAnimationsHost
+    , WithLog by AndroidLogOf<TransitionAnimationsPool>()
 {
     private val pool: MutableList<AnimatedAdvancer<*>> = mutableListOf()
     override val blocking: Boolean

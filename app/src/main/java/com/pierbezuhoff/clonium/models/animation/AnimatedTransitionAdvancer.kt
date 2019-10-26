@@ -6,9 +6,7 @@ import android.graphics.PointF
 import androidx.core.graphics.*
 import com.pierbezuhoff.clonium.domain.*
 import com.pierbezuhoff.clonium.models.*
-import com.pierbezuhoff.clonium.utils.AndroidLogOf
-import com.pierbezuhoff.clonium.utils.elapsedTime
-import com.pierbezuhoff.clonium.utils.impossibleCaseOf
+import com.pierbezuhoff.clonium.utils.*
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -50,15 +48,28 @@ private class AnimatedRotationAdvancer(
         turn, transitions,
         useSwiftRotations = params.chipSet.symmetry !is ChipSymmetry.Four
     )
-) {
+)
+    , WithLog by AndroidLogOf<AnimatedRotationAdvancer>(minLogLevel = Logger.Level.WARNING)
+{
     override fun Canvas.drawOne(output: WithProgress<TransitionStep>) {
-        @Suppress("UNCHECKED_CAST")
-        when (output.value) {
-            is ExplosionsStep -> drawFlippingExplosions(params, output as WithProgress<ExplosionsStep>)
-            is SwiftRotationsStep -> drawSwiftRotations(params, output as WithProgress<SwiftRotationsStep>)
-            is IdleStep -> drawIdle(params, output as WithProgress<IdleStep>)
-            is FalloutsStep -> drawDirectedFallouts(params, output as WithProgress<FalloutsStep>)
-            is MadeTurnStep -> drawMadeTurn(params, output as WithProgress<MadeTurnStep>)
+        log i elapsedTime(output.value.javaClass.simpleName, startMarker = null) {
+            @Suppress("UNCHECKED_CAST")
+            when (output.value) {
+                is ExplosionsStep -> drawFlippingExplosions(
+                    params,
+                    output as WithProgress<ExplosionsStep>
+                )
+                is SwiftRotationsStep -> drawSwiftRotations(
+                    params,
+                    output as WithProgress<SwiftRotationsStep>
+                )
+                is IdleStep -> drawIdle(params, output as WithProgress<IdleStep>)
+                is FalloutsStep -> drawDirectedFallouts(
+                    params,
+                    output as WithProgress<FalloutsStep>
+                )
+                is MadeTurnStep -> drawMadeTurn(params, output as WithProgress<MadeTurnStep>)
+            }
         }
     }
 }
@@ -81,50 +92,64 @@ private class AnimatedSlideAdvancer(
         }
 }
 
+private const val pi = PI.toFloat()
+private val drawLog = AndroidLogOf("drawStep", minLogLevel = Logger.Level.WARNING)
 
 private fun Canvas.drawFlippingExplosions(params: AnimationParams, progressingExplosions: WithProgress<ExplosionsStep>) {
     val (chipSet, colorPrism, gamePresenter, bitmapLoader) = params
     val (explosions, progress) = progressingExplosions
-    with(gamePresenter) {
-        drawBoard(explosions.boardState)
-        for ((pos, playerId) in explosions.places) {
-            val chip = Chip(playerId, Level1)
-            val bitmapTop = bitmapLoader.loadChip(chipSet, colorPrism, chip)
-            val bitmapBottom = bitmapLoader.loadBottomOfChip(chipSet, colorPrism, chip)
-            val startPoint = pos2point(pos)
-            val jumpLength: Float = cellSize.toFloat()
-            val bitmap =
-                if (progress <= 0.25 || progress >= 0.75) bitmapTop
-                else bitmapBottom // when cos(phi) = horizontalSqueeze < 0
-            val rescaleMatrix = rescaleMatrix(bitmap)
-            val alpha = PI * progress
-            // coordinates of chip center
-            val r = jumpLength * (1 - cos(alpha)) / 2f
-            val z = jumpHeight * sin(alpha)
-            val zScale = 1 + z * zZoom
-            // angle between chip normal and z axis
-            val phi = 2 * PI * progress // complete coup
-            val horizontalSqueeze = cos(phi) // negative means upside-down
-            for (theta in listOf(0f, 90f, 180f, 270f)) {
-                // we construct right explosion, then rotate it by theta
-                val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
-                val rotateMatrix =
-                    rotationMatrix(
-                        theta,
-                        startPoint.x + cellSize / 2f,
-                        startPoint.y + cellSize / 2f
-                    )
-                val centeredScaleMatrix = centeredScaleMatrix(
-                    bitmap,
-                    (horizontalSqueeze * chipCellRatio * zScale).toFloat(),
-                    (chipCellRatio * zScale).toFloat()
-                )
-                val translateMatrix = translationMatrix(point.x, point.y)
-                drawBitmap(
-                    bitmap,
-                    rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
-                    bitmapPaint
-                )
+    with(drawLog) {
+        log i withMilestoneScope("explosion", measureScope = true) {
+            with(gamePresenter) {
+                drawBoard(explosions.boardState)
+                - "drawBoard"
+                for ((pos, playerId) in explosions.places) {
+                    + "draw $pos"
+                    val chip = Chip(playerId, Level1)
+                    val bitmapTop = bitmapLoader.loadChip(chipSet, colorPrism, chip)
+                    val bitmapBottom = bitmapLoader.loadBottomOfChip(chipSet, colorPrism, chip)
+                    val startPoint = pos2point(pos)
+                    val jumpLength: Float = cellSize.toFloat()
+                    val bitmap =
+                        if (progress <= 0.25 || progress >= 0.75) bitmapTop
+                        else bitmapBottom // when cos(phi) = horizontalSqueeze < 0
+                    val rescaleMatrix = rescaleMatrix(bitmap)
+                    val alpha = pi * progress
+                    // coordinates of chip center
+                    val r = jumpLength * (1 - cos(alpha)) / 2f
+                    val z = jumpHeight * sin(alpha)
+                    val zScale = 1 + z * zZoom
+                    // angle between chip normal and z axis
+                    val phi = 2 * pi * progress // complete coup
+                    val horizontalSqueeze = cos(phi) // negative means upside-down
+                    - "init constants"
+                    for (theta in listOf(0f, 90f, 180f, 270f)) {
+                        + "draw at $theta"
+                        // we construct right explosion, then rotate it by theta
+                        val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
+                        val rotateMatrix =
+                            rotationMatrix(
+                                theta,
+                                startPoint.x + cellSize / 2f,
+                                startPoint.y + cellSize / 2f
+                            )
+                        val centeredScaleMatrix = centeredScaleMatrix(
+                            bitmap,
+                            (horizontalSqueeze * chipCellRatio * zScale).toFloat(),
+                            (chipCellRatio * zScale).toFloat()
+                        )
+                        val translateMatrix = translationMatrix(point.x, point.y)
+                        - "init matrices"
+                        drawBitmap(
+                            bitmap,
+                            rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
+                            bitmapPaint
+                        )
+                        - "draw chip"
+                        - "draw at $theta"
+                    }
+                    - "draw $pos"
+                }
             }
         }
     }
@@ -141,7 +166,7 @@ private fun Canvas.drawSlidingExplosions(params: AnimationParams, progressingExp
             val startPoint = pos2point(pos)
             val jumpLength: Float = cellSize.toFloat()
             val rescaleMatrix = rescaleMatrix(bitmap)
-            val alpha = PI * progress
+            val alpha = pi * progress
             // MAYBE: use linear slide
             val r = (jumpLength * (1 - cos(alpha)) / 2f).toFloat()
             val z = jumpHeight * sin(alpha)

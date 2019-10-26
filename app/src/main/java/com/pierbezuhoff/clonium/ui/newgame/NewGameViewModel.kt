@@ -151,7 +151,7 @@ class NewGameViewModel(application: Application) : CloniumAndroidViewModel(appli
             colorPrism = MutableMapColorPrism.Factory.of(
                 it.colorPrism ?: chipSet.getDefaultColorPrism()
             )
-            chipAnimation.value = ChipAnimation.SLIDE //tmp
+            chipAnimation.value = ChipAnimation.ROTATION //tmp
             chipSet = CircuitChipSet //tmp
             val playersConfig = it.playersConfig
             playerItems = playersConfig.playerItems.toMutableList()
