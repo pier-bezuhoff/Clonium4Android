@@ -125,9 +125,13 @@ open class SimpleBoardPresenter(
     private var cellsBitmapSnapshot: Bitmap? = null
     private var boardSnapshot: PrimitiveBoard? = null
     private var highlightingsSnapshot: Map<Pos, Highlighting>? = null
-    private var cachedSize: Pair<Int, Int>? = null
-    private var cachedBitmap: Bitmap? = null
     private var chipsAndHighlightinsBitmapSnapshot: Bitmap? = null
+
+    // cached
+    private val cachedCellsBitmap = Cached<Triple<Board, Int, Int>, Bitmap>(
+        create = { (board, width, height) -> invalidateCellsBitmapSnapshot(board, width, height) },
+        differ = { (_, w0, h0), (_, w, h) -> w0 != w || h0 != h }
+    )
 
     private val printOnce by Once(true) //tmp
 
@@ -169,22 +173,9 @@ open class SimpleBoardPresenter(
     private fun invalidateChipsAndHighlightingsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
         return log i withMilestoneScope("invalidate C&H") {
             boardSnapshot = PrimitiveBoard(board)
-            - "copy board"
             highlightingsSnapshot = highlightings.toMap()
-            - "copy highlightings"
-            val size = Pair(width, height)
-            val snapshot =
-                if (size == cachedSize) {
-                    val bitmap = cachedBitmap!!
-                    bitmap.eraseColor(Color.TRANSPARENT)
-                    bitmap
-                } else {
-                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    cachedSize = size
-                    cachedBitmap?.recycle()
-                    cachedBitmap = bitmap
-                    bitmap
-                }
+            - "copy board&highlightings"
+            val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             - "createBitmap"
             val canvas = Canvas(snapshot)
             - "mk Canvas"
@@ -215,15 +206,20 @@ open class SimpleBoardPresenter(
     }
 
     private fun Canvas.drawChip(pos: Pos, chip: Chip) {
-        val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
-        val rescaleMatrix = rescaleMatrix(bitmap)
-        val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio) // ~0.04ms
-        val translateMatrix = pos2translationMatrix(pos)
-        drawBitmap(
-            bitmap,
-            translateMatrix * rescaleMatrix * centeredScaleMatrix,
-            bitmapPaint
-        )
+        log i withMilestoneScope("drawChip") {
+            val bitmap = bitmapLoader.loadChip(chipSet, colorPrism, chip)
+            - "load bitmap"
+            val rescaleMatrix = rescaleMatrix(bitmap)
+            val centeredScaleMatrix = centeredScaleMatrix(bitmap, chipCellRatio)
+            val translateMatrix = pos2translationMatrix(pos)
+            - "init matrices"
+            drawBitmap(
+                bitmap,
+                translateMatrix * rescaleMatrix * centeredScaleMatrix,
+                bitmapPaint
+            ) // ~4.5ms
+            - "draw chip"
+        }
     }
 
     override fun invalidateBoard() {

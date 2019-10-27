@@ -17,7 +17,6 @@ interface AdvanceableDrawable {
     fun draw(canvas: Canvas)
 }
 
-// MAYBE: non-significant explosions are non-blocking
 // MAYBE: issue pre-turn (BoardPresenter.boardHighlighting.showNextTurn)
 class GameModel(
     val game: Game,
