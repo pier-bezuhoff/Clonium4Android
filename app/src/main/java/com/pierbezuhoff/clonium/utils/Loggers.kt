@@ -63,6 +63,7 @@ interface Logger : StaggeredScoping {
         depthMarker: String,
         startMarker: String?,
         endMarker: String?,
+        veryLongMarker: String,
         block: () -> R
     ): R
 
@@ -101,6 +102,7 @@ interface Logger : StaggeredScoping {
         scopeName: ScopeName,
         milestonePrefix: String,
         startMarker: String?, endMarker: String?,
+        veryLongMarker: String,
         measureScope: Boolean,
         block: MilestoneScope.() -> R
     ): R
@@ -108,9 +110,9 @@ interface Logger : StaggeredScoping {
     @Suppress("UNCHECKED_CAST")
     fun <R> perform(level: Level, command: Command<R>): R =
         when (command) {
-            is elapsedTime -> with(command) { logElapsedTime(level, prefix, postfix, depthMarker, startMarker, endMarker, block) }
-            is withMilestoneScope -> with(command) { logMilestoneScope(level, scopeName, milestonePrefix, startMarker, endMarker, measureScope, block) }
-            is withStaggeredScope -> with(command) { logStaggeredScope(level, scopeName, prefix, startMarker, endMarker, measureScope, block) }
+            is elapsedTime -> with(command) { logElapsedTime(level, prefix, postfix, depthMarker, startMarker, endMarker, veryLongMarker, block) }
+            is withMilestoneScope -> with(command) { logMilestoneScope(level, scopeName, milestonePrefix, startMarker, endMarker, veryLongMarker, measureScope, block) }
+            is withStaggeredScope -> with(command) { logStaggeredScope(level, scopeName, prefix, startMarker, endMarker, veryLongMarker, measureScope, block) }
             is staggeredStartOf -> staggeredStartOf(level, command.scopeName, command.sectionName) as R
             is staggeredEndOf -> staggeredEndOf(command.scopeName, command.sectionName) as R
             else -> impossibleCaseOf(command)
@@ -123,6 +125,7 @@ interface StaggeredScoping {
         scopeName: ScopeName,
         prefix: String,
         startMarker: String?, endMarker: String?,
+        veryLongMarker: String,
         measureScope: Boolean,
         block: () -> R
     ): R
@@ -142,7 +145,8 @@ private class StaggeredScope(
     val level: Logger.Level = Logger.Level.INFO,
     val scopeName: ScopeName? = null,
     val prefix: String = "#",
-    val startMarker: String? = null, val endMarker: String? = null
+    val startMarker: String? = null, val endMarker: String? = null,
+    val veryLongMarker: String = "!"
 ) {
     var lastTime: Nanoseconds = 0
     val sections: MutableMap<SectionName, Nanoseconds> = mutableMapOf()
@@ -185,6 +189,7 @@ abstract class AbstractLogger(
         level: Logger.Level,
         prefix: String, postfix: String,
         depthMarker: String, startMarker: String?, endMarker: String?,
+        veryLongMarker: String,
         block: () -> R
     ): R {
         startMarker?.let {
@@ -193,18 +198,24 @@ abstract class AbstractLogger(
         measuredCounter ++
         val (elapsedPretty, result, inNanoseconds) = measureElapsedTimePretty(block)
         val average = elapsedTimeAverages.getOrPut(prefix + postfix) { AverageTime() }
+        val veryLong = average.muchLessThan(inNanoseconds)
+        val maybeVeryLong = veryLongMarker.takeIf { veryLong } ?: ""
         average += inNanoseconds
         measuredCounter --
         val depthIndent = depthMarker.repeat(measuredCounter)
-        log(level, depthIndent + (endMarker ?: "") + " $prefix $elapsedPretty $postfix" + average.toModestString())
+        log(
+            level,
+            "$depthIndent${endMarker ?: ""}$maybeVeryLong $prefix $elapsedPretty $postfix" + average.toModestString()
+        )
         return result
     }
 
-    override  fun <R> logMilestoneScope(
+    override fun <R> logMilestoneScope(
         level: Logger.Level,
         scopeName: ScopeName,
         milestonePrefix: String,
         startMarker: String?, endMarker: String?,
+        veryLongMarker: String,
         measureScope: Boolean,
         block: Logger.MilestoneScope.() -> R
     ): R {
@@ -227,8 +238,13 @@ abstract class AbstractLogger(
                 val elapsed = System.nanoTime() - (startTimes.remove(name) ?: startTime)
                 val elapsedTime = ElapsedTime(elapsed, Unit)
                 val average = milestoneScopeAverages.getOrPut(scopeName to name) { AverageTime() }
+                val veryLong = average.muchLessThan(elapsedTime.inNanoseconds)
+                val maybeVeryLong = veryLongMarker.takeIf { veryLong } ?: ""
                 average += elapsedTime.inNanoseconds
-                log(level, "$milestonePrefix${endMarker ?: ""} $name: $elapsedTime" + average.toModestString())
+                log(
+                    level,
+                    "$milestonePrefix${endMarker ?: ""}$maybeVeryLong $name: $elapsedTime" + average.toModestString()
+                )
                 startTime = System.nanoTime()
                 previousMilestoneName = name
             }
@@ -236,14 +252,16 @@ abstract class AbstractLogger(
         val (elapsedPretty, result, inNanoseconds) = measureElapsedTimePretty { milestoneScope.block() }
         endMarker?.takeIf { measureScope }?.let {
             val average = milestoneScopeAverages.getOrPut(scopeName to scopeName) { AverageTime() }
+            val veryLong = average.muchLessThan(inNanoseconds)
+            val maybeVeryLong = veryLongMarker.takeIf { veryLong } ?: ""
             average += inNanoseconds
-            log(level, "$endMarker $scopeName: $elapsedPretty" + average.toModestString())
+            log(level, "$endMarker$maybeVeryLong $scopeName: $elapsedPretty" + average.toModestString())
         }
         return result
     }
 
-    override fun <R> logStaggeredScope(level: Logger.Level, scopeName: ScopeName, prefix: String, startMarker: String?, endMarker: String?, measureScope: Boolean, block: () -> R): R {
-        val scope = StaggeredScope(level, scopeName, prefix, startMarker, endMarker)
+    override fun <R> logStaggeredScope(level: Logger.Level, scopeName: ScopeName, prefix: String, startMarker: String?, endMarker: String?, veryLongMarker: String, measureScope: Boolean, block: () -> R): R {
+        val scope = StaggeredScope(level, scopeName, prefix, startMarker, endMarker, veryLongMarker)
         startMarker?.takeIf { measureScope }?.let {
             log(level, "$startMarker $scopeName")
         }
@@ -252,8 +270,10 @@ abstract class AbstractLogger(
         staggeredScopes -= scope
         endMarker?.takeIf { measureScope }?.let {
             val average = staggeredScopeAverages.getOrPut(scopeName to scopeName) { AverageTime() }
+            val veryLong = average.muchLessThan(inNanoseconds)
+            val maybeVeryLong = veryLongMarker.takeIf { veryLong } ?: ""
             average += inNanoseconds
-            log(level, "$endMarker $scopeName: $elapsedPretty" + average.toModestString())
+            log(level, "$endMarker$maybeVeryLong $scopeName: $elapsedPretty" + average.toModestString())
         }
         return r
     }
@@ -277,8 +297,10 @@ abstract class AbstractLogger(
         scope.lastTime = time
         val elapsedTime = ElapsedTime(elapsed, Unit)
         val average = staggeredScopeAverages.getOrPut(scope.scopeName to sectionName) { AverageTime() }
+        val veryLong = average.muchLessThan(elapsedTime.inNanoseconds)
+        val maybeVeryLong = scope.veryLongMarker.takeIf { veryLong } ?: ""
         average += elapsedTime.inNanoseconds
-        log(scope.level, "${scope.prefix}${scope.endMarker ?: ""} ${scopeName ?: ""}/$sectionName: $elapsedTime" + average.toModestString())
+        log(scope.level, "${scope.prefix}${scope.endMarker ?: ""}$maybeVeryLong ${scopeName ?: ""}/$sectionName: $elapsedTime" + average.toModestString())
     }
 }
 
@@ -343,6 +365,7 @@ data class elapsedTime<R>(
     val depthMarker: String = "-",
     val startMarker: String? = "[",
     val endMarker: String? = if (startMarker != null) "]" else null,
+    val veryLongMarker: String = "!",
     val block: () -> R
 ) : Logger.Command<R>
 
@@ -351,6 +374,7 @@ data class withMilestoneScope<R>(
     val milestonePrefix: String = "*",
     val startMarker: String? = null,
     val endMarker: String? = null,
+    val veryLongMarker: String = "!",
     val measureScope: Boolean = false,
     val block: Logger.MilestoneScope.() -> R
 ) : Logger.Command<R>
@@ -359,8 +383,9 @@ data class withStaggeredScope<R>(
     val level: Logger.Level,
     val scopeName: ScopeName,
     val prefix: String = "#",
-    val startMarker: String? = null,
-    val endMarker: String? = null,
+    val startMarker: String? = "{",
+    val endMarker: String? = "}",
+    val veryLongMarker: String = "!",
     val measureScope: Boolean = false,
     val block: () -> R
 ) : Logger.Command<R>

@@ -93,63 +93,50 @@ private class AnimatedSlideAdvancer(
 }
 
 private const val pi = PI.toFloat()
-private val drawLog = AndroidLogOf("drawStep", minLogLevel = Logger.Level.WARNING)
 
 private fun Canvas.drawFlippingExplosions(params: AnimationParams, progressingExplosions: WithProgress<ExplosionsStep>) {
     val (chipSet, colorPrism, gamePresenter, bitmapLoader) = params
     val (explosions, progress) = progressingExplosions
-    with(drawLog) {
-        log i withMilestoneScope("explosion", measureScope = true) {
-            with(gamePresenter) {
-                drawBoard(explosions.boardState)
-                - "drawBoard"
-                for ((pos, playerId) in explosions.places) {
-                    + "draw $pos"
-                    val chip = Chip(playerId, Level1)
-                    val bitmapTop = bitmapLoader.loadChip(chipSet, colorPrism, chip)
-                    val bitmapBottom = bitmapLoader.loadBottomOfChip(chipSet, colorPrism, chip)
-                    val startPoint = pos2point(pos)
-                    val jumpLength: Float = cellSize.toFloat()
-                    val bitmap =
-                        if (progress <= 0.25 || progress >= 0.75) bitmapTop
-                        else bitmapBottom // when cos(phi) = horizontalSqueeze < 0
-                    val rescaleMatrix = rescaleMatrix(bitmap)
-                    val alpha = pi * progress
-                    // coordinates of chip center
-                    val r = jumpLength * (1 - cos(alpha)) / 2f
-                    val z = jumpHeight * sin(alpha)
-                    val zScale = 1 + z * zZoom
-                    // angle between chip normal and z axis
-                    val phi = 2 * pi * progress // complete coup
-                    val horizontalSqueeze = cos(phi) // negative means upside-down
-                    - "init constants"
-                    for (theta in listOf(0f, 90f, 180f, 270f)) {
-                        + "draw at $theta"
-                        // we construct right explosion, then rotate it by theta
-                        val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
-                        val rotateMatrix =
-                            rotationMatrix(
-                                theta,
-                                startPoint.x + cellSize / 2f,
-                                startPoint.y + cellSize / 2f
-                            )
-                        val centeredScaleMatrix = centeredScaleMatrix(
-                            bitmap,
-                            (horizontalSqueeze * chipCellRatio * zScale).toFloat(),
-                            (chipCellRatio * zScale).toFloat()
-                        )
-                        val translateMatrix = translationMatrix(point.x, point.y)
-                        - "init matrices"
-                        drawBitmap(
-                            bitmap,
-                            rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
-                            bitmapPaint
-                        )
-                        - "draw chip"
-                        - "draw at $theta"
-                    }
-                    - "draw $pos"
-                }
+    with(gamePresenter) {
+        drawBoard(explosions.boardState)
+        for ((pos, playerId) in explosions.places) {
+            val chip = Chip(playerId, Level1)
+            val bitmapTop = bitmapLoader.loadChip(chipSet, colorPrism, chip)
+            val bitmapBottom = bitmapLoader.loadBottomOfChip(chipSet, colorPrism, chip)
+            val startPoint = pos2point(pos)
+            val jumpLength: Float = cellSize.toFloat()
+            val bitmap =
+                if (progress <= 0.25 || progress >= 0.75) bitmapTop
+                else bitmapBottom // when cos(phi) = horizontalSqueeze < 0
+            val rescaleMatrix = rescaleMatrix(bitmap)
+            val alpha = pi * progress
+            // coordinates of chip center
+            val r = jumpLength * (1 - cos(alpha)) / 2f
+            val z = jumpHeight * sin(alpha)
+            val zScale = 1 + z * zZoom
+            // angle between chip normal and z axis
+            val phi = 2 * pi * progress // complete coup
+            val horizontalSqueeze = cos(phi) // negative means upside-down
+            for (theta in listOf(0f, 90f, 180f, 270f)) {
+                // we construct right explosion, then rotate it by theta
+                val point = PointF((startPoint.x + r).toFloat(), startPoint.y.toFloat())
+                val rotateMatrix =
+                    rotationMatrix(
+                        theta,
+                        startPoint.x + cellSize / 2f,
+                        startPoint.y + cellSize / 2f
+                    )
+                val centeredScaleMatrix = centeredScaleMatrix(
+                    bitmap,
+                    (horizontalSqueeze * chipCellRatio * zScale).toFloat(),
+                    (chipCellRatio * zScale).toFloat()
+                )
+                val translateMatrix = translationMatrix(point.x, point.y)
+                drawBitmap(
+                    bitmap,
+                    rotateMatrix * translateMatrix * rescaleMatrix * centeredScaleMatrix,
+                    bitmapPaint
+                )
             }
         }
     }

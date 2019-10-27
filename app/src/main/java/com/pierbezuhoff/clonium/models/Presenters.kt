@@ -125,6 +125,8 @@ open class SimpleBoardPresenter(
     private var cellsBitmapSnapshot: Bitmap? = null
     private var boardSnapshot: PrimitiveBoard? = null
     private var highlightingsSnapshot: Map<Pos, Highlighting>? = null
+    private var cachedSize: Pair<Int, Int>? = null
+    private var cachedBitmap: Bitmap? = null
     private var chipsAndHighlightinsBitmapSnapshot: Bitmap? = null
 
     private val printOnce by Once(true) //tmp
@@ -157,22 +159,44 @@ open class SimpleBoardPresenter(
     private fun Canvas.drawHighlightingsAndChips(board: Board) {
         val shouldBeInvalidated =
             highlightingsSnapshot != highlightings || boardSnapshot != board // MAYBE: find better way, than cmp str-repr
-        if (shouldBeInvalidated) invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
+        if (shouldBeInvalidated) {
+            invalidateChipsAndHighlightingsBitmapSnapshot(board, width, height)
+        }
         val bitmapSnapshot = chipsAndHighlightinsBitmapSnapshot!! // previous invalidate made it non-null
         drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
     }
 
     private fun invalidateChipsAndHighlightingsBitmapSnapshot(board: Board, width: Int, height: Int): Bitmap {
-        boardSnapshot = PrimitiveBoard(board)
-        highlightingsSnapshot = highlightings.toMap()
-        val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(snapshot)
-        for ((pos, highlighting) in highlightings)
-            canvas.drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
-        for ((pos, maybeChip) in board.asPosMap())
-            maybeChip?.let { canvas.drawChip(pos, it) }
-        chipsAndHighlightinsBitmapSnapshot = snapshot
-        return snapshot
+        return log i withMilestoneScope("invalidate C&H") {
+            boardSnapshot = PrimitiveBoard(board)
+            - "copy board"
+            highlightingsSnapshot = highlightings.toMap()
+            - "copy highlightings"
+            val size = Pair(width, height)
+            val snapshot =
+                if (size == cachedSize) {
+                    val bitmap = cachedBitmap!!
+                    bitmap.eraseColor(Color.TRANSPARENT)
+                    bitmap
+                } else {
+                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    cachedSize = size
+                    cachedBitmap?.recycle()
+                    cachedBitmap = bitmap
+                    bitmap
+                }
+            - "createBitmap"
+            val canvas = Canvas(snapshot)
+            - "mk Canvas"
+            for ((pos, highlighting) in highlightings)
+                canvas.drawBitmapAt(bitmapLoader.loadHighlighting(highlighting), pos)
+            - "draw highlightings"
+            for ((pos, maybeChip) in board.asPosMap())
+                maybeChip?.let { canvas.drawChip(pos, it) }
+            - "draw chips"
+            chipsAndHighlightinsBitmapSnapshot = snapshot
+            return@withMilestoneScope snapshot
+        }
     }
 
     private fun Canvas.drawCell(pos: Pos) {

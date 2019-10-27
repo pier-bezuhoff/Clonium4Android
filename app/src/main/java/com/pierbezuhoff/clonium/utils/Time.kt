@@ -59,6 +59,12 @@ class AverageTime {
         n += 1
     }
 
+    fun muchLessThan(t: Nanoseconds, factor: Int = 10): Boolean =
+        when (n) {
+            0 -> false
+            else -> factor * sum / n <= t
+        }
+
     fun toModestString(): String =
         if (n > 1) " (average ${time})" else ""
 }
