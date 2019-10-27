@@ -23,7 +23,7 @@ open class CachingAssetBitmapLoader(private val assetManager: AssetManager) : As
 
     override fun loadAssetBitmap(path: String): Bitmap =
         cache.getOrPut(path) {
-            return@getOrPut BitmapFactory.decodeStream(assetManager.open(path))
+            BitmapFactory.decodeStream(assetManager.open(path))
         }
 }
 
