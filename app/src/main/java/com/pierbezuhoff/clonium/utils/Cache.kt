@@ -21,6 +21,10 @@ class Cached<P, V>(
             }
             return@synchronized value!!
         }
+
+    fun invalidate() {
+        param = null
+    }
 }
 
 class CachedMap<P, K, V>(
@@ -41,4 +45,8 @@ class CachedMap<P, K, V>(
             }
             return map.getOrPut(key) { create(newParam, key) }
         }
+
+    fun invalidate() {
+        param = null
+    }
 }
