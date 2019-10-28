@@ -6,9 +6,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.doOnNextLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.NewGamePlayersBinding
 import com.pierbezuhoff.clonium.ui.game.GameActivity
@@ -97,7 +99,16 @@ class PlayersFragment : Fragment()
         adapter.boardPlayerVisibilitySubscription.passTo(this, newGameViewModel)
         adapter.boardPlayerHighlightingSubscription.passTo(this, newGameViewModel)
         adapter.boardViewInvalidatingSubscription.passTo(this, newGameViewModel)
-        root.players_recycler_view.adapter = adapter // <- most time consuming
+        root.players_recycler_view.let {
+            it.adapter = adapter // <- most time consuming
+            it.doOnNextLayout { _ ->
+                val areAllItemsVisible =
+                    (it.layoutManager as LinearLayoutManager).findLastCompletelyVisibleItemPosition() == adapter.itemCount - 1
+                if (areAllItemsVisible) {
+                    it.overScrollMode = View.OVER_SCROLL_NEVER
+                }
+            }
+        }
         val callback: ItemTouchHelper.Callback = ItemMoveCallback(adapter)
         val itemTouchHelper = ItemTouchHelper(callback)
         adapter.itemTouchSubscription.passTo(this, itemTouchHelper)

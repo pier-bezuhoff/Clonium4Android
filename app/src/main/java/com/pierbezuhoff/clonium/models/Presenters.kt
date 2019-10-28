@@ -138,7 +138,10 @@ open class SimpleBoardPresenter(
     private val cachedChipsAndHighlightingsBitmap =
         Cached<Triple<PrimitiveBoard, Highlightings, Size>, Bitmap>(
             create = { (board, highlightings, wh) -> createChipsAndHighlightingsBitmap(board, highlightings, wh.first, wh.second) },
-            differ = { (b0, h0, _), (b, h, _) -> h0 != h || b0 != b }
+            differ = { (b0, h0, _), (b, h, _) ->
+                // BUG: often tells no difference!
+                b0 != b
+            }
         )
 
     private val printOnce by Once(true) //tmp

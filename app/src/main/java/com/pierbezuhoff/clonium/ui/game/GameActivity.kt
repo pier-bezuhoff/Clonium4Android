@@ -3,8 +3,10 @@ package com.pierbezuhoff.clonium.ui.game
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
+import androidx.core.view.doOnNextLayout
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
@@ -52,7 +54,17 @@ class GameActivity : AppCompatActivity()
                     .subscribeFrom(adapter)
                     .unsubscribeOnDestroy(this)
                 orderAdapter = adapter
-                order_recycler_view.adapter = adapter
+                order_recycler_view.let {
+                    it.adapter = adapter
+                    it.doOnNextLayout { _ ->
+                        val areAllItemsVisible =
+                            (it.layoutManager as LinearLayoutManager).findLastCompletelyVisibleItemPosition() == adapter.itemCount - 1
+                        if (areAllItemsVisible) {
+                            it.overScrollMode = View.OVER_SCROLL_NEVER
+                        }
+                    }
+                }
+                order_recycler_view.overScrollMode = View.OVER_SCROLL_NEVER
             } else {
                 orderAdapter!!.setOrderItems(orderItemsOf(gameModel))
                 orderAdapter!!.updateStat(gameModel.game.stat())
