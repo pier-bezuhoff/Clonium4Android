@@ -27,6 +27,8 @@ interface Logger : StaggeredScoping {
                 ERROR -> "E"
                 INF -> throw InfLevelException
             }
+        fun next(): Level =
+            values().let { it[minOf(ordinal + 1, INF.ordinal - 1)] }
         object InfLevelException : IllegalArgumentException("Level.INF cannot be log-ged")
     }
 
@@ -64,6 +66,7 @@ interface Logger : StaggeredScoping {
         startMarker: String?,
         endMarker: String?,
         veryLongMarker: String,
+        startWarningAfter: Milliseconds?,
         block: () -> R
     ): R
 
@@ -110,7 +113,7 @@ interface Logger : StaggeredScoping {
     @Suppress("UNCHECKED_CAST")
     fun <R> perform(level: Level, command: Command<R>): R =
         when (command) {
-            is elapsedTime -> with(command) { logElapsedTime(level, prefix, postfix, depthMarker, startMarker, endMarker, veryLongMarker, block) }
+            is elapsedTime -> with(command) { logElapsedTime(level, prefix, postfix, depthMarker, startMarker, endMarker, veryLongMarker, startWarningAfter, block) }
             is withMilestoneScope -> with(command) { logMilestoneScope(level, scopeName, milestonePrefix, startMarker, endMarker, veryLongMarker, measureScope, block) }
             is withStaggeredScope -> with(command) { logStaggeredScope(level, scopeName, prefix, startMarker, endMarker, veryLongMarker, measureScope, block) }
             is staggeredStartOf -> staggeredStartOf(level, command.scopeName, command.sectionName) as R
@@ -190,6 +193,7 @@ abstract class AbstractLogger(
         prefix: String, postfix: String,
         depthMarker: String, startMarker: String?, endMarker: String?,
         veryLongMarker: String,
+        startWarningAfter: Milliseconds?,
         block: () -> R
     ): R {
         startMarker?.let {
@@ -203,10 +207,16 @@ abstract class AbstractLogger(
         average += inNanoseconds
         measuredCounter --
         val depthIndent = depthMarker.repeat(measuredCounter)
-        log(
-            level,
-            "$depthIndent${endMarker ?: ""}$maybeVeryLong $prefix $elapsedPretty $postfix" + average.toModestString()
-        )
+        if (startWarningAfter == null || inNanoseconds <= 1_000_000L * startWarningAfter)
+            log(
+                level,
+                "$depthIndent${endMarker ?: ""}$maybeVeryLong $prefix $elapsedPretty $postfix${average.toModestString()}"
+            )
+        else
+            log(
+                level.next(),
+                "$depthIndent${endMarker ?: ""}$maybeVeryLong $prefix $elapsedPretty > max = ${ElapsedTime(1_000_000L * startWarningAfter, Unit)} $postfix${average.toModestString()}"
+            )
         return result
     }
 
@@ -366,6 +376,7 @@ data class elapsedTime<R>(
     val startMarker: String? = "[",
     val endMarker: String? = if (startMarker != null) "]" else null,
     val veryLongMarker: String = "!",
+    val startWarningAfter: Milliseconds? = null,
     val block: () -> R
 ) : Logger.Command<R>
 

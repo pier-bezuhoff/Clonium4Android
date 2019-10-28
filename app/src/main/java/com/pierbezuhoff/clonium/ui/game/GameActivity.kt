@@ -9,12 +9,16 @@ import com.pierbezuhoff.clonium.R
 import com.pierbezuhoff.clonium.databinding.ActivityGameBinding
 import com.pierbezuhoff.clonium.domain.Game
 import com.pierbezuhoff.clonium.ui.newgame.NewGameActivity
+import com.pierbezuhoff.clonium.utils.Connection
 import kotlinx.android.synthetic.main.activity_game.*
 import org.koin.android.ext.android.get
 import org.koin.android.viewmodel.ext.android.viewModel
 
 // TODO: action bar
-class GameActivity : AppCompatActivity() {
+interface UiThreadHolder { fun doOnUiThread(action: () -> Unit) }
+class GameActivity : AppCompatActivity()
+    , UiThreadHolder
+{
     private val gameViewModel: GameViewModel by viewModel()
     private var orderAdapter: OrderAdapter? = null
 
@@ -37,6 +41,9 @@ class GameActivity : AppCompatActivity() {
                     gameViewModel.chipsConfig.chipSet,
                     gameViewModel.chipsConfig.colorPrism
                 )
+                adapter.uiThreadSubscription
+                    .subscribeFrom(this)
+                    .unsubscribeOnDestroy(this)
                 adapter.updateStat(gameModel.game.stat())
                 gameModel.statUpdatingSubscription
                     .subscribeFrom(adapter)
@@ -72,6 +79,10 @@ class GameActivity : AppCompatActivity() {
     override fun onStop() {
         game_view.onStop()
         super.onStop()
+    }
+
+    override fun doOnUiThread(action: () -> Unit) {
+        runOnUiThread(action)
     }
 
     companion object {

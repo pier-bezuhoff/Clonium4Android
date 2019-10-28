@@ -10,33 +10,33 @@ import com.pierbezuhoff.clonium.models.ChipSet
 import com.pierbezuhoff.clonium.models.ColorPrism
 import com.pierbezuhoff.clonium.models.GameBitmapLoader
 import com.pierbezuhoff.clonium.models.GameModel
-import com.pierbezuhoff.clonium.utils.AndroidLoggerOf
-import com.pierbezuhoff.clonium.utils.Logger
-import com.pierbezuhoff.clonium.utils.impossibleCaseOf
-import kotlinx.coroutines.*
+import com.pierbezuhoff.clonium.utils.Connection
 import kotlin.math.roundToInt
 
-data class OrderItem(val player: Player) {
-    internal val stat = ObservableField(Game.PlayerStat(0, 0, 0.0))
-    val sumLevel = stat.projection {
-        if (it.sumLevel == 0) "" else "${it.sumLevel}"
-    }
-    val chipCount = stat.projection {
-        if (it.chipCount == 0) "" else "${it.chipCount}"
-    }
-    val conqueredPercent = stat.projection {
-        if (it.conquered == 0.0) "" else "${(it.conquered * 100).roundToInt()}%"
-    }
-    val tactic: PlayerTactic = player.tactic
-    val alive = ObservableBoolean(true)
-}
-
-private inline fun <reified S : Any, reified T> ObservableField<S>.projection(
+private inline fun <reified S : Any, reified T> ObservableField<S>.map(
     crossinline project: (S) -> T
 ): ObservableField<T> =
     object : ObservableField<T>(this) {
-        override fun get(): T? = this@projection.get()?.let(project)
+        override fun get(): T? = this@map.get()?.let(project)
     }
+
+data class OrderItem(val player: Player) {
+    internal val stat =
+        ObservableField(Game.PlayerStat(0, 0, 0.0))
+    val sumLevel = stat.map {
+        if (it.sumLevel == 0) "" else "${it.sumLevel}"
+    }
+    val chipCount = stat.map {
+        if (it.chipCount == 0) "" else "${it.chipCount}"
+    }
+    val conqueredPercent = stat.map {
+        if (it.conquered == 0.0) "" else "${(it.conquered * 100).roundToInt()}%"
+    }
+    val tactic: PlayerTactic =
+        player.tactic
+    val alive =
+        ObservableBoolean(true)
+}
 
 internal fun orderItemsOf(gameModel: GameModel): List<OrderItem> =
     with(gameModel.game) {
@@ -51,11 +51,13 @@ class OrderAdapter(
 ) : RecyclerView.Adapter<OrderAdapter.ViewHolder>()
     , GameModel.StatHolder
     , GameModel.CurrentPlayerHolder
-    , Logger by AndroidLoggerOf<OrderAdapter>()
 {
     class ViewHolder(val binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
 
     private var nOfAlivePlayers = orderItems.size
+
+    private val uiThreadUserConnection = Connection<UiThreadHolder>()
+    internal val uiThreadSubscription = uiThreadUserConnection.subscription
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding =
@@ -133,10 +135,10 @@ class OrderAdapter(
                 before + orderItems[from] + between + after
             }
         }
-        // NOTE: in activity you can call: runOnUiThread
-        // TODO: find better solution
-        runBlocking(Dispatchers.Main) {
-            notifyItemMoved(from, minOf(size - 1, to))
+        uiThreadUserConnection.send {
+            doOnUiThread {
+                notifyItemMoved(from, minOf(size - 1, to))
+            }
         }
     }
 }

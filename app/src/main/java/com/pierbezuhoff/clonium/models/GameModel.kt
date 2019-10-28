@@ -83,11 +83,12 @@ class GameModel(
             }
             game.currentPlayer is BotPlayer -> {
                 gamePresenter.showBotPossibleTurns(game.possibleTurns())
-//                log i "sending updateCurrentPlayer"
-//                currentPlayerHolderConnection.send {
-//                    updateCurrentPlayer(game.currentPlayer)
-//                }
-//                log i "sent updateCurrentPlayer"
+                // FIX: it
+                log i "sending updateCurrentPlayer"
+                currentPlayerHolderConnection.send {
+                    updateCurrentPlayer(game.currentPlayer)
+                }
+                log i "sent updateCurrentPlayer"
                 gamePresenter.freezeBoard()
                 coroutineScope.launch {
                     delay(config.botMinTime)

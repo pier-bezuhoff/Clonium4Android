@@ -1,5 +1,6 @@
 package com.pierbezuhoff.clonium.ui.game
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.os.Handler
@@ -86,24 +87,25 @@ class GameView @JvmOverloads constructor(
 
     private inline fun onTick() {
         postInvalidate()
-//        log i "postInvalidate"
     }
 
+    @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
-//        log i "onDraw"
-        super.onDraw(canvas)
-        if (!ended) {
-            log i elapsedTime("advance", startMarker = null) {
-                advance()
+        log i elapsedTime("onDraw", startMarker = null, startWarningAfter = UPDATE_TIME_DELTA) {
+            super.onDraw(canvas)
+            if (!ended) {
+                log i elapsedTime("advance", startMarker = null) {
+                    advance()
+                }
             }
-        }
-        try {
-            log i elapsedTime("draw", startMarker = null) {
-                liveGameModel.value?.draw(canvas)
+            try {
+                log i elapsedTime("draw", startMarker = null) {
+                    liveGameModel.value?.draw(canvas)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                log w "include exception $e into silent catch"
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            log w "include exception $e into silent catch"
         }
     }
 
