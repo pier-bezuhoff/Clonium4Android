@@ -160,6 +160,7 @@ class PlayerAdapter(
                         }
                     }
                     colorPrism[playerItem.playerId] = colorId
+                    // TODO: notify presenter that chipCache should be invalidated
                     boardViewInvalidating.send {
                         invalidateBoardView()
                     }

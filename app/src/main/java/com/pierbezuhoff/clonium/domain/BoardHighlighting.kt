@@ -3,20 +3,47 @@ package com.pierbezuhoff.clonium.domain
 import com.pierbezuhoff.clonium.utils.Once
 
 sealed class Highlighting {
-    sealed class PossibleTurn : Highlighting() {
-        object Human : PossibleTurn()
-        object Bot : PossibleTurn()
-    }
     sealed class LastTurn : Highlighting() {
         object Main : LastTurn()
         object Minor : LastTurn()
     }
+    sealed class PossibleTurn : Highlighting() {
+        object Human : PossibleTurn()
+        object Bot : PossibleTurn()
+    }
     object NextTurn : Highlighting()
+}
+
+data class PosHighlighting(
+    val last: Highlighting.LastTurn?,
+    val possible: Highlighting.PossibleTurn?,
+    val next: Highlighting.NextTurn?
+) {
+    val all: List<Highlighting> = listOfNotNull(last, possible, next)
+    val isEmpty: Boolean = last == null && possible == null && next == null
+
+    override fun toString(): String {
+        val l = when (last) {
+            Highlighting.LastTurn.Main -> "L"
+            Highlighting.LastTurn.Minor -> "l"
+            null -> " "
+        }
+        val p = when (possible) {
+            Highlighting.PossibleTurn.Human -> "H"
+            Highlighting.PossibleTurn.Bot -> "B"
+            null -> " "
+        }
+        val n = when (next) {
+            Highlighting.NextTurn -> "*"
+            else -> " "
+        }
+        return n + p + l
+    }
 }
 
 interface BoardHighlighting {
     val generation: Int
-    val highlightings: Map<Pos, Highlighting>
+    val highlightings: Map<Pos, PosHighlighting>
     fun showHumanPossibleTurns(turns: Set<Pos>)
     fun showBotPossibleTurns(turns: Set<Pos>)
     fun hidePossibleTurns()
@@ -24,13 +51,35 @@ interface BoardHighlighting {
     fun hideInterceptedLastTurns(transitions: Sequence<Transition>)
     fun showNextTurn(turn: Pos)
     fun hideNextTurn()
+
+    fun asString(): String {
+        val poss = highlightings.keys
+        val minX = poss.map { it.x }.min()!!
+        val maxX = poss.map { it.x }.max()!!
+        val xs = minX..maxX
+        val minY = poss.map { it.y }.min()!!
+        val maxY = poss.map { it.y }.max()!!
+        val ys = minY..maxY
+        return buildString {
+            val header = xs.joinToString(prefix = "x>", postfix = "<x") { x -> " $x " }
+            appendln(header)
+            for (y in ys) {
+                appendln(
+                    xs.joinToString(prefix = "$y|", postfix = "|$y") { x ->
+                        highlightings[Pos(x, y)].toString()
+                    }
+                )
+            }
+            appendln(header)
+        }
+    }
 }
 
 class MapBoardHighlighting : BoardHighlighting {
     override var generation: Int = 0
         private set
-    private val _highlightings: MutableMap<Pos, Highlighting> = mutableMapOf()
-    override val highlightings: Map<Pos, Highlighting> = _highlightings
+    private val _highlightings: MutableMap<Pos, PosHighlighting> = mutableMapOf()
+    override val highlightings: Map<Pos, PosHighlighting> = _highlightings
     private var possibleTurns: Set<Pos> = emptySet()
     private var nextTurn: Pos? = null
     private val firstLastTurn by Once(true)

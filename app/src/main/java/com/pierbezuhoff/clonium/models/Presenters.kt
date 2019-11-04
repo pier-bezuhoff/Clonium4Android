@@ -174,7 +174,7 @@ open class SimpleBoardPresenter(
     }
 
     private fun createChipsAndHighlightingsBitmap(board: PrimitiveBoard, highlightings: Highlightings, width: Int, height: Int): Bitmap {
-        return log i withMilestoneScope("invalidate C&H") {
+/**/        return log i withMilestoneScope("invalidate C&H") {
             - "copy board&highlightings"
             val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) // ~2ms
             - "createBitmap"
@@ -225,6 +225,7 @@ open class SimpleBoardPresenter(
     }
 
     override fun invalidateBoard() {
+        log i "invalidateBoard"
         cachedChipsAndHighlightingsBitmap.invalidate()
     }
 
