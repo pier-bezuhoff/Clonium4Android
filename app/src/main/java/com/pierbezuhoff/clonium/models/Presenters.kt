@@ -120,7 +120,7 @@ open class SimpleBoardPresenter(
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board, margin)
     , BoardPresenter
-    , BoardHighlighting by boardHighlighting
+//    , BoardHighlighting by boardHighlighting
     , WithLog by AndroidLogOf<SimpleBoardPresenter>()
 {
 
@@ -174,7 +174,7 @@ open class SimpleBoardPresenter(
     }
 
     private fun createChipsAndHighlightingsBitmap(board: PrimitiveBoard, highlightings: Highlightings, width: Int, height: Int): Bitmap {
-/**/        return log i withMilestoneScope("invalidate C&H") {
+        return log i withMilestoneScope("invalidate C&H") {
             - "copy board&highlightings"
             val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) // ~2ms
             - "createBitmap"
