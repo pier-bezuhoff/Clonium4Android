@@ -87,7 +87,7 @@ private open class SimpleSpatialBoard(
 }
 
 
-interface BoardPresenter : SpatialBoard, BoardHighlighting {
+interface BoardPresenter : SpatialBoard, BoardHighlightingControl {
     var board: Board
     val bitmapPaint: Paint
     fun draw(canvas: Canvas) {
@@ -119,30 +119,42 @@ open class SimpleBoardPresenter(
     margin: Float = 0f
 ) : Any()
     , SpatialBoard by SimpleSpatialBoard(board, margin)
+    , BoardHighlightingControl by boardHighlighting
     , BoardPresenter
-//    , BoardHighlighting by boardHighlighting
     , WithLog by AndroidLogOf<SimpleBoardPresenter>()
 {
 
-    override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    final override val bitmapPaint: Paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val erasingPaint = Paint(bitmapPaint).apply {
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+    }
 
     private val cachedChips = CachedMap<CellSize, Chip, Bitmap>(
-        create = { cellSize, chip -> createChipBitmap(cellSize, chip) },
-        differ = { cs0, cs -> cs0 != cs }
+        create = { cellSize, chip, _ -> createChipBitmap(cellSize, chip) }
     )
     private val cachedCellsBitmap =
         Cached<Pair<EmptyBoard, Size>, Bitmap>(
-            create = { (board, wh) -> createCellsBitmap(board, wh.first, wh.second) },
+            create = { (board, wh), _ -> createCellsBitmap(board, wh.first, wh.second) },
             differ = { (_, wh0), (_, wh) -> wh0 != wh }
         )
-    private val cachedChipsAndHighlightingsBitmap =
-        Cached<Triple<PrimitiveBoard, Highlightings, Size>, Bitmap>(
-            create = { (board, highlightings, wh) -> createChipsAndHighlightingsBitmap(board, highlightings, wh.first, wh.second) },
-            differ = { (b0, h0, _), (b, h, _) ->
-                // BUG: often tells no difference!
-                b0 != b
-            }
+    private val cachedHighlightingBitmap =
+        CachedBy<Pair<BoardHighlighting, Size>, Pair<Int, Size>, Bitmap>(
+            create = { (h, wh) -> "" },
+            keyOf = { (h, wh) -> Pair(h.generation, wh) }
         )
+    // TODO: calc diff
+    private val cachedChipsBitmap =
+        Cached<Pair<PrimitiveBoard, Size>, Bitmap>(
+            create = { (b, wh), previous -> createChipsBitmap(b, wh.first, wh.second, previous) }
+        )
+//    private val cachedChipsAndHighlightingsBitmap =
+//        Cached<Triple<PrimitiveBoard, Highlightings, Size>, Bitmap>(
+//            create = { (board, highlightings, wh), _ -> createChipsAndHighlightingsBitmap(board, highlightings, wh.first, wh.second) },
+//            differ = { (b0, h0, _), (b, h, _) ->
+//                 BUG: often tells no difference!
+//                b0 != b
+//            }
+//        )
 
     private val printOnce by Once(true) //tmp
 
@@ -168,8 +180,33 @@ open class SimpleBoardPresenter(
         return snapshot
     }
 
+//    private fun createHighlightingsBitmap()
+
+    private fun createChipsBitmap(board: PrimitiveBoard, width: Int, height: Int, previous: Pair<Pair<PrimitiveBoard, Size>, Bitmap>?): Bitmap =
+        if (previous == null || previous.first.second != Pair(width, height)) {
+            val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) // ~2ms
+            val canvas = Canvas(snapshot)
+            // ~35ms
+            for ((pos, maybeChip) in board.asPosMap())
+                maybeChip?.let { canvas.drawChip(pos, it) }
+            snapshot
+        } else {
+            val board0: PrimitiveBoard = previous.first.first
+            val snapshot0: Bitmap = previous.second
+            val canvas = Canvas(snapshot0)
+            val changedPoss: Set<Pos> = ""
+            for (pos in changedPoss) {
+                val point = pos2point(pos)
+                val x = point.x.toFloat()
+                val y = point.y.toFloat()
+                canvas.drawRect(x, y, x + cellSize, y + cellSize, erasingPaint)
+                board.chipAt(pos)?.let { canvas.drawChip(pos, it) }
+            }
+            snapshot0
+        }
+
     private fun Canvas.drawHighlightingsAndChips(board: Board) {
-        val bitmapSnapshot = cachedChipsAndHighlightingsBitmap[Triple(PrimitiveBoard.Factory.of(board), highlightings, Pair(width, height))]
+        val bitmapSnapshot = cachedChipsAndHighlightingsBitmap[Triple(PrimitiveBoard.Factory.of(board), boardHighlighting, Pair(width, height))]
         drawBitmap(bitmapSnapshot, 0f, 0f, bitmapPaint) // ~3.5ms
     }
 

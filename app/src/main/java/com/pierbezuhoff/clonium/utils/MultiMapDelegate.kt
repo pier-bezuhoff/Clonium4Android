@@ -1,7 +1,7 @@
 package com.pierbezuhoff.clonium.utils
 
 /** Delegates [Map] operation to submaps, for use in 'by' notation */
-class MultiMapDelegate<K, V>(vararg val maps: Map<K, V>) : Map<K, List<V>> {
+class MultiMapDelegate<K, V: Any>(vararg val maps: Map<K, V>) : Map<K, List<V>> {
     private data class Entry<K, V>(
         override val key: K,
         override val value: V

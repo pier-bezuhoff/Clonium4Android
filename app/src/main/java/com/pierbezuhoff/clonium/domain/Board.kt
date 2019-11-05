@@ -143,7 +143,7 @@ class SimpleEmptyBoard(
         asString()
 
     override fun equals(other: Any?): Boolean =
-        other is EmptyBoard && other.asString() == asString()
+        other is EmptyBoard && other.asPosSet() == asPosSet()
 
     override fun hashCode(): Int =
         asString().hashCode()
@@ -304,99 +304,105 @@ interface Board : EmptyBoard {
     fun isAlive(playerId: PlayerId): Boolean =
         possOf(playerId).isNotEmpty()
 
-   fun levelOf(playerId: PlayerId): Int =
+    fun levelOf(playerId: PlayerId): Int =
         possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }
 
-   /** [Set] of transitive [Level3] neighbors */
-   fun chains(): Set<Set<Pos>> {
-       val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
-       val chains = mutableSetOf<MutableSet<Pos>>()
-       val chained = mutableSetOf<Pos>()
-       for (pos in level3poss) {
-           val chainedNeighbors = neighbors(pos).intersect(chained)
-           val neighborChains = chains.filter { it.intersect(chainedNeighbors).isNotEmpty() }
-           if (neighborChains.isEmpty()) {
-               chains.add(mutableSetOf(pos))
-           } else {
-               val mainChain = neighborChains.first()
-               mainChain.add(pos)
-               if (neighborChains.size > 1) {
-                   for (chain in neighborChains.drop(1)) {
-                       chains.remove(chain)
-                       mainChain.addAll(chain)
-                   }
-               }
-           }
-           chained.add(pos)
-       }
-       return chains
-   }
+    fun diff(board: Board): Board =
+        SimpleBoard(
+            width, height,
+            (asPosMap() - board.asPosSet()).toMutableMap()
+        )
 
-   /** Transitive [Level3] neighbors of [pos] if [pos] has at least [Level3] else `null` */
-   fun chainOf(pos: Pos): Set<Pos>? =
-       if (levelAt(pos)?.let { it < Level3 } ?: true)
-           null
-       else
-           chains().first { pos in it }
+    /** [Set] of transitive [Level3] neighbors */
+    fun chains(): Set<Set<Pos>> {
+        val level3poss = asPosSet().filter { levelAt(it)?.let { it >= Level3 } ?: false  }
+        val chains = mutableSetOf<MutableSet<Pos>>()
+        val chained = mutableSetOf<Pos>()
+        for (pos in level3poss) {
+            val chainedNeighbors = neighbors(pos).intersect(chained)
+            val neighborChains = chains.filter { it.intersect(chainedNeighbors).isNotEmpty() }
+            if (neighborChains.isEmpty()) {
+                chains.add(mutableSetOf(pos))
+            } else {
+                val mainChain = neighborChains.first()
+                mainChain.add(pos)
+                if (neighborChains.size > 1) {
+                    for (chain in neighborChains.drop(1)) {
+                        chains.remove(chain)
+                        mainChain.addAll(chain)
+                    }
+                }
+            }
+            chained.add(pos)
+        }
+        return chains
+    }
 
-   /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
-   fun distinctTurnsOf(playerId: PlayerId): Set<Pos> {
-       val chains = chains()
-       fun chainIdOf(pos: Pos): Int =
-           chains.indexOfFirst { pos in it }
-       val poss = possOf(playerId)
-       val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
-       return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
-   }
+    /** Transitive [Level3] neighbors of [pos] if [pos] has at least [Level3] else `null` */
+    fun chainOf(pos: Pos): Set<Pos>? =
+        if (levelAt(pos)?.let { it < Level3 } ?: true)
+            null
+        else
+            chains().first { pos in it }
 
-   fun groupedDistinctTurns(playerId: PlayerId): Set<Set<Pos>> {
-       val chains = chains()
-       fun chainIdOf(pos: Pos): Int =
-           chains.indexOfFirst { pos in it }
-       val poss = possOf(playerId)
-       val (stable, unstable) = poss.partition { levelAt(it)!! < Level3 }
-       return stable.map { setOf(it) }.toSet() + unstable.groupBy { chainIdOf(it) }.values.map { it.toSet() }
-   }
+    /** All possible turns of [playerId] with distinct results (1 turn form each [Level3]-chain) */
+    fun distinctTurnsOf(playerId: PlayerId): Set<Pos> {
+        val chains = chains()
+        fun chainIdOf(pos: Pos): Int =
+            chains.indexOfFirst { pos in it }
+        val poss = possOf(playerId)
+        val (stable, unstable) = poss.partition { levelAt(it)?.let { it < Level3 } ?: true }
+        return (stable + unstable.distinctBy { chainIdOf(it) }).toSet()
+    }
 
-   /** Cyclically shift [order] removing dead players */
-   fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
-       if (order.isEmpty())
-           return order
-       val filteredOrder = order.filter { isAlive(it) }
-       return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
-   }
+    fun groupedDistinctTurns(playerId: PlayerId): Set<Set<Pos>> {
+        val chains = chains()
+        fun chainIdOf(pos: Pos): Int =
+            chains.indexOfFirst { pos in it }
+        val poss = possOf(playerId)
+        val (stable, unstable) = poss.partition { levelAt(it)!! < Level3 }
+        return stable.map { setOf(it) }.toSet() + unstable.groupBy { chainIdOf(it) }.values.map { it.toSet() }
+    }
 
-   override fun pos2str(pos: Pos): String =
-       when {
-           !hasCell(pos) -> "  "
-           !hasChip(pos) -> "□ "
-           else -> {
-               val (player, level) = chipAt(pos)!!
-               val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
-               val playerChar =
-                   if (player.id <= 9)
-                       playerChars[player.id]
-                   else
-                       playerChars.last()
-               "${level.ordinal}$playerChar"
-           }
-       }
+    /** Cyclically shift [order] removing dead players */
+    fun shiftOrder(order: List<PlayerId>): List<PlayerId> {
+        if (order.isEmpty())
+            return order
+        val filteredOrder = order.filter { isAlive(it) }
+        return if (filteredOrder.isEmpty()) emptyList() else filteredOrder.drop(1) + filteredOrder.first()
+    }
 
-   override fun copy(): Board =
-       SimpleBoard(width, height, asPosMap().toMutableMap())
+    override fun pos2str(pos: Pos): String =
+        when {
+            !hasCell(pos) -> "  "
+            !hasChip(pos) -> "□ "
+            else -> {
+                val (player, level) = chipAt(pos)!!
+                val playerChars = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ"
+                val playerChar =
+                    if (player.id <= 9)
+                        playerChars[player.id]
+                    else
+                        playerChars.last()
+                "${level.ordinal}$playerChar"
+            }
+        }
 
-   interface Factory : EmptyBoard.Factory {
-       fun of(emptyBoard: EmptyBoard): Board
+    override fun copy(): Board =
+        SimpleBoard(width, height, asPosMap().toMutableMap())
 
-       override fun fromString(s: String): Board
+    interface Factory : EmptyBoard.Factory {
+        fun of(emptyBoard: EmptyBoard): Board
 
-       /** Scan 2 chars of asString() repr and return Pair(has cell, chip) */
-       fun readChip(c1: Char, c2: Char): Pair<Boolean, Chip?> =
-           if (c2 == ' ')
-               Pair(readCell(c1, c2), null)
-           else
-               Pair(true, Chip(PlayerId("⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ".indexOf(c2)), Level("$c1".toInt())))
-   }
+        override fun fromString(s: String): Board
+
+        /** Scan 2 chars of asString() repr and return Pair(has cell, chip) */
+        fun readChip(c1: Char, c2: Char): Pair<Boolean, Chip?> =
+            if (c2 == ' ')
+                Pair(readCell(c1, c2), null)
+            else
+                Pair(true, Chip(PlayerId("⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ".indexOf(c2)), Level("$c1".toInt())))
+    }
 }
 
 class SimpleBoard(

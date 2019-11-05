@@ -24,8 +24,7 @@ sealed class Highlighting {
         }
 }
 
-interface BoardHighlighting : Map<Pos, List<Highlighting>> {
-    val generation: Int // inc per change
+interface BoardHighlightingControl {
     fun showHumanPossibleTurns(turns: Set<Pos>)
     fun showBotPossibleTurns(turns: Set<Pos>)
     fun hidePossibleTurns()
@@ -33,6 +32,10 @@ interface BoardHighlighting : Map<Pos, List<Highlighting>> {
     fun hideInterceptedLastTurns(transitions: Sequence<Transition>)
     fun showNextTurn(turn: Pos)
     fun hideNextTurn()
+}
+
+interface BoardHighlighting : BoardHighlightingControl, Map<Pos, List<Highlighting>> {
+    val generation: Int // inc per change
 
     override fun toString(): String
     fun asString(): String {

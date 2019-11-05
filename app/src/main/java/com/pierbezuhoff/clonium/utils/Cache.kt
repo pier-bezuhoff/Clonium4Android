@@ -1,12 +1,12 @@
 package com.pierbezuhoff.clonium.utils
 
 // should be reflexive, symmetric, transitive
-typealias Differ<P> = (P, P) -> Boolean
+typealias Differ<P> = (p0: P, p: P) -> Boolean
 
 class Cached<P : Any, V : Any>(
     private var param: P? = null,
-    private val create: (P) -> V,
-    private val differ: Differ<P>
+    private val create: (p: P, previous: Pair<P, V>?) -> V,
+    private val differ: Differ<P> = { p0, p -> p0 != p }
 ) {
     private var value: V? = null
 
@@ -16,8 +16,9 @@ class Cached<P : Any, V : Any>(
     fun retrieve(newParam: P): V =
         synchronized(this) {
             if (param == null || value == null || differ(param!!, newParam)) {
+                val previous = value?.let { param?.to(it) }
+                value = create(newParam, previous)
                 param = newParam
-                value = create(newParam)
             }
             return@synchronized value!!
         }
@@ -29,9 +30,9 @@ class Cached<P : Any, V : Any>(
 
 class CachedBy<P, PK : Any, V : Any>(
     private var paramKey: PK? = null,
-    private val create: (P) -> V,
+    private val create: (p: P) -> V,
     private val keyOf: (P) -> PK,
-    private val differ: Differ<PK>
+    private val differ: Differ<PK> = { pk0, pk -> pk0 != pk }
 ) {
     private var value: V? = null
 
@@ -55,8 +56,8 @@ class CachedBy<P, PK : Any, V : Any>(
 
 class CachedMap<P : Any, K, V : Any>(
     private var param: P? = null,
-    private val create: (P, K) -> V,
-    private var differ: Differ<P>
+    private val create: (p: P, k: K, p0: P?) -> V,
+    private var differ: Differ<P> = { p0, p -> p0 != p }
 ) {
     private val map: MutableMap<K, V> = mutableMapOf()
 
@@ -65,11 +66,12 @@ class CachedMap<P : Any, K, V : Any>(
 
     fun retrieve(newParam: P, key: K): V =
         synchronized(this) {
+            val oldParam = param
             if (param == null || differ(param!!, newParam)) {
                 map.clear()
                 param = newParam
             }
-            return map.getOrPut(key) { create(newParam, key) }
+            return map.getOrPut(key) { create(newParam, key, oldParam) }
         }
 
     fun invalidate() {
