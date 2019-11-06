@@ -120,7 +120,7 @@ abstract class MaximizerBot(
             require(distinctTurns.isNotEmpty()) { "Bot $this should be alive on board $board" }
             if (distinctTurns.size == 1)
                 return@withContext distinctTurns.first()
-            val evolvingBoard = PrimitiveBoard(board)
+            val evolvingBoard = PrimitiveBoard.Factory.of(board)
             val estimations: MutableList<Pair<Pos, Deferred<Int>>> = mutableListOf()
             for (turn in distinctTurns) {
                 estimations.add(

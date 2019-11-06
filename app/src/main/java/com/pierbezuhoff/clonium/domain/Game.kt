@@ -120,7 +120,7 @@ class SimpleGame(
     }
 
     constructor(gameState: Game.State, coroutineScope: CoroutineScope) : this(
-        PrimitiveBoard(gameState.board),
+        PrimitiveBoard.Factory.of(gameState.board),
         gameState.bots
             .map { (playerId, tactic) -> tactic.toPlayer(playerId) }
             .toSet(),

@@ -10,6 +10,7 @@ class PrimitiveBoard(
     val ownedIxs: Map<PlayerId, MutableSet<Int>>
 ) : EvolvingBoard {
 
+    // MAYBE: move to PrimitiveBoard.Factory.of
     constructor(width: Int, height: Int, chips: IntArray) : this(
         width, height, chips,
         kotlin.run { // context-less
@@ -24,7 +25,7 @@ class PrimitiveBoard(
     )
 
     @Suppress("RemoveRedundantQualifierName") // cannot exec this@PrimitiveBoard.run { ... } before primary constructor init
-    constructor(board: Board) : this(
+    private constructor(board: Board) : this(
         board.width, board.height,
         IntArray(board.width * board.height).apply {
             val proto = PrimitiveBoard(board.width, board.height, intArrayOf(), mutableMapOf())
@@ -294,6 +295,25 @@ class PrimitiveBoard(
             evolveTransitions(setOf(ix))
     }
 
+    override fun diff(board: Board): Map<Pos, Chip?> {
+        require(width == board.width && height == board.height)
+        val diff = mutableMapOf<Pos, Chip?>()
+        if (board is PrimitiveBoard) {
+            for (ix in chips.indices) {
+                if (chips[ix] != board.chips[ix])
+                    diff[ix2pos(ix)] = board.chipAt(ix)
+            }
+        } else {
+            for (ix in chips.indices) {
+                val pos = ix2pos(ix)
+                val chip = board.chipAt(pos)
+                if (chip2int(chip) != chips[ix])
+                    diff[pos] = chip
+            }
+        }
+        return diff
+    }
+
     override fun toString(): String =
         asString()
 
@@ -314,11 +334,11 @@ class PrimitiveBoard(
 
     object Factory : Board.Factory, EvolvingBoard.Factory {
         override fun of(emptyBoard: EmptyBoard): PrimitiveBoard =
-            if (emptyBoard is PrimitiveBoard) emptyBoard
+            if (emptyBoard is PrimitiveBoard) emptyBoard.copy()
             else PrimitiveBoard(SimpleBoard(emptyBoard))
 
         override fun of(board: Board): PrimitiveBoard =
-            if (board is PrimitiveBoard) board
+            if (board is PrimitiveBoard) board.copy()
             else PrimitiveBoard(board)
 
         override fun fromString(s: String): PrimitiveBoard =

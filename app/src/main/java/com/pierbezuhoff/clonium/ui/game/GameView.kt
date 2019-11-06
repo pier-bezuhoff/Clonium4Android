@@ -91,22 +91,22 @@ class GameView @JvmOverloads constructor(
 
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
-        log i elapsedTime("onDraw", startMarker = null, startWarningAfter = UPDATE_TIME_DELTA) {
+//        log i elapsedTime("onDraw", startMarker = null, startWarningAfter = UPDATE_TIME_DELTA) {
             super.onDraw(canvas)
             if (!ended) {
-                log i elapsedTime("advance", startMarker = null) {
-                    advance()
-                }
+//                log i elapsedTime("advance", startMarker = null) {
+                    advance() // Q: sometimes can take up to 280ms!?
+//                }
             }
             try {
-                log i elapsedTime("draw", startMarker = null) {
+//                log i elapsedTime("draw", startMarker = null) {
                     liveGameModel.value?.draw(canvas)
-                }
+//                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 log w "include exception $e into silent catch"
             }
-        }
+//        }
     }
 
     private fun advance() {

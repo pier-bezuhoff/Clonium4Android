@@ -198,7 +198,7 @@ class BoardTest : FreeSpec() {
                                 val _single3: Board = SimpleBoard(emptyBoard).with(
                                     pos to Chip(playerId, Level3)
                                 )
-                                val single3 = PrimitiveBoard(_single3)
+                                val single3 = PrimitiveBoard.Factory.of(_single3)
                                 val transitions = single3.incAnimated(pos)
                                 single3.chipAt(pos) shouldBe null
                                 transitions shouldHaveSize 1
@@ -282,7 +282,7 @@ class BoardTest : FreeSpec() {
                         // x>0 1 2 3 <x
                         val simpleBoard = SimpleBoard(board)
                         val startPos = Pos(0, 0)
-                        val primitiveBoard = PrimitiveBoard(board)
+                        val primitiveBoard = PrimitiveBoard.Factory.of(board)
                         val transitions = primitiveBoard.incAnimated(startPos)
                         val endBoard1 = simpleBoard.with(
                             Pos(0, 0) to null,

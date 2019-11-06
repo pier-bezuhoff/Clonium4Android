@@ -1,6 +1,8 @@
 package com.pierbezuhoff.clonium.domain
 
 import androidx.annotation.IntRange
+import com.pierbezuhoff.clonium.utils.filterMap
+import com.pierbezuhoff.clonium.utils.mapFilter
 import java.io.Serializable
 
 // TODO: SimpleEvolvingBoard
@@ -307,11 +309,14 @@ interface Board : EmptyBoard {
     fun levelOf(playerId: PlayerId): Int =
         possOf(playerId).sumBy { levelAt(it)?.ordinal ?: 0 }
 
-    fun diff(board: Board): Board =
-        SimpleBoard(
-            width, height,
-            (asPosMap() - board.asPosSet()).toMutableMap()
-        )
+    fun diff(board: Board): Map<Pos, Chip?> {
+        require(width == board.width && height == board.height)
+        val allPoss = asPosSet() + board.asPosSet()
+        return allPoss
+            .filter { board.chipAt(it) != chipAt(it) }
+            .associateWith { board.chipAt(it) }
+            .toMutableMap()
+    }
 
     /** [Set] of transitive [Level3] neighbors */
     fun chains(): Set<Set<Pos>> {

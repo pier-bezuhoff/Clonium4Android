@@ -90,14 +90,14 @@ class SimpleBoardGenerator : Gen<SimpleBoard> {
 }
 
 fun PrimitiveBoardGenerator(): Gen<PrimitiveBoard> =
-    SimpleBoardGenerator().map { PrimitiveBoard(it) }
+    SimpleBoardGenerator().map { PrimitiveBoard.Factory.of(it) }
 
 fun PopulatedPrimitiveBoardGenerator(): Gen<PrimitiveBoard> =
     PrimitiveBoardGenerator().filter { it.players().isNotEmpty() }
 
 fun VeryPopulatedPrimitiveBoardGenerator(posRatio: Double? = 0.9, chipRatio: Double = 0.5): Gen<PrimitiveBoard> =
     SimpleEmptyBoardGenerator(softMinSize = 6, posRatio = posRatio).map {
-        PrimitiveBoard(SimpleBoard(it).apply {
+        PrimitiveBoard.Factory.of(SimpleBoard(it).apply {
             val nPoss = it.posSet.size
             for (pos in it.posSet.shuffled().take((chipRatio * nPoss).toInt()))
                 posMap[pos] = ChipGenerator().random().first()
