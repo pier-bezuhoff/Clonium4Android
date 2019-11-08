@@ -220,7 +220,7 @@ open class SimpleBoardPresenter(
             val snapshot0: Bitmap = previous.second
             val canvas = Canvas(snapshot0)
             val diff = board0.diff(board) // ~0.2ms
-            log i SimpleBoard(board.width, board.height, diff.toMutableMap()).asString()
+//            log i SimpleBoard(board.width, board.height, diff.toMutableMap()).asString()
             // FIX: at the end of explosion
             //  after endState pre-end state (while exploding)
             //  is rendered (not visible)

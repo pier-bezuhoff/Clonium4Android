@@ -91,7 +91,7 @@ class GameView @JvmOverloads constructor(
 
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
-//        log i elapsedTime("onDraw", startMarker = null, startWarningAfter = UPDATE_TIME_DELTA) {
+        log i elapsedTime("onDraw", startMarker = null, startWarningAfter = UPDATE_TIME_DELTA) {
             super.onDraw(canvas)
             if (!ended) {
 //                log i elapsedTime("advance", startMarker = null) {
@@ -106,7 +106,7 @@ class GameView @JvmOverloads constructor(
                 e.printStackTrace()
                 log w "include exception $e into silent catch"
             }
-//        }
+        }
     }
 
     private fun advance() {
