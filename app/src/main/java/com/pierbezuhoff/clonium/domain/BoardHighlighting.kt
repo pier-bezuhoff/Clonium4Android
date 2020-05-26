@@ -88,7 +88,7 @@ class MapBoardHighlighting(
     , Map<Pos, List<Highlighting>> by MultiMapDelegate(nextTurnsMap, possibleTurnsMap, lastTurnsMap)
     , BoardHighlighting
 {
-    override var generation: Int = 0
+    override var generation: Int = 0 // MAYBE: gen statically -- unique for all MapBoardHighlighting
         private set
     private val firstLastTurn by Once(true)
     private var lastMainTurn: Pos? = null

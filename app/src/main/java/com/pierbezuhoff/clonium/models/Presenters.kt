@@ -154,18 +154,18 @@ open class SimpleBoardPresenter(
 
     override fun Canvas.drawBoard(board: Board) {
         if (printOnce)
-            log i "first drawBoard"
+            // log i "first drawBoard"
         log i withMilestoneScope {
             drawCells(board)
-//            - "drawCells"
+            // - "drawCells"
             drawHighlightings() // NOTE: most time-consuming on large maps
-//            - "drawHighlightings"
+            // - "drawHighlightings"
             // NOTE: can take up to 300ms due to
             //  WaitForGcToComplete blocked for 290.410ms for cause Alloc
             //  Starting a blocking GC Alloc
             //  Alloc sticky concurrent mark sweep GC freed 92600(2MB) AllocSpace objects, 0(0B) LOS objects, 10% free, 21MB/23MB, paused 2.055ms total 25.353ms
             drawChips(board) // ~0.35ms
-//            - "drawChips"
+            // - "drawChips"
         }
     }
 
@@ -207,7 +207,7 @@ open class SimpleBoardPresenter(
 
     private fun createChipsBitmap(board: PrimitiveBoard, width: Int, height: Int, previous: Pair<Pair<PrimitiveBoard, Size>, Bitmap>?): Bitmap =
         if (previous == null || previous.first.second != Pair(width, height)) {
-            log i "create chips' bitmap"
+            // log i "create chips' bitmap"
             val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) // ~2ms
             val canvas = Canvas(snapshot)
             // ~35ms
@@ -215,12 +215,12 @@ open class SimpleBoardPresenter(
                 maybeChip?.let { canvas.drawChip(pos, it) }
             snapshot
         } else {
-            log i "change chips' bitmap"
+            // log i "change chips' bitmap"
             val board0: PrimitiveBoard = previous.first.first
             val snapshot0: Bitmap = previous.second
             val canvas = Canvas(snapshot0)
             val diff = board0.diff(board) // ~0.2ms
-//            log i SimpleBoard(board.width, board.height, diff.toMutableMap()).asString()
+            // log i SimpleBoard(board.width, board.height, diff.toMutableMap()).asString()
             // FIX: at the end of explosion
             //  after endState pre-end state (while exploding)
             //  is rendered (not visible)
@@ -270,7 +270,7 @@ open class SimpleBoardPresenter(
     }
 
     override fun invalidateBoard() {
-        log i "invalidateBoard"
+        // log i "invalidateBoard"
         cachedHighlightingBitmap.invalidate()
         cachedChipsBitmap.invalidate()
     }

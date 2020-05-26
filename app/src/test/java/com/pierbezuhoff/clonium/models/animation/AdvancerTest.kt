@@ -3,6 +3,7 @@ package com.pierbezuhoff.clonium.models.animation
 import com.pierbezuhoff.clonium.utils.Milliseconds
 import io.kotlintest.matchers.collections.shouldContainExactly
 import io.kotlintest.matchers.doubles.shouldBeGreaterThan
+import io.kotlintest.matchers.floats.shouldBeGreaterThan
 import io.kotlintest.matchers.withClue
 import io.kotlintest.properties.Gen
 import io.kotlintest.properties.assertAll
@@ -14,7 +15,7 @@ class AdvancerTest : FreeSpec() {
     init {
         "EmptyAdvancer" - {
             "Can (Not) Advance" {
-                shouldThrow<IllegalStateException> { EmptyAdvancer.advance(0L) }
+                shouldThrow<IllegalStateException> { EmptyAdvancer.start() }
             }
         }
         "AdvancerPack" - {
@@ -22,7 +23,7 @@ class AdvancerTest : FreeSpec() {
                 Gen.list(BooleanAdvancerGenerator()).assertAll { advancers ->
                     val list = (advancers + EmptyAdvancer).shuffled()
                     val pack = AdvancerPack(list)
-                    shouldThrow<IllegalStateException> { pack.advance(0L) }
+                    shouldThrow<IllegalStateException> { pack.start() }
                 }
             }
             "example" {
@@ -43,18 +44,18 @@ class AdvancerTest : FreeSpec() {
                     val dt = 239L
                     pack.advance(dt)
                     advancers.forEach {
-                        it.progress shouldBeGreaterThan 0.0
+                        it.progress shouldBeGreaterThan 0.0f
                     }
                 }
             }
             "pack is parallel" {
                 Gen.list(ConstAdvancerGenerator((1..1000).toList())).assertAll { advancers ->
-                    val results = advancers.associateWith { it.advance(0L) }
+                    val results = advancers.associateWith { it.start() }
                     val activeAdvancers = advancers.toMutableList()
                     fun activeResults(): List<Int> =
                         activeAdvancers.map { results.getValue(it) }
                     val pack = AdvancerPack(advancers)
-                    pack.advance(0L) shouldContainExactly activeResults()
+                    pack.start() shouldContainExactly activeResults()
                     var elapsed: Milliseconds = 0L
                     val durations = advancers.groupBy { it.duration }
                     val groups = durations.entries
@@ -65,7 +66,7 @@ class AdvancerTest : FreeSpec() {
                         elapsed = group.first().duration
                         activeAdvancers.removeAll(group)
                         withClue("pack = $pack\n") {
-                            pack.advance(0L) shouldContainExactly activeResults()
+                            pack.start() shouldContainExactly activeResults()
                         }
                     }
                     pack.blocking shouldBe false

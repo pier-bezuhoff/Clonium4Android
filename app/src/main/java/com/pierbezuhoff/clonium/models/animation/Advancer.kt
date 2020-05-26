@@ -13,9 +13,13 @@ interface Advanceable<out T> {
     val ended: Boolean
 
     fun advance(timeDelta: Milliseconds): T
+
+    /** Emit initial advance result */
+    fun start(): T =
+        advance(0L)
 }
 
-/** Stackable proto-animation */
+/** Stack-able proto-animation */
 abstract class Advancer<out A>(
     final override val duration: Milliseconds,
     final override val blockingDuration: Milliseconds

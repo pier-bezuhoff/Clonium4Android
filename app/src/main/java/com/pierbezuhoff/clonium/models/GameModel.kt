@@ -40,7 +40,7 @@ class GameModel(
     private var continueGameOnce by Once(true)
 
     fun userTap(point: PointF) {
-        log i "useTap $point"
+//        log i "useTap $point"
         synchronized {
             if (/*!game.isEnd() && */!gamePresenter.blocking && game.currentPlayer is HumanPlayer) {
                 val pos = gamePresenter.pointf2pos(point)

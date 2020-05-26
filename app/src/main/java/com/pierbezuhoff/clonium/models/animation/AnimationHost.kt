@@ -25,12 +25,12 @@ class TransitionAnimationsPool : Any()
 {
     private val pool: MutableList<AnimatedAdvancer<*>> = mutableListOf()
     override val blocking: Boolean
-        get() = synchronized(PoolLock) {
+        get() = synchronized(this) {
             pool.any { it.blocking }
         }
 
     override fun advanceAnimations(timeDelta: Milliseconds) {
-        synchronized(PoolLock) {
+        synchronized(this) {
             for (advancer in pool) {
                 advancer.advance(timeDelta)
             }
@@ -39,7 +39,7 @@ class TransitionAnimationsPool : Any()
     }
 
     override fun drawAnimations(canvas: Canvas) {
-        synchronized(PoolLock) {
+        synchronized(this) {
             val (blocking, nonBlocking) =
                 pool.flatMap { advancer ->
                     advancer.lastOutput // BUG: [rare] lastOutput has not been initialized
@@ -58,14 +58,12 @@ class TransitionAnimationsPool : Any()
     }
 
     override fun startAdvancer(animatedAdvancer: AnimatedAdvancer<*>) {
-        synchronized(PoolLock) {
+        synchronized(this) {
             require(!animatedAdvancer.blocking || !blocking) { "Should not have 2 blocking [AnimatedAdvancer]s: pool = ${pool.joinToString()}, trying to add $animatedAdvancer" }
             if (!animatedAdvancer.ended) {
                 pool.add(animatedAdvancer)
-                animatedAdvancer.advance(0L) // emit initial advance result
+                animatedAdvancer.start()
             }
         }
     }
-
-    object PoolLock
 }

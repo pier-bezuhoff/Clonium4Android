@@ -21,8 +21,6 @@ interface Game {
                         PlayerId1 to PlayerTactic.Bot.RandomPicker,
                         PlayerId2 to PlayerTactic.Bot.RandomPicker,
                         PlayerId3 to PlayerTactic.Bot.RandomPicker
-//                LevelMaximizerBot(PlayerId(2), depth = 1),
-//                ChipCountMaximizerBot(PlayerId(3), depth = 1)
                     )
                 val order: List<PlayerId>? = listOf(
                     PlayerId0,
@@ -30,23 +28,30 @@ interface Game {
                     PlayerId2,
                     PlayerId3
                 )
-                State(board, bots, order)
+                return@run State(board, bots, order)
             }
         }
     }
 
-    data class PlayerStat(val chipCount: Int, val sumLevel: Int, val conquered: Double)
+    data class PlayerStat(
+        val chipCount: Int,
+        val sumLevel: Int,
+        val conquered: Double // Q: what is it?
+    )
 
     val board: Board
     val players: Map<PlayerId, Player>
     val order: List<Player>
+    /** player => 'true' if the player is alive, 'false' otherwise */
     val lives: Map<Player, Boolean>
     val currentPlayer: Player
+    /** number of _living_ players */
     val nPlayers: Int
         get() = order.filter { lives.getValue(it) }.size
 
     val lastTurn: Pos?
 
+    /** bot will run their calculations here */
     val coroutineScope: CoroutineScope
 
     fun isAlive(player: Player): Boolean =
@@ -61,6 +66,7 @@ interface Game {
     fun possibleTurns(): Set<Pos> =
         board.possOf(currentPlayer.playerId)
 
+    /** Returns the next player; pure */
     fun nextPlayer(): Player {
         val ix = order.indexOf(currentPlayer)
         return (order.drop(ix + 1) + order).first { isAlive(it) }
