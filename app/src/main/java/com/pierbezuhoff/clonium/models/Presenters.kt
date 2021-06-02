@@ -23,7 +23,7 @@ interface SpatialBoard {
     /** Height of explosion jump in [cellSize]s */
     val jumpHeight: Float
     /** Fallout max depth in [cellSize]s */
-    val falloutVerticalSpeed: Float
+    val falloutDepth: Float
     /** 360 * (# of full turnaround) */
     val falloutAngularSpeed: Float
     /** 360 * (# of full turnarounds) */
@@ -75,7 +75,7 @@ private open class SimpleSpatialBoard(
     override val chipCellRatio: Float = 0.9f
     override val zZoom: Double = 0.2 // 20% per [cellSize]
     override val jumpHeight: Float = 1f // in [cellSize]s
-    override val falloutVerticalSpeed: Float = 3f
+    override val falloutDepth: Float = 3f
     override val falloutAngularSpeed: Float = 4f * 360
     override val madeTurnGrowth: Float = 0.2f
     override val madeTurnMeanAngularSpeed: Float = 1 * 360f
@@ -153,7 +153,7 @@ open class SimpleBoardPresenter(
         get() = Pair(width, height)
 
     override fun Canvas.drawBoard(board: Board) {
-        if (printOnce)
+//        if (printOnce)
             // log i "first drawBoard"
         log i withMilestoneScope {
             drawCells(board)

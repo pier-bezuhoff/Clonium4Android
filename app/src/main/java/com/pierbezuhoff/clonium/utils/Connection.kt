@@ -3,6 +3,38 @@ package com.pierbezuhoff.clonium.utils
 import androidx.lifecycle.*
 import java.lang.ref.WeakReference
 
+/**
+ * Usage:
+ * <pre>
+ * interface I {
+ *     fun i(n: Int)
+ * }
+ *
+ * class C {
+ *    private val connection = Connection<TargetInterface>()
+ *    val subscription = connection.subscription
+ *
+ *    <code> {
+ *        connection.send {
+ *            i(1)
+ *        }
+ *    }
+ * }
+ *
+ * <code> {
+ *     c: C
+ *     j: J<I
+ *     val output = c.subscription.subscribeFrom(j)
+ *     ...
+ *     <j.i(1) called>
+ *     ...
+ *     output.unsubscribe()
+ * }
+ * </pre>
+ *
+ * NOTE: only 1 listener at time supported
+ *
+ */
 class Connection<ListenerInterface> {
     private var listener: WeakReference<ListenerInterface>? = null
     val subscription: Subscription = Subscription()
@@ -14,6 +46,9 @@ class Connection<ListenerInterface> {
     /** [Subscription] to [Connection] is like [LiveData] to [MutableLiveData] */
     inner class Subscription internal constructor() {
         fun subscribeFrom(listener: ListenerInterface): Output {
+//            this@Connection.listener?.get()?.let {
+//                throw IllegalStateException("trying to override existing listener $it")
+//            }
             this@Connection.listener = WeakReference(listener)
             return Output()
         }

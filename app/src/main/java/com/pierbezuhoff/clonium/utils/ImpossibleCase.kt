@@ -1,5 +1,8 @@
 package com.pierbezuhoff.clonium.utils
 
+/*
+* Usage: in impossible 'else' branch of 'case-of' expression
+* */
 class ImpossibleCase(message: String) : IllegalStateException(message)
 
 @Suppress("FunctionName")

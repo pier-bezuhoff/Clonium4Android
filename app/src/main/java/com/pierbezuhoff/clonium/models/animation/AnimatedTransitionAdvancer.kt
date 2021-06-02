@@ -233,7 +233,7 @@ private fun Canvas.drawDirectedFallouts(params: AnimationParams, progressingFall
             val translateMatrix = pos2translationMatrix(pos)
             val phi = (angles.getValue(direction) + falloutAngularSpeed * progress).toFloat()
             val centeredRotateMatrix = centeredRotateMatrix(bitmap, phi)
-            val zScale = 1 - falloutVerticalSpeed * progress * zZoom
+            val zScale = 1 - falloutDepth * progress * zZoom
             val centeredScaleMatrix = centeredScaleMatrix(
                 bitmap,
                 (chipCellRatio * zScale).toFloat()
@@ -258,7 +258,7 @@ private fun Canvas.drawUnidirectionalFallouts(params: AnimationParams, progressi
             val translateMatrix = pos2translationMatrix(pos)
             val phi = (falloutAngularSpeed * progress).toFloat()
             val centeredRotateMatrix = centeredRotateMatrix(bitmap, phi)
-            val zScale = 1 - falloutVerticalSpeed * progress * zZoom
+            val zScale = 1 - falloutDepth * progress * zZoom
             val centeredScaleMatrix = centeredScaleMatrix(
                 bitmap,
                 (chipCellRatio * zScale).toFloat()
